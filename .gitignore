@@ -1,0 +1,88 @@
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+env/
+venv/
+
+# Local venv inside repo
+BSL/
+
+# Local Claude config
+.claude/settings.local.json
+.claude/*.local.json
+
+# ===== Secrets =====
+.env
+.env.*
+!.env.example
+
+# ===== VS Code =====
+.vscode/
+
+# ===== Jupyter =====
+.ipynb_checkpoints/
+
+# ===== Dataset Storage (root only) =====
+/data/
+/datasets/
+
+# ===== Model outputs (root only) =====
+/outputs/
+/checkpoints/
+/logs/
+
+# ===== Media =====
+*.mp4
+*.avi
+*.mov
+*.wav
+*.flac
+*.mkv
+
+# ===== Dataset archives =====
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+
+# ===== Possible dataset metadata / exports =====
+*.tsv
+*.parquet
+
+# Optional: only include these if you know they are generated dataset exports,
+# not source code config files you intend to publish
+*.csv
+*.json
+
+# ===== Model weights =====
+*.pt
+*.pth
+*.ckpt
+
+# ===== Logs =====
+*.log
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# Local reports / scans
+structure.txt
+file_list.txt
+bobsl_structure_report.txt
+extraction_log.txt
+
+# Trained models
+models/sign_recognition/*.pt
+
+# Evaluation and generated artifacts
+evaluation/*.json
+evaluation/*.txt
+
+# Model-generated metadata
+models/sign_recognition/*.json
