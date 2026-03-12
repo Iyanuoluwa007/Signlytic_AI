@@ -1,0 +1,77 @@
+# recognition_v2_fixed.yaml
+# Configuration with CORRECT absolute paths
+
+# Paths - USE ABSOLUTE PATHS
+paths:
+  project_root: "D:/Signlytic_AI/code/bsl_translation_project"
+  swin_features: "D:/Signlytic_AI/code/bsl_translation_project/data/processed/features/bobsl/v1.4/video_features/swin_v1/video-swin-s_c8697_16f_bs32"
+  bsl1k_dir: "D:/Signlytic_AI/code/bsl_translation_project/data/BSL-1K"
+  leap_motion: "D:/Signlytic_AI/code/bsl_translation_project/data/Leap_Motion/BSL-leap-motion.csv"
+  poses_dir: "D:/Signlytic_AI/code/bsl_translation_project/data/poses"
+  output_dir: "D:/Signlytic_AI/code/bsl_translation_project/models/swin_recognition"
+  vocabulary: "D:/Signlytic_AI/code/bsl_translation_project/models/swin_recognition/vocabulary.json"
+
+# Model architecture
+model:
+  feature_dim: 768          # SWIN feature dimension
+  d_model: 512              # Transformer hidden dim
+  num_layers: 6             # Transformer layers
+  num_heads: 8              # Attention heads
+  dropout: 0.2
+  encoder_type: "transformer"  # Use "transformer" not "temporal_transformer"
+  use_handshape_head: true
+  num_handshapes: 18        # From Leap Motion data
+
+# Training
+training:
+  batch_size: 32
+  max_seq_len: 64
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  epochs: 100
+  warmup_epochs: 5
+  gradient_clip: 1.0
+  
+  # Curriculum learning
+  curriculum:
+    phase1:
+      sources: ["EXEMPLARS", "MOUTHING"]
+      epochs: 40
+      min_confidence: 0.7
+    phase2:
+      sources: ["EXEMPLARS", "MOUTHING", "DICTIONARY", "I3D_PSEUDO_LABELS"]
+      epochs: 60
+      min_confidence: 0.5
+  
+  # Loss weights
+  losses:
+    classification: 1.0
+    handshape: 0.1
+    confidence_penalty: 0.05
+
+# Data augmentation
+augmentation:
+  temporal_jitter: 2
+  temporal_crop_ratio: 0.1
+  time_warp_prob: 0.2
+  feature_noise: 0.05
+  feature_dropout: 0.1
+
+# Inference
+inference:
+  smoothing_method: "ema"
+  smoothing_alpha: 0.7
+  top_k: 5
+
+  training:
+  curriculum:
+    phase1:
+      description: "High-quality annotations"
+      sources: ["EXEMPLARS", "MOUTHING"]
+      epochs: 40
+      min_confidence: 0.7
+    phase2:
+      description: "All annotations"
+      sources: ["EXEMPLARS", "MOUTHING", "DICTIONARY", "I3D_PSEUDO_LABELS"]
+      epochs: 60
+      min_confidence: 0.5
