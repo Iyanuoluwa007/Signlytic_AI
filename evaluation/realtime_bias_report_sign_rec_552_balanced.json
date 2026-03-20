@@ -1,0 +1,24 @@
+{
+  "model": "outputs\\sign_rec_552_balanced\\best_model.pt",
+  "split": "test",
+  "abstain_threshold": 0.45,
+  "margin_threshold": 0.12,
+  "logit_adjustment_tau": 0.7,
+  "disable_logit_adjustment": false,
+  "dataset_metrics": {
+    "num_samples": 5000,
+    "abstain_count": 3117,
+    "abstain_rate": 0.6234,
+    "top1_accuracy_non_abstain": 0.7780138077535848,
+    "top5_accuracy_non_abstain": 0.8566117896972916,
+    "about_prediction_rate_non_abstain": 0.002124269782262347,
+    "about_true_rate": 0.0008,
+    "about_fp_count": 0,
+    "about_fp_share_non_abstain": 0.0,
+    "about_fp_sources": {}
+  },
+  "static_no_sign_metrics": {
+    "num_windows": 400,
+    "abstain_rate": 1.0
+  }
+}

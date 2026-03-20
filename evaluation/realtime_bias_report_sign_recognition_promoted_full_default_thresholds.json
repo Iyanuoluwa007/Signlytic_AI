@@ -1,0 +1,42 @@
+{
+  "model": "models\\sign_recognition\\best_model.pt",
+  "split": "test",
+  "abstain_threshold": 0.12,
+  "margin_threshold": 0.02,
+  "logit_adjustment_tau": 0.7,
+  "disable_logit_adjustment": false,
+  "dataset_metrics": {
+    "num_samples": 13373,
+    "abstain_count": 1723,
+    "abstain_rate": 0.12884169595453526,
+    "accepted_count": 11650,
+    "top1_accuracy_overall": 0.3886936364316159,
+    "top5_accuracy_overall": 0.5519329993270021,
+    "top1_accuracy_non_abstain": 0.4461802575107296,
+    "top5_accuracy_non_abstain": 0.6335622317596566,
+    "about_prediction_rate_non_abstain": 0.0030042918454935624,
+    "about_true_rate": 0.0012712181260749271,
+    "about_fp_count": 21,
+    "about_fp_share_non_abstain": 0.0018025751072961373,
+    "about_fp_sources": {
+      "NO": 5,
+      "WHAT": 3,
+      "AROUND": 2,
+      "OH_DEAR": 1,
+      "WANT": 1,
+      "SEE": 1,
+      "BUT": 1,
+      "VIEW": 1,
+      "HIS": 1,
+      "ALWAYS": 1,
+      "WATER": 1,
+      "WAVE": 1,
+      "GO": 1,
+      "HOW": 1
+    }
+  },
+  "static_no_sign_metrics": {
+    "num_windows": 400,
+    "abstain_rate": 1.0
+  }
+}
