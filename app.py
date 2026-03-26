@@ -88,6 +88,143 @@ DEFAULT_SIGN_MODEL = os.path.join(project_root, "models", "sign_recognition", "b
 DEFAULT_SIGN_VOCAB = os.path.join(project_root, "models", "sign_recognition", "vocabulary.json")
 DEFAULT_SIGN_CLASS_STATS = os.path.join(project_root, "models", "sign_recognition", "class_stats.json")
 DEFAULT_GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+# =============================================================================
+# CUSTOM CSS FOR PROFESSIONAL STYLING
+# =============================================================================
+CUSTOM_CSS = """
+/* Main container */
+.gradio-container {
+    max-width: 1400px !important;
+    margin: auto !important;
+}
+
+/* Hero styling */
+.hero-section {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #3d7ab5 100%);
+    padding: 2.5rem 2rem;
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+.hero-section h1 {
+    color: white !important;
+    font-size: 2.8rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.5rem !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.hero-section p {
+    color: rgba(255,255,255,0.9) !important;
+    font-size: 1.15rem !important;
+    max-width: 700px;
+    margin: 0 auto 1rem auto !important;
+}
+
+/* Stats badges */
+.stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.stat-badge {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    color: white;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Tab improvements */
+.tabs {
+    border-radius: 12px !important;
+    overflow: hidden;
+}
+
+button.selected {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%) !important;
+    color: white !important;
+}
+
+/* Card sections */
+.gr-box {
+    border-radius: 12px !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+/* Primary buttons */
+.gr-button-primary {
+    background: linear-gradient(135deg, #1e3a5f 0%, #3d7ab5 100%) !important;
+    border: none !important;
+    font-weight: 600 !important;
+    transition: transform 0.2s, box-shadow 0.2s !important;
+}
+
+.gr-button-primary:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(30,58,95,0.3) !important;
+}
+
+/* Secondary buttons */
+.gr-button-secondary {
+    border: 2px solid #1e3a5f !important;
+    color: #1e3a5f !important;
+    font-weight: 500 !important;
+}
+
+/* Recognition highlight */
+.recognition-success {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+/* Footer */
+.footer-section {
+    text-align: center;
+    padding: 2rem;
+    margin-top: 2rem;
+    border-top: 2px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 0 0 12px 12px;
+}
+
+.footer-section a {
+    color: #1e3a5f;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.footer-section a:hover {
+    text-decoration: underline;
+}
+
+/* Feature icons */
+.feature-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hero-section h1 { font-size: 1.8rem !important; }
+    .hero-section p { font-size: 1rem !important; }
+    .stat-badge { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+}
+"""
+
+
 
 
 def ensure_ffmpeg_available() -> bool:
@@ -916,7 +1053,16 @@ def create_demo():
     groq_status = "FOUND" if DEFAULT_GROQ_API_KEY else "NOT FOUND"
     video_count = len(get_avatar_renderer().video_index) if os.path.exists(DEFAULT_VIDEO_DIR) else 0
     
-    with gr.Blocks(title="BSL Translation System") as demo:
+    with gr.Blocks(
+        title="Signlytic AI - BSL Translation",
+        theme=gr.themes.Soft(
+            primary_hue="blue",
+            secondary_hue="slate", 
+            neutral_hue="gray",
+            font=gr.themes.GoogleFont("Inter")
+        ),
+        css=CUSTOM_CSS
+    ) as demo:
         gr.Markdown(f"""
         # BSL Translation System
         
@@ -927,14 +1073,13 @@ def create_demo():
         
         with gr.Tabs():
             # Direction 1: BSL -> Speech
-            with gr.TabItem("Direction 1: BSL to Speech"):
+            with gr.TabItem("BSL → Speech", id="bsl-to-speech"):
                 gr.Markdown("""
-                ### BSL Glosses → Natural English → Speech
+                ## Recognize BSL Signs & Convert to Speech
                 
-                Choose one input style below for a cleaner workflow.
-                - Option A: Type glosses
-                - Option B: Camera/upload video (record then recognize)
-                - Option C: Live realtime camera in-app preview (no popup window)
+                Upload a BSL video or type glosses to get natural English text and speech output.
+                
+                **Recommended:** Use the **SWIN Recognition** button for best accuracy (5,203 signs supported).
                 """)
                 
                 with gr.Row():
@@ -1058,13 +1203,11 @@ def create_demo():
                 )
             
             # Direction 2: Speech -> BSL with Pose Animator / Legacy Avatar
-            with gr.TabItem("Direction 2: Speech to BSL"):
+            with gr.TabItem("Speech → BSL", id="speech-to-bsl"):
                 gr.Markdown("""
-                ### Speech/Text -> BSL Glosses -> Animated Signing
-
-                Choose one input style below, then pick a render engine.
-                - Pose Animator (default): in-app 2D hand-sign animation + MP4 output
-                - Legacy Clip Avatar: existing sign video concatenation flow
+                ## Convert Speech or Text to BSL Signing
+                
+                Record audio or type text to generate BSL glosses and animated signing videos.
                 """)
                 
                 with gr.Row():
@@ -1165,7 +1308,39 @@ def create_demo():
             # About Tab
             with gr.TabItem("About"):
                 gr.Markdown("""
-                ## BSL Translation System
+                ## About Signlytic AI
+                
+                **Signlytic AI** is an advanced bidirectional British Sign Language translation system 
+                designed to bridge communication between deaf and hearing communities.
+                
+                ---
+                
+                ### System Capabilities
+                
+                | Direction | Input | Output |
+                |-----------|-------|--------|
+                | **BSL to Speech** | Video of BSL signs, typed glosses | Natural English + Speech |
+                | **Speech to BSL** | Audio recording, typed text | BSL glosses + Signing video |
+                
+                ---
+                
+                ### Technical Architecture
+                
+                | Component | Technology |
+                |-----------|------------|
+                | Sign Recognition | Video-SWIN-T Transformer (100% accuracy) |
+                | Speech Recognition | OpenAI Whisper |
+                | Text-to-Speech | Coqui XTTS v2 with voice cloning |
+                | Language Model | Groq Llama 3.3 70B |
+                | Vocabulary | 11,573+ BSL glosses |
+                
+                ---
+                
+                ### Performance
+                
+                - **Recognition Accuracy:** 100% Top-1 on 5,203 BSL signs
+                - **Real-time Processing:** GPU-accelerated inference
+                - **Voice Cloning:** Natural speech synthesis
                 
                 ### Direction 1: BSL → Speech
                 - Input: BSL glosses, camera recording/upload, or live realtime camera
@@ -1188,6 +1363,23 @@ def create_demo():
                 python scripts/download_bsl_videos.py --limit 500
                 ```
                 """)
+    
+        # Professional Footer
+        gr.HTML("""
+        <div class="footer-container">
+            <p style="margin-bottom: 8px; font-size: 1.1rem;">
+                <strong>Signlytic AI</strong> — British Sign Language Translation System
+            </p>
+            <p style="color: #6b7280; margin-bottom: 8px;">
+                Developed by <a href="https://www.linkedin.com/in/iyanuoluwa-enoch-oke/" target="_blank">Oke Iyanuoluwa Enoch</a>
+            </p>
+            <p style="color: #9ca3af; font-size: 0.85rem;">
+                Independent Robotics & AI Systems Engineer |
+                <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank">GitHub</a> |
+                <a href="https://signlytic-ai-website.vercel.app" target="_blank">Website</a>
+            </p>
+        </div>
+        """)
     
     return demo
 
@@ -1217,7 +1409,8 @@ def main():
         server_name=args.host,
         server_port=args.port,
         share=args.share,
-        show_error=True
+        show_error=True,
+        pwa=True
     )
 
 
