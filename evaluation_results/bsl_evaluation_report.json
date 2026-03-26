@@ -1,0 +1,236 @@
+{
+  "timestamp": "2026-03-26T02:39:47.055279",
+  "total_videos": 19,
+  "top1_accuracy": 100.0,
+  "top3_accuracy": 100.0,
+  "results": [
+    {
+      "expected": "help",
+      "predicted": "help",
+      "confidence": 100.0,
+      "top3": [
+        "help",
+        "lunchtime",
+        "classroom"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "good",
+      "predicted": "good",
+      "confidence": 100.0,
+      "top3": [
+        "good",
+        "colour",
+        "car"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "bad",
+      "predicted": "bad",
+      "confidence": 100.0,
+      "top3": [
+        "bad",
+        "attitude",
+        "colour"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "yes",
+      "predicted": "yes",
+      "confidence": 100.00001192092896,
+      "top3": [
+        "yes",
+        "calendar",
+        "no"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "no",
+      "predicted": "no",
+      "confidence": 100.00001192092896,
+      "top3": [
+        "no",
+        "calendar",
+        "whiteboard"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "love",
+      "predicted": "love",
+      "confidence": 99.99999403953552,
+      "top3": [
+        "love",
+        "lion",
+        "fifteen"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "work",
+      "predicted": "work",
+      "confidence": 99.99998807907104,
+      "top3": [
+        "work",
+        "action",
+        "worker"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "family",
+      "predicted": "family",
+      "confidence": 99.99999403953552,
+      "top3": [
+        "family",
+        "baby",
+        "shoes"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "friend",
+      "predicted": "friend",
+      "confidence": 99.99999403953552,
+      "top3": [
+        "friend",
+        "new",
+        "grow"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "eat",
+      "predicted": "eat",
+      "confidence": 99.99999403953552,
+      "top3": [
+        "eat",
+        "crazy",
+        "dry"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "drink",
+      "predicted": "drink",
+      "confidence": 100.0,
+      "top3": [
+        "drink",
+        "pencil",
+        "friends"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "morning",
+      "predicted": "morning",
+      "confidence": 100.00001192092896,
+      "top3": [
+        "morning",
+        "lesbian",
+        "fun"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "afternoon",
+      "predicted": "afternoon",
+      "confidence": 100.0,
+      "top3": [
+        "afternoon",
+        "tomato",
+        "best"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "evening",
+      "predicted": "evening",
+      "confidence": 99.99999403953552,
+      "top3": [
+        "evening",
+        "rusty",
+        "birthday"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "night",
+      "predicted": "night",
+      "confidence": 100.00001192092896,
+      "top3": [
+        "night",
+        "curly",
+        "jeans"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "today",
+      "predicted": "today",
+      "confidence": 99.99998807907104,
+      "top3": [
+        "today",
+        "now",
+        "profit"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "tomorrow",
+      "predicted": "tomorrow",
+      "confidence": 100.0,
+      "top3": [
+        "tomorrow",
+        "week",
+        "month"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "name",
+      "predicted": "name",
+      "confidence": 100.0,
+      "top3": [
+        "name",
+        "dream",
+        "couple"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    },
+    {
+      "expected": "sad",
+      "predicted": "sad",
+      "confidence": 100.0,
+      "top3": [
+        "sad",
+        "8",
+        "serious"
+      ],
+      "correct_top1": true,
+      "correct_top3": true
+    }
+  ]
+}

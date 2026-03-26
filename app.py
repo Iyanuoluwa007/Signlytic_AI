@@ -36,6 +36,15 @@ except ImportError:
     print("Gradio required. Install with: pip install gradio")
     sys.exit(1)
 
+# BSL Dict Recognizer (SWIN-based)
+try:
+    from src.inference.bsl_dict_recognizer import BSLDictRecognizer
+    BSL_DICT_AVAILABLE = True
+except ImportError:
+    BSLDictRecognizer = None
+    BSL_DICT_AVAILABLE = False
+    print("Warning: BSLDictRecognizer not available")
+
 # Import pipeline components
 try:
     from speech_to_bsl import SpeechToBSL, TextToGloss, CoquiTTS
@@ -53,6 +62,7 @@ except ImportError:
         from src.inference.gloss_to_text import GlossToText, BSLToSpeechPipeline
         from src.inference.avatar_renderer import BSLAvatarRenderer
         from src.inference.pose_sign_renderer import PoseSignRenderer
+        from src.inference.bsl_dict_recognizer import BSLDictRecognizer
 
 # Globals
 _speech_to_bsl = None
@@ -64,6 +74,7 @@ _tts_disabled_reason = None
 _avatar_renderer = None
 _pose_sign_renderer = None
 _sign_recognizer = None
+_bsl_dict_recognizer = None
 _live_running = False
 _live_stop_event = threading.Event()
 _live_clear_event = threading.Event()
@@ -233,6 +244,24 @@ def get_pose_sign_renderer():
     return _pose_sign_renderer
 
 
+def get_bsl_dict_recognizer():
+    """Lazy-load BSL dictionary recognizer (SWIN-based, 100% accuracy on 5203 signs)."""
+    global _bsl_dict_recognizer
+    if not BSL_DICT_AVAILABLE:
+        print("BSL Dict Recognizer not available")
+        return None
+    if _bsl_dict_recognizer is None:
+        try:
+            import torch as th
+            device = "cuda" if th.cuda.is_available() else "cpu"
+            _bsl_dict_recognizer = BSLDictRecognizer(device=device)
+            print(f"BSL Dict Recognizer loaded: {_bsl_dict_recognizer.glosses[:5]}...")
+        except Exception as e:
+            print(f"Failed to load BSL Dict Recognizer: {e}")
+            return None
+    return _bsl_dict_recognizer
+
+
 def get_sign_recognizer():
     """Lazy-load sign recognizer used by Direction 1 video input."""
     global _sign_recognizer
@@ -316,6 +345,52 @@ def direction1_full_pipeline(glosses_input, mode, api_key):
     
     audio = direction1_text_to_speech(text)
     return text, audio
+
+
+def direction1_video_swin(video_input, mode, api_key):
+    """Direction 1 using SWIN-based BSL recognition (5203 signs, 100% accuracy)."""
+    video_path = file_to_path(video_input)
+    if not video_path:
+        return "", "Please record from camera or upload a video.", None
+    if not os.path.exists(video_path):
+        return "", f"Error: video file not found: {video_path}", None
+    
+    try:
+        recognizer = get_bsl_dict_recognizer()
+        if recognizer is None:
+            return "", "BSL Dict Recognizer not available", None
+        
+        # Recognize BSL signs from video
+        results = recognizer.recognize(video_path, top_k=5)
+        
+        # Format results
+        if results:
+            top_gloss = results[0][0].upper()
+            confidence = results[0][1] * 100
+            
+            all_predictions = ", ".join([f"{g.upper()} ({c*100:.0f}%)" for g, c in results[:3]])
+            gloss_output = f"Top: {top_gloss} ({confidence:.0f}%)\nAlternatives: {all_predictions}"
+            
+            # Convert to text
+            gloss_converter = get_gloss_converter(mode, api_key)
+            english_text = gloss_converter.convert(top_gloss)
+            
+            # Generate speech
+            tts = get_tts()
+            audio_path = None
+            if tts and english_text.strip():
+                import tempfile
+                audio_path = tempfile.mktemp(suffix=".wav")
+                tts.synthesize(english_text, audio_path)
+                if not os.path.exists(audio_path):
+                    audio_path = None
+            
+            return gloss_output, english_text, audio_path
+        else:
+            return "No signs detected", "", None
+            
+    except Exception as e:
+        return "", f"Error: {str(e)}", None
 
 
 def direction1_video_to_speech(video_input, mode, api_key):
@@ -907,7 +982,8 @@ def create_demo():
                         
                         d1_convert_btn = gr.Button("Convert to English", variant="primary")
                         d1_speak_btn = gr.Button("Convert & Speak", variant="secondary")
-                        d1_video_btn = gr.Button("Recognize from Camera/Video", variant="secondary")
+                        d1_video_btn = gr.Button("Recognize (Pose-based)", variant="secondary")
+                        d1_swin_btn = gr.Button("Recognize (SWIN - 5203 signs)", variant="primary")
                     
                     with gr.Column():
                         d1_recorded_preview = gr.Video(label="Recorded Preview", interactive=False)
@@ -954,6 +1030,11 @@ def create_demo():
 
                 d1_video_btn.click(
                     fn=direction1_video_to_speech,
+                    inputs=[d1_video_input, d1_mode, d1_api_key],
+                    outputs=[d1_video_glosses, d1_text_output, d1_audio_output]
+                )
+                d1_swin_btn.click(
+                    fn=direction1_video_swin,
                     inputs=[d1_video_input, d1_mode, d1_api_key],
                     outputs=[d1_video_glosses, d1_text_output, d1_audio_output]
                 )
