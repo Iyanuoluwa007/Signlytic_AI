@@ -43,6 +43,7 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+.claude/settings.local.json
 
 # Translations
 *.mo
