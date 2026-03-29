@@ -1,2 +1,22 @@
-﻿signlytic-ai-website/node_modules/
+# Conda / Python
+BSL/
+__pycache__/
+*.pyc
+.vscode/
+
+# Models & data (large / sensitive)
+models/
+data/
+outputs/
+evaluation_results/
+evaluation/
+
+# Website build
+signlytic-ai-website/node_modules/
 signlytic-ai-website/.next/
+
+# Misc
+*.wav
+*.mp4
+scripts/__pycache__/
+src/**/__pycache__/

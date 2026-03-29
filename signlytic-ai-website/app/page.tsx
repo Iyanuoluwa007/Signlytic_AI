@@ -77,11 +77,49 @@ function Counter({ value, suffix = "" }: { value: number; suffix?: string }) {
 }
 
 /* ═══════════════════════════════════════
+   INLINE DEMO — native translation widget
+   ═══════════════════════════════════════ */
+
+const GLOSS_MAP: Record<string, string> = {
+  hello:"HELLO",hi:"HELLO",my:"MY",name:"NAME",is:"",what:"WHAT",time:"TIME",
+  the:"",meeting:"MEETING",tomorrow:"TOMORROW",yesterday:"YESTERDAY",today:"TODAY",
+  please:"PLEASE",thank:"THANK",thanks:"THANK",you:"YOU",your:"YOUR",i:"I",me:"I",
+  go:"GO",going:"GO",went:"GO",want:"WANT",need:"NEED",help:"HELP",good:"GOOD",
+  morning:"MORNING",doctor:"DOCTOR",understand:"UNDERSTAND",not:"NOT",no:"NO",
+  yes:"YES",how:"HOW",where:"WHERE",when:"WHEN",who:"WHO",much:"MUCH",very:"MUCH",
+  sorry:"SORRY",happy:"HAPPY",work:"WORK",school:"SCHOOL",home:"HOME",friend:"FRIEND",
+  come:"COME",here:"HERE",can:"CAN",know:"KNOW",think:"THINK",like:"LIKE",love:"LOVE",
+};
+
+const REVERSE_MAP: Record<string, string> = {
+  HELLO:"Hello",MY:"my",NAME:"name",TOMORROW:"Tomorrow",MEETING:"meeting",
+  WHAT:"what",TIME:"time",YESTERDAY:"Yesterday",GO:"go",DOCTOR:"doctor",
+  THANK:"Thank",YOU:"you",MUCH:"very much",I:"I",NOT:"not",UNDERSTAND:"understand",
+  PLEASE:"please",HELP:"help",NEED:"need",WANT:"want",GOOD:"good",MORNING:"morning",
+  HOW:"how",WHERE:"where",WHEN:"when",WHO:"who",SORRY:"Sorry",HAPPY:"happy",
+  WORK:"work",HOME:"home",SCHOOL:"school",FRIEND:"friend",COME:"come",HERE:"here",
+  YES:"Yes",NO:"No",
+};
+
+function textToGloss(text: string): string {
+  return text.toLowerCase().match(/[a-z']+/g)?.map(w => GLOSS_MAP[w] ?? w.toUpperCase()).filter(Boolean).filter((g,i,a) => i===0 || a[i-1]!==g).join(" ") ?? "";
+}
+
+function glossToText(glosses: string): string {
+  const g = glosses.toUpperCase().split(/\s+/);
+  let s = g.map(w => REVERSE_MAP[w] ?? w.toLowerCase()).join(" ");
+  if (s) { s = s[0].toUpperCase() + s.slice(1); if (!/[.?!]$/.test(s)) s += g.some(x=>["WHAT","WHERE","WHEN","HOW","WHO"].includes(x)) ? "?" : "."; }
+  return s;
+}
+
+/* ═══════════════════════════════════════
    PAGE
    ═══════════════════════════════════════ */
 
 export default function Home() {
-  const [demoLoaded, setDemoLoaded] = useState(false);
+  const [demoTab, setDemoTab] = useState<"bsl-to-en" | "en-to-bsl">("bsl-to-en");
+  const [demoInput, setDemoInput] = useState("");
+  const [demoOutput, setDemoOutput] = useState("");
 
   /* shared styles */
   const sectionCls = "relative py-28 md:py-36";
@@ -190,7 +228,7 @@ export default function Home() {
           <Reveal delay={180}>
             <div className="flex flex-wrap gap-3 mb-20">
               <a
-                href="#demo"
+                href="/demo"
                 className="group inline-flex items-center gap-2 bg-white text-[#08090d] font-semibold px-6 py-3 rounded-xl text-[14px] hover:shadow-[0_0_40px_rgba(255,255,255,0.08)] transition-all hover:-translate-y-0.5"
               >
                 Try the demo
@@ -301,72 +339,120 @@ export default function Home() {
         <div className={containerCls}>
           <Reveal>
             <span className={labelCls}>Interactive</span>
-            <h2 className={h2Cls}>Try the demo</h2>
+            <h2 className={h2Cls}>Try it live</h2>
             <p className={subCls}>
-              Upload a BSL video, type glosses, or speak into your microphone.
-              The full system runs live on HuggingFace Spaces.
+              Translate between BSL glosses and English instantly. For the full
+              system with video recognition, speech, and signing animation —
+              explore the full demo.
             </p>
           </Reveal>
 
-          <Reveal delay={80}>
-            <div className="rounded-2xl overflow-hidden border border-white/[0.06] shadow-[0_32px_80px_rgba(0,0,0,0.5)]">
-              {/* Browser chrome */}
-              <div className="bg-[#111318] px-4 py-2.5 flex items-center gap-3 border-b border-white/[0.04]">
-                <div className="flex gap-[6px]">
-                  <div className="w-[10px] h-[10px] rounded-full bg-white/[0.06]" />
-                  <div className="w-[10px] h-[10px] rounded-full bg-white/[0.06]" />
-                  <div className="w-[10px] h-[10px] rounded-full bg-white/[0.06]" />
+          {/* Raycast-style app preview */}
+          <Reveal delay={60}>
+            <div className="max-w-[640px] mx-auto">
+              {/* App window */}
+              <div className="bg-white/[0.025] border border-white/[0.07] rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
+                {/* Mode switcher */}
+                <div className="flex bg-white/[0.02] border-b border-white/[0.06]">
+                  {([
+                    { id: "bsl-to-en" as const, label: "BSL \u2192 English" },
+                    { id: "en-to-bsl" as const, label: "English \u2192 BSL" },
+                  ]).map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setDemoTab(m.id); setDemoInput(""); setDemoOutput(""); }}
+                      className={`flex-1 py-3 text-[12px] font-semibold transition-all ${
+                        demoTab === m.id
+                          ? "text-[#5eead4] border-b-2 border-[#0e7c6b] bg-white/[0.02]"
+                          : "text-white/25 border-b-2 border-transparent hover:text-white/40"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
                 </div>
-                <div className="flex-1 flex justify-center">
-                  <div className="bg-white/[0.04] rounded-lg px-4 py-1 text-[11px] text-white/25 font-medium">
-                    iyanuoluwa007-signlytic-ai.hf.space
+
+                {/* Input area */}
+                <div className="p-5">
+                  <textarea
+                    value={demoInput}
+                    onChange={(e) => { setDemoInput(e.target.value); setDemoOutput(""); }}
+                    placeholder={demoTab === "bsl-to-en" ? "TOMORROW MEETING WHAT TIME" : "What time is the meeting tomorrow?"}
+                    rows={2}
+                    className="w-full bg-transparent text-[15px] text-white/80 placeholder:text-white/15 focus:outline-none resize-none leading-relaxed font-[inherit]"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (demoInput.trim()) {
+                          const r = demoTab === "bsl-to-en" ? glossToText(demoInput) : textToGloss(demoInput);
+                          setDemoOutput(r);
+                        }
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Translate bar */}
+                <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.04]">
+                  <span className="text-[10px] text-white/15">Press Enter to translate</span>
+                  <button
+                    onClick={() => {
+                      if (demoInput.trim()) {
+                        const r = demoTab === "bsl-to-en" ? glossToText(demoInput) : textToGloss(demoInput);
+                        setDemoOutput(r);
+                      }
+                    }}
+                    disabled={!demoInput.trim()}
+                    className="bg-white text-[#08090d] font-semibold px-4 py-1.5 rounded-lg text-[12px] hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all disabled:opacity-20"
+                  >
+                    Translate
+                  </button>
+                </div>
+
+                {/* Output */}
+                {demoOutput && (
+                  <div className="border-t border-[#0e7c6b]/15 bg-[#0e7c6b]/[0.03] px-5 py-4">
+                    <div className="text-[9px] font-bold text-[#0e7c6b]/50 uppercase tracking-[0.12em] mb-1">
+                      {demoTab === "bsl-to-en" ? "English" : "BSL Glosses"}
+                    </div>
+                    <div className="text-[16px] text-white/80 font-medium">{demoOutput}</div>
                   </div>
-                </div>
-                <a
-                  href="https://huggingface.co/spaces/Iyanuoluwa007/signlytic-ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-white/20 hover:text-white/50 transition-colors"
-                >
-                  &#8599;
-                </a>
+                )}
               </div>
 
-              {!demoLoaded && (
-                <div className="flex items-center justify-center h-[660px] bg-[#0a0b10]">
-                  <div className="text-center">
-                    <div className="w-6 h-6 border-[1.5px] border-[#0e7c6b]/50 border-t-[#0e7c6b] rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-white/20 text-[12px]">
-                      Loading Signlytic AI...
-                    </p>
-                  </div>
-                </div>
-              )}
-              <iframe
-                src="https://iyanuoluwa007-signlytic-ai.hf.space"
-                className={`w-full border-0 transition-opacity duration-1000 ${
-                  demoLoaded ? "opacity-100" : "opacity-0 h-0"
-                }`}
-                style={demoLoaded ? { height: 720 } : {}}
-                title="Signlytic AI Demo"
-                onLoad={() => setDemoLoaded(true)}
-                allow="microphone; camera"
-              />
+              {/* Example chips below */}
+              <div className="mt-5 flex flex-wrap justify-center gap-1.5">
+                {(demoTab === "bsl-to-en"
+                  ? ["TOMORROW MEETING WHAT TIME", "MY NAME SARAH", "THANK YOU MUCH", "I NOT UNDERSTAND"]
+                  : ["What time is the meeting?", "Hello, my name is Sarah.", "Thank you very much.", "I need help."]
+                ).map(ex => (
+                  <button
+                    key={ex}
+                    onClick={() => { setDemoInput(ex); setDemoOutput(""); }}
+                    className="px-2.5 py-1 text-[11px] text-white/25 bg-white/[0.02] border border-white/[0.05] rounded-lg hover:text-white/45 hover:border-white/[0.1] transition-all"
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
             </div>
           </Reveal>
 
-          <p className="text-center text-white/15 mt-8 text-[12px]">
-            For GPU-accelerated recognition,{" "}
-            <a
-              href="https://github.com/Iyanuoluwa007/Signlytic_AI"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#0e7c6b]/70 hover:text-[#0e7c6b] transition-colors"
-            >
-              clone the repository
-            </a>
-            .
-          </p>
+          {/* CTA to full demo */}
+          <Reveal delay={140}>
+            <div className="mt-16 text-center">
+              <a
+                href="/demo"
+                className="group inline-flex items-center gap-2 bg-white text-[#08090d] font-semibold px-7 py-3 rounded-xl text-[14px] hover:shadow-[0_0_40px_rgba(255,255,255,0.08)] transition-all hover:-translate-y-0.5"
+              >
+                Explore full demo
+                <span className="group-hover:translate-x-0.5 transition-transform">&#8594;</span>
+              </a>
+              <p className="text-white/15 text-[11px] mt-3">
+                Video recognition, camera input, speech output &amp; signing animation
+              </p>
+            </div>
+          </Reveal>
         </div>
         <div className={`absolute bottom-0 left-0 right-0 ${dividerCls}`} />
       </section>
@@ -639,8 +725,8 @@ export default function Home() {
                     primary: false,
                   },
                   {
-                    label: "HuggingFace",
-                    href: "https://huggingface.co/spaces/Iyanuoluwa007/signlytic-ai",
+                    label: "Portfolio",
+                    href: "https://signlytic-ai-website.vercel.app",
                     primary: false,
                   },
                 ].map((link) => (
@@ -698,8 +784,8 @@ export default function Home() {
                 h: "https://github.com/Iyanuoluwa007/Signlytic_AI",
               },
               {
-                l: "HuggingFace",
-                h: "https://huggingface.co/spaces/Iyanuoluwa007/signlytic-ai",
+                l: "Demo",
+                h: "/demo",
               },
               {
                 l: "LinkedIn",
