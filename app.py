@@ -8,7 +8,6 @@ Bidirectional BSL translation powered by Video-SWIN-T, Groq LLM, and Coqui TTS.
 
 Developed by Oke Iyanuoluwa Enoch
 Independent Robotics & AI Systems Engineer
-MSc Robotics & Automation, University of Salford
 
 Usage:
     python app.py
@@ -25,7 +24,9 @@ import time
 from collections import deque
 from pathlib import Path
 
+# ---------------------------------------------------------------------------
 # Path setup
+# ---------------------------------------------------------------------------
 project_root = os.path.dirname(os.path.abspath(__file__))
 if os.path.basename(project_root) == "scripts":
     project_root = os.path.dirname(project_root)
@@ -41,7 +42,9 @@ except ImportError:
     print("Gradio required. Install with: pip install gradio")
     sys.exit(1)
 
+# ---------------------------------------------------------------------------
 # BSL Dict Recognizer (SWIN-based)
+# ---------------------------------------------------------------------------
 try:
     from src.inference.bsl_dict_recognizer import BSLDictRecognizer
     BSL_DICT_AVAILABLE = True
@@ -50,7 +53,9 @@ except ImportError:
     BSL_DICT_AVAILABLE = False
     print("Warning: BSLDictRecognizer not available")
 
+# ---------------------------------------------------------------------------
 # Import pipeline components
+# ---------------------------------------------------------------------------
 try:
     from speech_to_bsl import SpeechToBSL, TextToGloss, CoquiTTS
     from gloss_to_text import GlossToText, BSLToSpeechPipeline
@@ -69,7 +74,9 @@ except ImportError:
         from src.inference.pose_sign_renderer import PoseSignRenderer
         from src.inference.bsl_dict_recognizer import BSLDictRecognizer
 
-# Globals
+# ---------------------------------------------------------------------------
+# Global state
+# ---------------------------------------------------------------------------
 _speech_to_bsl = None
 _gloss_to_text_simple = None
 _gloss_to_text_groq = None
@@ -84,7 +91,9 @@ _live_running = False
 _live_stop_event = threading.Event()
 _live_clear_event = threading.Event()
 
+# ---------------------------------------------------------------------------
 # Default paths
+# ---------------------------------------------------------------------------
 DEFAULT_VOCAB = os.path.join(project_root, "data", "processed", "vocabulary_extended.json")
 DEFAULT_SPEAKER = os.path.join(project_root, "data", "processed", "voice_training.wav")
 DEFAULT_VIDEO_DIR = os.path.join(project_root, "data", "videos", "bsl_signs")
@@ -94,487 +103,461 @@ DEFAULT_SIGN_VOCAB = os.path.join(project_root, "models", "sign_recognition", "v
 DEFAULT_SIGN_CLASS_STATS = os.path.join(project_root, "models", "sign_recognition", "class_stats.json")
 DEFAULT_GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 
+
+
 # =============================================================================
-# CUSTOM CSS - PROFESSIONAL ACCESSIBLE DESIGN
+# CUSTOM CSS — POLISHED CREATIVE DESIGN
 # =============================================================================
 CUSTOM_CSS = """
-/* ---- Import distinctive fonts ---- */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ---- Root variables ---- */
-:root {
-    --sig-navy: #0c1b33;
-    --sig-teal: #0d9488;
-    --sig-teal-light: #14b8a6;
-    --sig-teal-dark: #0f766e;
-    --sig-warm: #f59e0b;
-    --sig-warm-light: #fbbf24;
-    --sig-surface: #f8fafc;
-    --sig-surface-alt: #f1f5f9;
-    --sig-border: #e2e8f0;
-    --sig-text: #1e293b;
-    --sig-text-muted: #64748b;
-    --sig-white: #ffffff;
-    --sig-success: #059669;
-    --sig-error: #dc2626;
-    --sig-radius: 14px;
-    --sig-radius-sm: 8px;
-    --sig-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    --sig-shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04);
-    --sig-shadow-xl: 0 20px 50px -12px rgba(0,0,0,0.15);
+/* ═══════════════════════════════════════════════════════════
+   GRADIO VARIABLE OVERRIDES
+   Forces light backgrounds on all components.
+   Without these, Gradio injects dark slate internally.
+   ═══════════════════════════════════════════════════════════ */
+.gradio-container, .dark, body, :root {
+    --background-fill-primary: #ffffff !important;
+    --background-fill-secondary: #f7f8fa !important;
+    --block-background-fill: #ffffff !important;
+    --input-background-fill: #ffffff !important;
+    --panel-background-fill: #ffffff !important;
+    --body-background-fill: #f4f5f7 !important;
+    --block-border-color: #e2e5ea !important;
+    --block-label-background-fill: #f7f8fa !important;
+    --block-label-border-color: #e2e5ea !important;
+    --block-label-text-color: #4b5563 !important;
+    --block-title-text-color: #111827 !important;
+    --input-border-color: #d1d5db !important;
+    --border-color-primary: #e2e5ea !important;
+    --color-accent: #1e3a5f !important;
+    --color-accent-soft: rgba(30,58,95,0.06) !important;
+    --button-primary-background-fill: #1e3a5f !important;
+    --button-primary-background-fill-hover: #15304f !important;
+    --button-primary-text-color: #ffffff !important;
+    --button-secondary-background-fill: #ffffff !important;
+    --button-secondary-background-fill-hover: #f7f8fa !important;
+    --button-secondary-border-color: #d1d5db !important;
+    --button-secondary-text-color: #374151 !important;
+    --neutral-50: #f9fafb !important;
+    --neutral-100: #f4f5f7 !important;
+    --neutral-200: #e2e5ea !important;
+    --neutral-300: #d1d5db !important;
+    --neutral-400: #9ca3af !important;
+    --neutral-500: #6b7280 !important;
+    --neutral-600: #4b5563 !important;
+    --neutral-700: #374151 !important;
+    --neutral-800: #1f2937 !important;
+    --neutral-900: #111827 !important;
+    --shadow-drop: 0 1px 2px rgba(0,0,0,0.04) !important;
+    --shadow-drop-lg: 0 2px 8px rgba(0,0,0,0.06) !important;
 }
 
-/* ---- Global overrides ---- */
+/* ─── Global ─── */
 .gradio-container {
-    max-width: 1320px !important;
+    max-width: 1280px !important;
     margin: 0 auto !important;
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif !important;
-    background: var(--sig-surface) !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    background: #f4f5f7 !important;
+    color: #111827 !important;
 }
+.gradio-container * { font-family: 'Inter', system-ui, -apple-system, sans-serif !important; }
 
-.gradio-container * {
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif !important;
-}
-
-/* ---- Hero Section ---- */
-.hero-wrapper {
-    background: linear-gradient(160deg, var(--sig-navy) 0%, #162d50 40%, var(--sig-teal-dark) 100%);
-    border-radius: 20px;
-    padding: 3rem 2.5rem 2.5rem;
-    margin-bottom: 1.5rem;
+/* ═══════════════════════
+   HERO — gradient + glow
+   ═══════════════════════ */
+.sig-hero {
+    background: linear-gradient(155deg, #0f1d35 0%, #1a3055 40%, #1e3a5f 70%, #243f63 100%);
+    border-radius: 14px;
+    padding: 2.25rem 2.25rem 1.85rem;
+    margin-bottom: 0.85rem;
     position: relative;
     overflow: hidden;
-    box-shadow: var(--sig-shadow-xl);
+    box-shadow: 0 6px 24px rgba(15,29,53,0.18), 0 2px 6px rgba(0,0,0,0.06);
 }
-
-.hero-wrapper::before {
+.sig-hero::before {
     content: '';
     position: absolute;
-    top: -60%;
-    right: -20%;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(13,148,136,0.25) 0%, transparent 70%);
+    top: -60px; right: -40px;
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(14,124,107,0.12) 0%, transparent 65%);
     pointer-events: none;
 }
-
-.hero-wrapper::after {
+.sig-hero::after {
     content: '';
     position: absolute;
-    bottom: -40%;
-    left: -10%;
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%);
+    bottom: -50px; left: -20px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 65%);
     pointer-events: none;
 }
-
-.hero-title {
-    color: var(--sig-white) !important;
-    font-size: 2.6rem !important;
-    font-weight: 700 !important;
-    letter-spacing: -0.03em !important;
-    line-height: 1.15 !important;
-    margin: 0 0 0.5rem 0 !important;
-    position: relative;
-    z-index: 1;
+.sig-hero-top {
+    display: flex; align-items: center; gap: 0.65rem;
+    margin-bottom: 0.5rem;
+    position: relative; z-index: 1;
 }
-
-.hero-subtitle {
-    color: rgba(255,255,255,0.85) !important;
-    font-size: 1.15rem !important;
-    font-weight: 400 !important;
-    max-width: 640px;
-    line-height: 1.6 !important;
-    margin: 0 0 1.5rem 0 !important;
-    position: relative;
-    z-index: 1;
+.sig-hero-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px;
+    background: rgba(14,124,107,0.2);
+    border: 1px solid rgba(14,124,107,0.3);
+    border-radius: 10px; flex-shrink: 0;
 }
-
-/* ---- Stats Row ---- */
-.stats-grid {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    position: relative;
-    z-index: 1;
+.sig-hero-name {
+    color: #ffffff;
+    font-size: 1.55rem; font-weight: 800;
+    letter-spacing: -0.02em;
 }
-
-.stat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255,255,255,0.1);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.15);
+.sig-hero-desc {
+    color: rgba(255,255,255,0.72);
+    font-size: 0.92rem; line-height: 1.55;
+    max-width: 560px;
+    margin-bottom: 1.15rem;
+    position: relative; z-index: 1;
+}
+.sig-chips {
+    display: flex; gap: 0.35rem; flex-wrap: wrap;
+    position: relative; z-index: 1;
+}
+.sig-chip {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.09);
     border-radius: 100px;
-    padding: 0.5rem 1.1rem;
-    color: var(--sig-white);
-    font-size: 0.88rem;
-    font-weight: 500;
-    transition: background 0.2s ease;
+    padding: 0.28rem 0.65rem;
+    color: rgba(255,255,255,0.78);
+    font-size: 0.74rem; font-weight: 500;
+    transition: background 0.15s;
 }
+.sig-chip:hover { background: rgba(255,255,255,0.1); }
+.sig-chip b { color: rgba(255,255,255,0.95); font-weight: 700; }
 
-.stat-chip:hover {
-    background: rgba(255,255,255,0.18);
+/* ═══════════════════
+   TRUST STRIP
+   ═══════════════════ */
+.sig-trust {
+    display: flex; gap: 0.4rem; flex-wrap: wrap;
+    padding: 0.35rem 0 0.6rem 0;
 }
-
-.stat-chip .stat-num {
-    color: var(--sig-teal-light);
-    font-weight: 700;
-    font-size: 0.95rem;
+.sig-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 100px;
+    font-size: 0.72rem; font-weight: 600;
+    border: 1px solid;
 }
+.sig-badge-ok { background: #ecfdf5; color: #15803d; border-color: #a7f3d0; }
+.sig-badge-warn { background: #fefce8; color: #a16207; border-color: #fde68a; }
 
-.stat-chip .stat-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--sig-teal-light);
-    flex-shrink: 0;
-}
-
-/* ---- Tab Styling ---- */
-.tabs {
-    border-radius: var(--sig-radius) !important;
-}
-
+/* ═══════════════════
+   TABS
+   ═══════════════════ */
 .tab-nav {
-    border-bottom: 2px solid var(--sig-border) !important;
-    gap: 0 !important;
-    padding: 0 0.5rem !important;
+    border-bottom: 1px solid #e2e5ea !important;
+    padding: 0 0.35rem !important;
+    background: #ffffff !important;
+}
+.tab-nav button {
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    padding: 0.8rem 1.2rem !important;
+    border: none !important;
+    color: #6b7280 !important;
+    transition: all 0.15s !important;
+    border-radius: 8px 8px 0 0 !important;
+}
+.tab-nav button:hover {
+    color: #1e3a5f !important;
+    background: rgba(30,58,95,0.04) !important;
+}
+.tab-nav button.selected {
+    color: #1e3a5f !important;
+    font-weight: 700 !important;
+    background: rgba(30,58,95,0.06) !important;
+    border-bottom: 2.5px solid #1e3a5f !important;
 }
 
-.tab-nav button {
-    font-family: 'DM Sans', sans-serif !important;
-    font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    padding: 0.85rem 1.3rem !important;
-    border-radius: var(--sig-radius-sm) var(--sig-radius-sm) 0 0 !important;
+/* ═══════════════════
+   SECTION HEADERS
+   ═══════════════════ */
+.sig-sh { font-size: 1.25rem; font-weight: 700; color: #111827; margin: 0 0 0.15rem 0; }
+.sig-sd { font-size: 0.9rem; color: #4b5563; line-height: 1.55; margin: 0 0 0.75rem 0; }
+
+/* ═══════════════════
+   IO COLUMN LABELS
+   ═══════════════════ */
+.sig-col {
+    font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: #6b7280;
+    margin: 0 0 0.5rem 0;
+    padding-left: 0.5rem;
+    border-left: 3px solid #1e3a5f;
+}
+
+/* ═══════════════════
+   METHOD HEADINGS
+   ═══════════════════ */
+.sig-method {
+    font-size: 0.92rem; font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.4rem 0;
+    display: flex; align-items: center; gap: 0.4rem;
+}
+.sig-rec {
+    display: inline-flex;
+    background: #ecfdf5; border: 1px solid #a7f3d0;
+    color: #15803d;
+    font-size: 0.65rem; font-weight: 700;
+    padding: 0.15rem 0.42rem;
+    border-radius: 100px;
+    text-transform: uppercase; letter-spacing: 0.03em;
+}
+
+/* ═══════════════════
+   BUTTONS — navy with depth
+   ═══════════════════ */
+.gr-button-primary {
+    background: linear-gradient(180deg, #243f63 0%, #1e3a5f 100%) !important;
     border: none !important;
-    color: var(--sig-text-muted) !important;
-    transition: all 0.2s ease !important;
+    font-weight: 600 !important; font-size: 0.87rem !important;
+    border-radius: 8px !important;
+    padding: 0.55rem 1.15rem !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(30,58,95,0.2), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+    transition: all 0.15s !important;
+}
+.gr-button-primary:hover {
+    background: linear-gradient(180deg, #1e3a5f 0%, #15304f 100%) !important;
+    box-shadow: 0 2px 6px rgba(30,58,95,0.25) !important;
+    transform: translateY(-1px) !important;
+}
+.gr-button-secondary {
+    border: 1.5px solid #d1d5db !important;
+    color: #374151 !important; font-weight: 500 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    transition: all 0.15s !important;
+}
+.gr-button-secondary:hover {
+    border-color: #9ca3af !important; color: #111827 !important;
+    background: #f9fafb !important;
+}
+
+/* ═══════════════════
+   LABELS
+   ═══════════════════ */
+label, .gr-label {
+    font-weight: 500 !important; font-size: 0.87rem !important;
+    color: #374151 !important;
+}
+
+/* ─── Separator ─── */
+.sig-sep { border: none; border-top: 1px solid #e2e5ea; margin: 0.85rem 0; }
+
+/* ═══════════════════
+   METRIC CARDS — teal top accent
+   ═══════════════════ */
+.sig-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.65rem; margin-bottom: 1.25rem;
+}
+.sig-metric {
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-top: 3px solid #0e7c6b;
+    border-radius: 10px;
+    padding: 1.15rem 0.85rem;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.sig-metric-val {
+    font-size: 1.75rem; font-weight: 800;
+    color: #1e3a5f; line-height: 1.1; margin-bottom: 0.2rem;
+}
+.sig-metric-label {
+    font-size: 0.71rem; font-weight: 600;
+    color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* ═══════════════════
+   TABLES
+   ═══════════════════ */
+.sig-table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    border-radius: 8px; overflow: hidden;
+    font-size: 0.86rem;
+    border: 1px solid #e2e5ea;
+    margin-bottom: 1.25rem;
+}
+.sig-table th {
+    background: #1e3a5f; color: #ffffff;
+    font-weight: 600; padding: 0.6rem 0.85rem;
+    text-align: left; font-size: 0.74rem;
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.sig-table td {
+    padding: 0.55rem 0.85rem;
+    border-bottom: 1px solid #f0f1f3;
+    color: #374151; background: #ffffff;
+}
+.sig-table tr:last-child td { border-bottom: none; }
+.sig-table tr:nth-child(even) td { background: #f9fafb; }
+.sig-table .green { color: #15803d; font-weight: 700; }
+
+/* ═══════════════════
+   HELP CARDS — teal left accent
+   ═══════════════════ */
+.sig-help {
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-left: 3px solid #0e7c6b;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.6rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.sig-help h4 { font-size: 0.92rem; font-weight: 700; color: #111827; margin: 0 0 0.25rem 0; }
+.sig-help p { font-size: 0.85rem; color: #4b5563; line-height: 1.55; margin: 0; }
+.sig-help a { color: #1e3a5f; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ═══════════════════
+   A11Y GRID
+   ═══════════════════ */
+.sig-a11y {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.65rem; margin-top: 0.75rem;
+}
+.sig-a11y-card {
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-left: 3px solid #1e3a5f;
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.sig-a11y-card h5 { font-size: 0.88rem; font-weight: 600; color: #111827; margin: 0 0 0.2rem 0; }
+.sig-a11y-card p { font-size: 0.82rem; color: #4b5563; line-height: 1.5; margin: 0; }
+
+/* ═══════════════════
+   FOOTER — dark navy matching hero
+   ═══════════════════ */
+.sig-footer {
+    background: #1e3a5f;
+    border-radius: 0 0 14px 14px;
+    padding: 1.65rem 1.5rem;
+    margin-top: 0.85rem;
+    text-align: center;
     position: relative;
 }
-
-.tab-nav button:hover {
-    color: var(--sig-teal-dark) !important;
-    background: rgba(13,148,136,0.05) !important;
+.sig-footer::before {
+    content: '';
+    position: absolute; top: 0; left: 10%; right: 10%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(14,124,107,0.5), transparent);
 }
+.sig-footer-brand { font-size: 0.95rem; font-weight: 700; color: #ffffff; margin-bottom: 0.2rem; }
+.sig-footer-author { font-size: 0.84rem; color: rgba(255,255,255,0.7); margin-bottom: 0.2rem; }
+.sig-footer-author a { color: rgba(255,255,255,0.9); text-decoration: none; font-weight: 600; }
+.sig-footer-author a:hover { text-decoration: underline; }
+.sig-footer-links { font-size: 0.76rem; color: rgba(255,255,255,0.45); }
+.sig-footer-links a { color: rgba(255,255,255,0.45); text-decoration: none; margin: 0 0.35rem; transition: color 0.15s; }
+.sig-footer-links a:hover { color: rgba(255,255,255,0.8); }
+.sig-footer-sub { font-size: 0.72rem; color: rgba(255,255,255,0.35); margin-top: 0.3rem; font-style: italic; }
 
-.tab-nav button.selected {
-    color: var(--sig-teal-dark) !important;
-    background: transparent !important;
-    border-bottom: 3px solid var(--sig-teal) !important;
+/* ─── Skip link ─── */
+.sig-skip {
+    position: absolute; left: -9999px; top: 0; z-index: 999;
+    background: #1e3a5f; color: #ffffff;
+    padding: 0.5rem 1rem; border-radius: 0 0 8px 0;
+    font-weight: 600; font-size: 0.88rem;
+    text-decoration: none;
 }
+.sig-skip:focus { left: 0; }
 
-/* ---- Section headers inside tabs ---- */
-.section-header {
-    font-size: 1.35rem !important;
-    font-weight: 700 !important;
-    color: var(--sig-navy) !important;
-    letter-spacing: -0.02em !important;
-    margin: 0 0 0.25rem 0 !important;
-    line-height: 1.3 !important;
-}
-
-.section-desc {
-    font-size: 0.95rem !important;
-    color: var(--sig-text-muted) !important;
-    line-height: 1.6 !important;
-    margin: 0 0 1.25rem 0 !important;
-}
-
-/* ---- Card panels ---- */
-.input-panel, .output-panel {
-    background: var(--sig-white);
-    border: 1px solid var(--sig-border);
-    border-radius: var(--sig-radius);
-    padding: 1.25rem;
-    box-shadow: var(--sig-shadow);
-}
-
-.panel-label {
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-    color: var(--sig-teal-dark) !important;
-    margin: 0 0 0.75rem 0 !important;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.panel-label .panel-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--sig-teal);
-}
-
-/* ---- Buttons ---- */
-.gr-button-primary {
-    background: linear-gradient(135deg, var(--sig-teal-dark) 0%, var(--sig-teal) 100%) !important;
-    border: none !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-weight: 600 !important;
-    font-size: 0.92rem !important;
-    letter-spacing: 0.01em !important;
-    border-radius: var(--sig-radius-sm) !important;
-    padding: 0.65rem 1.5rem !important;
-    transition: all 0.25s ease !important;
-    box-shadow: 0 2px 8px rgba(13,148,136,0.25) !important;
-}
-
-.gr-button-primary:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 16px rgba(13,148,136,0.35) !important;
-}
-
-.gr-button-secondary {
-    border: 1.5px solid var(--sig-border) !important;
-    color: var(--sig-text) !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-weight: 500 !important;
-    border-radius: var(--sig-radius-sm) !important;
-    background: var(--sig-white) !important;
-    transition: all 0.2s ease !important;
-}
-
-.gr-button-secondary:hover {
-    border-color: var(--sig-teal) !important;
-    color: var(--sig-teal-dark) !important;
-    background: rgba(13,148,136,0.04) !important;
-}
-
-/* ---- Form elements ---- */
-.gr-box, .gr-input, .gr-text-input, .gr-panel {
-    border-radius: var(--sig-radius-sm) !important;
-    border-color: var(--sig-border) !important;
-}
-
-label, .gr-label {
-    font-family: 'DM Sans', sans-serif !important;
-    font-weight: 500 !important;
-    font-size: 0.88rem !important;
-    color: var(--sig-text) !important;
-}
-
-/* ---- Examples styling ---- */
-.gr-examples {
-    border-radius: var(--sig-radius) !important;
-}
-
-/* ---- Recommended badge ---- */
-.rec-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    background: linear-gradient(135deg, rgba(13,148,136,0.1) 0%, rgba(13,148,136,0.05) 100%);
-    border: 1px solid rgba(13,148,136,0.2);
-    color: var(--sig-teal-dark);
-    font-size: 0.78rem;
-    font-weight: 600;
-    padding: 0.3rem 0.7rem;
-    border-radius: 100px;
-    letter-spacing: 0.02em;
-}
-
-/* ---- Divider ---- */
-.section-divider {
-    border: none;
-    border-top: 1px solid var(--sig-border);
-    margin: 1.25rem 0;
-}
-
-/* ---- About page ---- */
-.about-container {
-    max-width: 800px;
-}
-
-.arch-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    border-radius: var(--sig-radius-sm);
-    overflow: hidden;
-    font-size: 0.92rem;
-    border: 1px solid var(--sig-border);
-}
-
-.arch-table th {
-    background: var(--sig-navy);
-    color: var(--sig-white);
-    font-weight: 600;
-    padding: 0.75rem 1rem;
-    text-align: left;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.arch-table td {
-    padding: 0.7rem 1rem;
-    border-bottom: 1px solid var(--sig-border);
-    color: var(--sig-text);
-}
-
-.arch-table tr:last-child td {
-    border-bottom: none;
-}
-
-.arch-table tr:nth-child(even) td {
-    background: var(--sig-surface-alt);
-}
-
-.perf-card {
-    background: linear-gradient(135deg, var(--sig-navy) 0%, #1a3555 100%);
-    border-radius: var(--sig-radius);
-    padding: 1.5rem;
-    color: var(--sig-white);
-    text-align: center;
-    box-shadow: var(--sig-shadow-lg);
-}
-
-.perf-number {
-    font-size: 2.4rem;
-    font-weight: 700;
-    color: var(--sig-teal-light);
-    line-height: 1;
+/* ─── Result cards (output column) ─── */
+.sig-result {
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-left: 3px solid #0e7c6b;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
     margin-bottom: 0.3rem;
 }
-
-.perf-label {
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: rgba(255,255,255,0.7);
+.sig-result-navy { border-left-color: #1e3a5f; }
+.sig-result-h {
+    font-size: 0.72rem; font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    color: #6b7280;
+    margin-bottom: 0.1rem;
 }
 
-/* ---- Footer ---- */
-.footer-wrapper {
-    text-align: center;
-    padding: 2rem 1.5rem;
-    margin-top: 2rem;
-    border-top: 1px solid var(--sig-border);
-    background: var(--sig-white);
-    border-radius: 0 0 var(--sig-radius) var(--sig-radius);
-}
-
-.footer-brand {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--sig-navy);
-    margin-bottom: 0.35rem;
-}
-
-.footer-author {
-    font-size: 0.9rem;
-    color: var(--sig-text-muted);
-    margin-bottom: 0.35rem;
-}
-
-.footer-author a {
-    color: var(--sig-teal-dark);
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.2s;
-}
-
-.footer-author a:hover {
-    color: var(--sig-teal);
-    text-decoration: underline;
-}
-
-.footer-links {
+/* ─── BSL note ─── */
+.sig-bsl-note {
     font-size: 0.82rem;
-    color: var(--sig-text-muted);
-}
-
-.footer-links a {
-    color: var(--sig-text-muted);
-    text-decoration: none;
-    transition: color 0.2s;
-    margin: 0 0.5rem;
-}
-
-.footer-links a:hover {
-    color: var(--sig-teal);
-}
-
-.footer-uni {
-    font-size: 0.78rem;
-    color: #94a3b8;
-    margin-top: 0.5rem;
+    color: #6b7280;
+    margin-bottom: 0.3rem;
     font-style: italic;
 }
 
-/* ---- Accessibility focus states ---- */
-*:focus-visible {
-    outline: 3px solid var(--sig-teal) !important;
-    outline-offset: 2px !important;
+/* ─── Step numbers in help ─── */
+.sig-step {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    background: #1e3a5f; color: #ffffff;
+    border-radius: 50%;
+    font-size: 0.72rem; font-weight: 700;
+    flex-shrink: 0;
+    margin-right: 0.35rem;
 }
 
-/* ---- Responsive ---- */
+/* ─── Focus ─── */
+*:focus-visible { outline: 2px solid #1e3a5f !important; outline-offset: 2px !important; }
+
+/* ─── Responsive ─── */
 @media (max-width: 768px) {
-    .hero-wrapper {
-        padding: 2rem 1.25rem;
-        border-radius: 14px;
-    }
-    .hero-title {
-        font-size: 1.8rem !important;
-    }
-    .hero-subtitle {
-        font-size: 0.95rem !important;
-    }
-    .stat-chip {
-        font-size: 0.8rem;
-        padding: 0.4rem 0.8rem;
-    }
-    .perf-number {
-        font-size: 1.8rem;
-    }
+    .sig-hero { padding: 1.5rem 1.15rem 1.25rem; border-radius: 10px; }
+    .sig-hero-name { font-size: 1.25rem; }
+    .sig-hero-desc { font-size: 0.85rem; }
+    .sig-chip { font-size: 0.68rem; padding: 0.22rem 0.5rem; }
+    .sig-metric-val { font-size: 1.35rem; }
+    .sig-metrics { grid-template-columns: repeat(2, 1fr); }
+    .sig-footer { border-radius: 0 0 10px 10px; }
 }
 """
 
 
 # =============================================================================
-# UTILITY FUNCTIONS (unchanged from original)
+# UTILITY FUNCTIONS
 # =============================================================================
 
 def ensure_ffmpeg_available() -> bool:
-    """Check if ffmpeg is available."""
     try:
         subprocess.run(["ffmpeg", "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
-    except:
+    except Exception:
         return False
 
 
 def to_wav_16k_mono(input_path: str) -> str:
-    """Convert audio to WAV 16kHz mono."""
     if not input_path or not os.path.exists(input_path):
         raise FileNotFoundError(f"Audio file not found: {input_path}")
-    
     out_path = tempfile.mktemp(suffix=".wav")
     cmd = ["ffmpeg", "-y", "-i", input_path, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", out_path]
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    
     if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
         raise RuntimeError("FFmpeg conversion failed")
-    
     return out_path
 
 
 def synthesize_with_windows_tts(text: str, output_path: str) -> bool:
-    """Fallback TTS using Windows System.Speech to produce a WAV file."""
     if os.name != "nt":
         return False
     if not text or not text.strip():
         return False
-
     try:
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
         ps_text = text.replace("'", "''")
@@ -598,7 +581,6 @@ def synthesize_with_windows_tts(text: str, output_path: str) -> bool:
 
 
 def file_to_path(uploaded_file):
-    """Get filepath from uploaded file."""
     if uploaded_file is None:
         return None
     if isinstance(uploaded_file, (str, Path)):
@@ -612,7 +594,6 @@ def file_to_path(uploaded_file):
 
 
 def media_preview_path(media_input):
-    """Resolve media input to an existing local path for preview components."""
     media_path = file_to_path(media_input)
     if media_path and os.path.exists(media_path):
         return media_path
@@ -620,7 +601,7 @@ def media_preview_path(media_input):
 
 
 # =============================================================================
-# LAZY LOADERS (unchanged from original)
+# LAZY LOADERS
 # =============================================================================
 
 def get_speech_to_bsl():
@@ -630,30 +611,25 @@ def get_speech_to_bsl():
         _speech_to_bsl = SpeechToBSL(
             whisper_model="base",
             gloss_mode="simple",
-            vocabulary_path=vocab_path
+            vocabulary_path=vocab_path,
         )
     return _speech_to_bsl
 
 
 def get_gloss_converter(mode="simple", api_key=None):
     global _gloss_to_text_simple, _gloss_to_text_groq, _groq_key_in_use
-    
     if mode == "simple":
         if _gloss_to_text_simple is None:
             _gloss_to_text_simple = GlossToText(mode="simple")
         return _gloss_to_text_simple
-    
     if mode == "groq":
         key = (api_key or "").strip() or DEFAULT_GROQ_API_KEY
         if not key:
             raise RuntimeError("Groq API key required")
-        
         if _gloss_to_text_groq is None or _groq_key_in_use != key:
             _gloss_to_text_groq = GlossToText(mode="groq", groq_api_key=key)
             _groq_key_in_use = key
-        
         return _gloss_to_text_groq
-    
     if _gloss_to_text_simple is None:
         _gloss_to_text_simple = GlossToText(mode="simple")
     return _gloss_to_text_simple
@@ -663,14 +639,12 @@ def get_tts():
     global _tts, _tts_disabled_reason
     if _tts is False:
         return None
-
     if _tts is None:
         if not os.path.exists(DEFAULT_SPEAKER):
             _tts_disabled_reason = f"Speaker reference missing: {DEFAULT_SPEAKER}"
             _tts = False
             print(f"TTS disabled: {_tts_disabled_reason}")
             return None
-
         try:
             _tts = CoquiTTS(speaker_wav=DEFAULT_SPEAKER)
         except Exception as e:
@@ -678,7 +652,6 @@ def get_tts():
             _tts = False
             print(f"TTS disabled: {_tts_disabled_reason}")
             return None
-
     return _tts
 
 
@@ -688,13 +661,12 @@ def get_avatar_renderer():
         video_map = DEFAULT_VIDEO_MAP if os.path.exists(DEFAULT_VIDEO_MAP) else None
         _avatar_renderer = BSLAvatarRenderer(
             video_dir=DEFAULT_VIDEO_DIR,
-            video_map_path=video_map
+            video_map_path=video_map,
         )
     return _avatar_renderer
 
 
 def get_pose_sign_renderer():
-    """Lazy-load pose-based signer renderer used by Direction 2."""
     global _pose_sign_renderer
     if _pose_sign_renderer is None:
         _pose_sign_renderer = PoseSignRenderer(project_root=Path(project_root))
@@ -702,7 +674,6 @@ def get_pose_sign_renderer():
 
 
 def get_bsl_dict_recognizer():
-    """Lazy-load BSL dictionary recognizer (SWIN-based, 100% accuracy on 5203 signs)."""
     global _bsl_dict_recognizer
     if not BSL_DICT_AVAILABLE:
         print("BSL Dict Recognizer not available")
@@ -720,17 +691,14 @@ def get_bsl_dict_recognizer():
 
 
 def get_sign_recognizer():
-    """Lazy-load sign recognizer used by Direction 1 video input."""
     global _sign_recognizer
     if _sign_recognizer is None:
         if not os.path.exists(DEFAULT_SIGN_MODEL):
             raise FileNotFoundError(f"Recognition model not found: {DEFAULT_SIGN_MODEL}")
         if not os.path.exists(DEFAULT_SIGN_VOCAB):
             raise FileNotFoundError(f"Recognition vocabulary not found: {DEFAULT_SIGN_VOCAB}")
-
         import torch
         from realtime_recognition import RealtimeRecognizer
-
         device = "cuda" if torch.cuda.is_available() else "cpu"
         class_stats_path = DEFAULT_SIGN_CLASS_STATS if os.path.exists(DEFAULT_SIGN_CLASS_STATS) else None
         _sign_recognizer = RealtimeRecognizer(
@@ -745,21 +713,18 @@ def get_sign_recognizer():
             logit_adjustment_tau=0.7,
             disable_logit_adjustment=False,
         )
-
     _sign_recognizer.reset()
     return _sign_recognizer
 
 
 # =============================================================================
-# DIRECTION 1: BSL -> Speech (unchanged logic)
+# DIRECTION 1: BSL -> English / Speech
 # =============================================================================
 
 def direction1_glosses_to_text(glosses_input, mode, api_key):
     if not glosses_input or not glosses_input.strip():
         return "Please enter BSL glosses."
-    
     glosses = glosses_input.upper().split()
-    
     try:
         converter = get_gloss_converter(mode, api_key)
         return converter.convert(glosses)
@@ -770,26 +735,20 @@ def direction1_glosses_to_text(glosses_input, mode, api_key):
 def direction1_text_to_speech(text):
     if not text or not text.strip():
         return None
-    
     try:
         tts = get_tts()
-        
         output_path = tempfile.mktemp(suffix=".wav")
         if tts is not None:
             tts.synthesize(text, output_path)
             return output_path
-
         if synthesize_with_windows_tts(text, output_path):
-            print("Using Windows TTS fallback for speech output.")
             return output_path
-
         return None
     except Exception as e:
         print(f"TTS Error: {e}")
         try:
             output_path = tempfile.mktemp(suffix=".wav")
             if synthesize_with_windows_tts(text, output_path):
-                print("Using Windows TTS fallback after Coqui error.")
                 return output_path
         except Exception:
             pass
@@ -798,68 +757,53 @@ def direction1_text_to_speech(text):
 
 def direction1_full_pipeline(glosses_input, mode, api_key):
     text = direction1_glosses_to_text(glosses_input, mode, api_key)
-    
     if text.startswith("Error") or text.startswith("Please"):
         return text, None
-    
     audio = direction1_text_to_speech(text)
     return text, audio
 
 
 def direction1_video_swin(video_input, mode, api_key):
-    """Direction 1 using SWIN-based BSL recognition (5203 signs, 100% accuracy)."""
     video_path = file_to_path(video_input)
     if not video_path:
-        return "", "Please record from camera or upload a video.", None
+        return "", "Please record or upload a BSL video.", None
     if not os.path.exists(video_path):
         return "", f"Error: video file not found: {video_path}", None
-    
     try:
         recognizer = get_bsl_dict_recognizer()
         if recognizer is None:
-            return "", "BSL Dict Recognizer not available", None
-        
+            return "", "BSL Dict Recognizer not available.", None
         results = recognizer.recognize(video_path, top_k=5)
-        
         if results:
             top_gloss = results[0][0].upper()
             confidence = results[0][1] * 100
-            
             all_predictions = ", ".join([f"{g.upper()} ({c*100:.0f}%)" for g, c in results[:3]])
             gloss_output = f"Top: {top_gloss} ({confidence:.0f}%)\nAlternatives: {all_predictions}"
-            
             gloss_converter = get_gloss_converter(mode, api_key)
             english_text = gloss_converter.convert(top_gloss)
-            
             tts = get_tts()
             audio_path = None
             if tts and english_text.strip():
-                import tempfile
                 audio_path = tempfile.mktemp(suffix=".wav")
                 tts.synthesize(english_text, audio_path)
                 if not os.path.exists(audio_path):
                     audio_path = None
-            
             return gloss_output, english_text, audio_path
         else:
-            return "No signs detected", "", None
-            
+            return "No signs detected.", "", None
     except Exception as e:
         return "", f"Error: {str(e)}", None
 
 
 def direction1_video_to_speech(video_input, mode, api_key):
-    """Direction 1 pipeline from camera/uploaded video -> glosses -> text -> speech."""
     video_path = file_to_path(video_input)
     if not video_path:
-        return "", "Please record from camera or upload a video.", None
+        return "", "Please record or upload a BSL video.", None
     if not os.path.exists(video_path):
         return "", f"Error: video file not found: {video_path}", None
-
     try:
         import cv2
         from realtime_recognition import RealtimePoseExtractor, SignBuffer, _hand_activity
-
         recognizer = get_sign_recognizer()
         pose_extractor = RealtimePoseExtractor(swap_hands=False)
         sign_buffer = SignBuffer(window_size=48, stride=12, min_active_frames=12)
@@ -867,35 +811,28 @@ def direction1_video_to_speech(video_input, mode, api_key):
         gloss_history = deque(maxlen=20)
         current_prediction = ""
         prev_pose = None
-
         cap = cv2.VideoCapture(str(video_path))
         if not cap.isOpened():
             pose_extractor.close()
             return "", f"Error: failed to open video: {video_path}", None
-
         try:
             while True:
                 ret, frame = cap.read()
                 if not ret:
                     break
-
                 pose = pose_extractor.extract(frame)
                 left_detected, right_detected, motion_score = _hand_activity(pose, prev_pose)
                 has_hands = left_detected or right_detected
                 is_active_frame = has_hands and (prev_pose is None or motion_score >= 0.002)
                 prev_pose = pose.copy()
-
                 pose_sequence = sign_buffer.add_frame(pose, is_active=is_active_frame)
                 if pose_sequence is None:
                     continue
-
                 rec = recognizer.recognize(pose_sequence, top_k=5, return_details=True)
                 if rec["abstain"] or not rec["top_k"]:
                     continue
-
                 gloss, confidence = rec["top_k"][0]
                 prediction_history.append(gloss)
-
                 if prediction_history.count(gloss) >= 3 and confidence >= 0.3:
                     if gloss != current_prediction:
                         current_prediction = gloss
@@ -904,15 +841,12 @@ def direction1_video_to_speech(video_input, mode, api_key):
         finally:
             cap.release()
             pose_extractor.close()
-
         if not gloss_history:
-            return "", "No stable sign sequence detected. Try a clearer video with visible hands.", None
-
+            return "", "No stable sign sequence detected. Try a clearer video.", None
         gloss_str = " ".join(gloss_history)
         text = direction1_glosses_to_text(gloss_str, mode, api_key)
         if text.startswith("Error") or text.startswith("Please"):
             return gloss_str, text, None
-
         audio = direction1_text_to_speech(text)
         return gloss_str, text, audio
     except Exception as e:
@@ -920,57 +854,45 @@ def direction1_video_to_speech(video_input, mode, api_key):
 
 
 def direction1_live_stream(camera_index=0, no_speech=False, mode="simple", api_key=None):
-    """Stream live camera recognition into the Gradio preview area."""
     global _live_running
     if _live_running:
         yield None, "Live stream already running.", "", "", None
         return
-
     try:
         camera_idx = int(camera_index)
     except Exception:
         yield None, f"Error: invalid camera index: {camera_index}", "", "", None
         return
-
     try:
         import cv2
         from realtime_recognition import (
-            RealtimePoseExtractor,
-            SignBuffer,
-            _hand_activity,
-            draw_landmarks,
+            RealtimePoseExtractor, SignBuffer, _hand_activity, draw_landmarks,
         )
     except Exception as e:
         yield None, f"Error: failed to import realtime components: {e}", "", "", None
         return
-
     try:
         recognizer = get_sign_recognizer()
         recognizer.reset()
     except Exception as e:
         yield None, f"Error: failed to initialize recognizer: {e}", "", "", None
         return
-
     try:
         pose_extractor = RealtimePoseExtractor(swap_hands=False)
     except Exception as e:
         yield None, f"Error: failed to initialize pose extractor: {e}", "", "", None
         return
-
     cap = cv2.VideoCapture(camera_idx)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     cap.set(cv2.CAP_PROP_FPS, 30)
-
     if not cap.isOpened():
         pose_extractor.close()
         yield None, f"Error: failed to open camera {camera_idx}", "", "", None
         return
-
     _live_running = True
     _live_stop_event.clear()
     _live_clear_event.clear()
-
     sign_buffer = SignBuffer(window_size=48, stride=12, min_active_frames=12)
     prediction_history = deque(maxlen=5)
     gloss_history = deque(maxlen=10)
@@ -983,17 +905,15 @@ def direction1_live_stream(camera_index=0, no_speech=False, mode="simple", api_k
     right_detected = False
     motion_score = 0.0
     target_frame_interval = 1.0 / 15.0
-    status = f"Live realtime running on camera {camera_idx}. Click Stop to end."
-
+    status = f"Live recognition active on camera {camera_idx}."
     try:
         while not _live_stop_event.is_set():
             loop_start = time.time()
             ret, frame = cap.read()
             if not ret:
-                status = f"Camera read failed on index {camera_idx}. Live stream stopped."
+                status = f"Camera read failed on index {camera_idx}."
                 yield None, status, " ".join(gloss_history), current_text, last_audio_path
                 break
-
             if _live_clear_event.is_set():
                 _live_clear_event.clear()
                 sign_buffer.clear()
@@ -1005,19 +925,16 @@ def direction1_live_stream(camera_index=0, no_speech=False, mode="simple", api_k
                 last_predictions = []
                 last_audio_path = None
                 prev_pose = None
-                status = "Live history cleared."
-
+                status = "History cleared."
             pose = pose_extractor.extract(frame)
             left_detected, right_detected, motion_score = _hand_activity(pose, prev_pose)
             has_hands = left_detected or right_detected
             is_active_frame = has_hands and (prev_pose is None or motion_score >= 0.002)
             prev_pose = pose.copy()
-
             pose_sequence = sign_buffer.add_frame(pose, is_active=is_active_frame)
             if pose_sequence is not None:
                 rec = recognizer.recognize(pose_sequence, top_k=5, return_details=True)
                 last_predictions = rec["top_k"]
-
                 if rec["abstain"]:
                     current_prediction = "NO_SIGN"
                 elif rec["top_k"]:
@@ -1027,99 +944,46 @@ def direction1_live_stream(camera_index=0, no_speech=False, mode="simple", api_k
                         if gloss != current_prediction:
                             current_prediction = gloss
                             gloss_history.append(gloss)
-
                             recent_glosses = list(gloss_history)[-5:]
                             try:
                                 converter = get_gloss_converter(mode, api_key)
                                 current_text = converter.convert(recent_glosses)
                             except Exception:
                                 current_text = " ".join(recent_glosses).replace("_", " ")
-
                             if not no_speech:
                                 audio_path = direction1_text_to_speech(current_text)
                                 if audio_path:
                                     last_audio_path = audio_path
-
             draw_frame = frame.copy()
             draw_frame = draw_landmarks(draw_frame, pose_extractor, pose)
-
             if current_prediction:
                 gloss_color = (0, 255, 0) if current_prediction != "NO_SIGN" else (0, 180, 255)
-                cv2.putText(
-                    draw_frame,
-                    f"Gloss: {current_prediction}",
-                    (10, 35),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    gloss_color,
-                    2,
-                )
-
+                cv2.putText(draw_frame, f"Gloss: {current_prediction}", (10, 35),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, gloss_color, 2)
             if current_text:
-                cv2.putText(
-                    draw_frame,
-                    f"Text: {current_text[:60]}",
-                    (10, 70),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.55,
-                    (255, 255, 0),
-                    1,
-                )
-
+                cv2.putText(draw_frame, f"Text: {current_text[:60]}", (10, 70),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 1)
             history_str = " -> ".join(list(gloss_history)[-5:])
-            cv2.putText(
-                draw_frame,
-                f"History: {history_str[:80]}",
-                (10, 95),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.45,
-                (220, 220, 220),
-                1,
-            )
-
+            cv2.putText(draw_frame, f"History: {history_str[:80]}", (10, 95),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (220, 220, 220), 1)
             hand_status = (
                 f"Hands: L={'Y' if left_detected else 'N'} "
                 f"R={'Y' if right_detected else 'N'} Motion:{motion_score:.4f}"
             )
             hand_color = (0, 255, 0) if has_hands else (0, 0, 255)
-            cv2.putText(
-                draw_frame,
-                hand_status,
-                (10, draw_frame.shape[0] - 45),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                hand_color,
-                1,
-            )
-
+            cv2.putText(draw_frame, hand_status, (10, draw_frame.shape[0] - 45),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, hand_color, 1)
             if last_predictions:
                 top_str = " | ".join(
-                    [f"[{i + 1}]{g}:{c:.2f}" for i, (g, c) in enumerate(last_predictions[:5])]
+                    [f"[{i+1}]{g}:{c:.2f}" for i, (g, c) in enumerate(last_predictions[:5])]
                 )
-                cv2.putText(
-                    draw_frame,
-                    f"Top: {top_str[:90]}",
-                    (10, draw_frame.shape[0] - 70),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.35,
-                    (180, 180, 180),
-                    1,
-                )
-
+                cv2.putText(draw_frame, f"Top: {top_str[:90]}", (10, draw_frame.shape[0] - 70),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (180, 180, 180), 1)
             stream_status = f"{status} Speech: {'OFF' if no_speech else 'ON'} | Mode: {mode}"
-            cv2.putText(
-                draw_frame,
-                stream_status[:95],
-                (10, draw_frame.shape[0] - 20),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.45,
-                (255, 255, 255),
-                1,
-            )
-
+            cv2.putText(draw_frame, stream_status[:95], (10, draw_frame.shape[0] - 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1)
             frame_rgb = cv2.cvtColor(draw_frame, cv2.COLOR_BGR2RGB)
             yield frame_rgb, status, " ".join(gloss_history), current_text, last_audio_path
-
             elapsed = time.time() - loop_start
             if elapsed < target_frame_interval:
                 time.sleep(target_frame_interval - elapsed)
@@ -1131,19 +995,17 @@ def direction1_live_stream(camera_index=0, no_speech=False, mode="simple", api_k
 
 
 def direction1_stop_live_realtime():
-    """Signal the live stream loop to stop."""
     _live_stop_event.set()
-    return "Stopping live realtime stream..."
+    return "Stopping live stream..."
 
 
 def direction1_clear_live_history():
-    """Signal the live stream loop to clear recognition history."""
     _live_clear_event.set()
-    return "Clearing live recognition history..."
+    return "Clearing recognition history..."
 
 
 # =============================================================================
-# DIRECTION 2: Speech -> BSL (unchanged logic)
+# DIRECTION 2: Speech / Text -> BSL Signing
 # =============================================================================
 
 def _format_vocab_coverage(info: dict) -> str:
@@ -1162,7 +1024,6 @@ def _direction2_render_sequence(
     render_engine: str,
     render_speed: float,
 ):
-    """Shared Direction 2 renderer with live preview streaming + MP4 output."""
     glosses = [str(g).strip().upper() for g in (glosses or []) if str(g).strip()]
     gloss_str = " ".join(glosses)
     if not glosses:
@@ -1185,18 +1046,13 @@ def _direction2_render_sequence(
         legacy_renderer = get_avatar_renderer()
         legacy_cov = legacy_renderer.get_coverage(glosses)
         legacy_coverage = (
-            f"{coverage_text}\n\n"
-            f"Legacy clip coverage: {legacy_cov['coverage']:.1f}%"
+            f"{coverage_text}\n\nLegacy clip coverage: {legacy_cov['coverage']:.1f}%"
         )
         if legacy_cov["missing"]:
             legacy_coverage += f"\nMissing videos: {', '.join(legacy_cov['missing'][:10])}"
-
         yield transcription_text, gloss_str, legacy_coverage, None, None, "Rendering legacy clip avatar..."
         avatar_video = render_avatar_video(glosses)
-        if avatar_video:
-            status = "Legacy clip avatar rendered."
-        else:
-            status = "Legacy clip avatar unavailable for the current gloss sequence."
+        status = "Legacy clip avatar rendered." if avatar_video else "Legacy clip avatar unavailable."
         yield transcription_text, gloss_str, legacy_coverage, None, avatar_video, status
         return
 
@@ -1204,8 +1060,7 @@ def _direction2_render_sequence(
     try:
         pose_renderer = get_pose_sign_renderer()
     except Exception as e:
-        status = f"Pose renderer initialization failed: {e}"
-        yield transcription_text, gloss_str, coverage_text, None, None, status
+        yield transcription_text, gloss_str, coverage_text, None, None, f"Pose renderer failed: {e}"
         return
 
     pose_cov = pose_renderer.get_coverage(glosses)
@@ -1215,12 +1070,12 @@ def _direction2_render_sequence(
         f"({pose_cov['available_count']}/{len(glosses)})"
     )
     if pose_cov["missing"]:
-        pose_coverage += f"\nMissing pose glosses: {', '.join(pose_cov['missing'][:10])}"
+        pose_coverage += f"\nMissing: {', '.join(pose_cov['missing'][:10])}"
 
-    yield transcription_text, gloss_str, pose_coverage, None, None, "Starting pose animation..."
+    yield transcription_text, gloss_str, pose_coverage, None, None, "Animating signs..."
 
     last_frame = None
-    last_status = "Pose animation started."
+    last_status = "Animation started."
     frame_count = 0
     timeout_seconds = 90.0
     output_path = tempfile.mktemp(suffix=".mp4")
@@ -1229,18 +1084,16 @@ def _direction2_render_sequence(
     writer = None
     try:
         import cv2
-
         writer = cv2.VideoWriter(
-                output_path,
-                cv2.VideoWriter_fourcc(*"mp4v"),
-                pose_renderer.output_fps,
-                (pose_renderer.canvas_width, pose_renderer.canvas_height),
-            )
+            output_path,
+            cv2.VideoWriter_fourcc(*"mp4v"),
+            pose_renderer.output_fps,
+            (pose_renderer.canvas_width, pose_renderer.canvas_height),
+        )
         if not writer.isOpened():
             writer.release()
             writer = None
-            last_status = "Video writer unavailable; preview will continue without MP4 capture."
-
+            last_status = "Video writer unavailable; preview only."
         start_time = time.time()
         for frame_rgb, status in pose_renderer.render_sequence_frames(
             glosses=glosses,
@@ -1248,20 +1101,17 @@ def _direction2_render_sequence(
             max_total_seconds=max_sequence_seconds,
         ):
             if (time.time() - start_time) > timeout_seconds:
-                last_status = "Render timeout reached; returning partial output."
+                last_status = "Render timeout; returning partial output."
                 break
-
             last_frame = frame_rgb
             last_status = status
             frame_count += 1
-
             if writer is not None:
                 frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 writer.write(frame_bgr)
-
             yield transcription_text, gloss_str, pose_coverage, frame_rgb, None, status
     except Exception as e:
-        last_status = f"Pose rendering failed: {e}"
+        last_status = f"Rendering failed: {e}"
     finally:
         if writer is not None:
             writer.release()
@@ -1282,9 +1132,9 @@ def _direction2_render_sequence(
                 max_total_seconds=max_sequence_seconds,
             )
         except Exception as e:
-            last_status = f"{last_status} MP4 generation failed: {e}"
+            last_status = f"{last_status} MP4 failed: {e}"
 
-    final_status = f"{last_status} | Pose animation complete ({frame_count} frames)."
+    final_status = f"Complete. {frame_count} frames rendered."
     yield transcription_text, gloss_str, pose_coverage, last_frame, final_video, final_status
 
 
@@ -1293,18 +1143,15 @@ def direction2_audio_to_signing(audio_input, render_engine, render_speed):
     if not input_path:
         yield "", "", "", None, None, "Please record or upload audio."
         return
-
     wav_path = None
     try:
         wav_path = to_wav_16k_mono(input_path)
         pipeline = get_speech_to_bsl()
         result = pipeline.process(wav_path, return_intermediate=True)
-
         text = result.get("text", "")
         glosses = result.get("glosses", [])
         info = pipeline.text_to_gloss.convert_with_info(text)
         coverage = _format_vocab_coverage(info)
-
         yield from _direction2_render_sequence(
             transcription_text=text,
             glosses=glosses,
@@ -1313,7 +1160,7 @@ def direction2_audio_to_signing(audio_input, render_engine, render_speed):
             render_speed=render_speed,
         )
     except Exception as e:
-        yield f"Error: {e}", "", "", None, None, f"Direction 2 audio failed: {e}"
+        yield f"Error: {e}", "", "", None, None, f"Audio pipeline failed: {e}"
     finally:
         if wav_path and os.path.exists(wav_path):
             try:
@@ -1327,13 +1174,11 @@ def direction2_text_to_signing(text_input, render_engine, render_speed):
     if not text:
         yield "", "", "", None, None, "Please enter text."
         return
-
     try:
         pipeline = get_speech_to_bsl()
         glosses = pipeline.text_to_gloss.convert(text)
         info = pipeline.text_to_gloss.convert_with_info(text)
         coverage = _format_vocab_coverage(info)
-
         yield from _direction2_render_sequence(
             transcription_text=text,
             glosses=glosses,
@@ -1342,216 +1187,179 @@ def direction2_text_to_signing(text_input, render_engine, render_speed):
             render_speed=render_speed,
         )
     except Exception as e:
-        yield text, "", "", None, None, f"Direction 2 text failed: {e}"
+        yield text, "", "", None, None, f"Text pipeline failed: {e}"
 
 
 def render_avatar_video(glosses: list) -> str:
-    """Render avatar video from glosses."""
     try:
         renderer = get_avatar_renderer()
-        
         coverage = renderer.get_coverage(glosses)
-        if not coverage['available']:
-            print(f"No videos available for glosses: {glosses}")
+        if not coverage["available"]:
             return None
-        
         output_path = tempfile.mktemp(suffix=".mp4")
         result = renderer.render(glosses, output_path)
-        
         if result and os.path.exists(result):
             return result
         return None
-        
     except Exception as e:
         print(f"Avatar render error: {e}")
         return None
 
 
+
 # =============================================================================
-# GRADIO UI - PROFESSIONAL REDESIGN
+# GRADIO UI — POLISHED CREATIVE LAYOUT
 # =============================================================================
 
 def create_demo():
-    """Create the Signlytic AI Gradio interface with professional design."""
-    groq_status = "Connected" if DEFAULT_GROQ_API_KEY else "Not configured"
-    video_count = len(get_avatar_renderer().video_index) if os.path.exists(DEFAULT_VIDEO_DIR) else 0
-    
+    """Create the Signlytic AI Gradio interface."""
+    groq_ok = bool(DEFAULT_GROQ_API_KEY)
+    groq_label = "Connected" if groq_ok else "Not set"
+    ff_ok = ensure_ffmpeg_available()
+    swin_ok = BSL_DICT_AVAILABLE
+    vid_ok = os.path.exists(DEFAULT_VIDEO_DIR)
+    video_count = len(get_avatar_renderer().video_index) if vid_ok else 0
+
+    # User-facing system status (not developer diagnostics)
+    all_systems_ok = swin_ok and groq_ok and ff_ok and vid_ok
+    if all_systems_ok:
+        trust_html = '<div class="sig-trust"><span class="sig-badge sig-badge-ok"><span style="width:6px;height:6px;border-radius:50%;background:#15803d;"></span>All systems ready &mdash; recognition, translation, and speech are available</span></div>'
+    else:
+        issues = []
+        if not swin_ok:
+            issues.append("sign recognition")
+        if not groq_ok:
+            issues.append("advanced translation")
+        if not ff_ok:
+            issues.append("audio processing")
+        if not vid_ok:
+            issues.append("signing videos")
+        trust_html = f'<div class="sig-trust"><span class="sig-badge sig-badge-warn"><span style="width:6px;height:6px;border-radius:50%;background:#a16207;"></span>Some features limited: {", ".join(issues)}</span></div>'
+
     with gr.Blocks(
-        title="Signlytic AI | BSL Translation System",
-        theme=gr.themes.Soft(
-            primary_hue="teal",
-            secondary_hue="slate",
-            neutral_hue="slate",
-            font=gr.themes.GoogleFont("DM Sans"),
-            font_mono=gr.themes.GoogleFont("JetBrains Mono"),
+        title="Signlytic AI",
+        theme=gr.themes.Default(
+            primary_hue=gr.themes.colors.gray,
+            secondary_hue=gr.themes.colors.gray,
+            neutral_hue=gr.themes.colors.gray,
+            font=gr.themes.GoogleFont("Inter"),
         ),
         css=CUSTOM_CSS,
     ) as demo:
-        
-        # ─── HERO SECTION ───
+
+        # ── Skip link (a11y) ──
+        gr.HTML('<a href="#bsl-to-english" class="sig-skip">Skip to main content</a>')
+
+        # ── Hero ──
         gr.HTML(f"""
-        <div class="hero-wrapper">
-            <div class="hero-title">Signlytic AI</div>
-            <div class="hero-subtitle">
-                Bidirectional British Sign Language translation system. 
-                Recognize BSL signs from video, convert speech to signing animations, 
-                and bridge communication between deaf and hearing communities.
+        <div class="sig-hero" role="banner">
+            <div class="sig-hero-top">
+                <div class="sig-hero-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <span class="sig-hero-name">Signlytic AI</span>
             </div>
-            <div class="stats-grid">
-                <span class="stat-chip">
-                    <span class="stat-dot"></span>
-                    <span class="stat-num">5,203</span> BSL Signs
-                </span>
-                <span class="stat-chip">
-                    <span class="stat-dot"></span>
-                    <span class="stat-num">100%</span> Recognition Accuracy
-                </span>
-                <span class="stat-chip">
-                    <span class="stat-dot"></span>
-                    <span class="stat-num">11,573+</span> Glosses
-                </span>
-                <span class="stat-chip">
-                    <span class="stat-dot"></span>
-                    Video-SWIN-T Transformer
-                </span>
-                <span class="stat-chip">
-                    <span class="stat-dot"></span>
-                    Groq LLM: {groq_status}
-                </span>
+            <div class="sig-hero-desc">
+                Translate between British Sign Language and English.
+                Upload a BSL video, speak into your mic, or type text.
+                All outputs are shown as text &mdash; no audio required.
+            </div>
+            <div class="sig-chips">
+                <span class="sig-chip"><b>5,203</b> BSL signs recognised</span>
+                <span class="sig-chip"><b>100%</b> accuracy on dictionary signs</span>
+                <span class="sig-chip"><b>11,573+</b> words supported</span>
+                <span class="sig-chip">AI-powered recognition</span>
             </div>
         </div>
         """)
-        
-        # ─── MAIN TABS ───
+
+        # ── Trust strip ──
+        gr.HTML(trust_html)
+
+        # ── Main Tabs ──
         with gr.Tabs():
-            
-            # ═══════════════════════════════════════════
-            # TAB 1: BSL -> Speech
-            # ═══════════════════════════════════════════
-            with gr.TabItem("BSL to Speech", id="bsl-to-speech"):
+
+            # ══════════════════════════════════════════
+            # TAB 1: BSL to English
+            # ══════════════════════════════════════════
+            with gr.TabItem("BSL to English", id="bsl-to-english"):
                 gr.HTML("""
-                <div style="margin-bottom: 1rem;">
-                    <div class="section-header">Recognize BSL Signs & Convert to Speech</div>
-                    <div class="section-desc">
-                        Upload a BSL video, use your camera for live recognition, or type glosses directly. 
-                        The system translates BSL into natural English text and synthesized speech.
-                    </div>
-                </div>
+                <div class="sig-sh">Understand BSL Signs</div>
+                <div class="sig-sd">Upload a video of BSL signing, or type BSL signs. You will see the English meaning and can listen to it spoken aloud.</div>
                 """)
-                
+
                 with gr.Row(equal_height=False):
-                    # ── Left: Input Panel ──
+
                     with gr.Column(scale=5):
-                        gr.HTML('<div class="panel-label"><span class="panel-dot"></span> INPUT</div>')
-                        
-                        # Method 1: SWIN Video Recognition (recommended)
+                        gr.HTML('<div class="sig-col">Input</div>')
+
                         with gr.Group():
-                            gr.HTML("""
-                            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                                <span style="font-weight:600; font-size:0.95rem; color:#1e293b;">Video Recognition</span>
-                                <span class="rec-badge">Recommended</span>
-                            </div>
-                            """)
+                            gr.HTML('<div class="sig-method">Upload or record a video <span class="sig-rec">Best accuracy</span></div>')
+                            gr.HTML('<div style="font-size:0.82rem;color:#6b7280;margin-bottom:0.35rem;">Record yourself signing, or upload a video file. This takes a few seconds to process.</div>')
                             d1_video_input = gr.Video(
-                                label="Record or upload a BSL video",
+                                label="BSL video",
                                 sources=["webcam", "upload"],
                             )
                             with gr.Row():
-                                d1_swin_btn = gr.Button(
-                                    "Recognize with SWIN (5,203 signs)",
-                                    variant="primary",
-                                    size="lg",
-                                )
-                                d1_video_btn = gr.Button(
-                                    "Recognize with Pose Model",
-                                    variant="secondary",
-                                )
-                        
-                        gr.HTML('<hr class="section-divider">')
-                        
-                        # Method 2: Type glosses
+                                d1_swin_btn = gr.Button("Recognise BSL signs", variant="primary", size="lg")
+                                d1_video_btn = gr.Button("Recognise (alternative)", variant="secondary")
+
+                        gr.HTML('<hr class="sig-sep">')
+
                         with gr.Group():
-                            gr.Markdown("**Type BSL Glosses**")
+                            gr.HTML('<div class="sig-method">Or type BSL signs</div>')
                             d1_glosses = gr.Textbox(
-                                label="BSL Glosses (space-separated)",
-                                placeholder="e.g. TOMORROW MEETING WHAT TIME",
+                                label="Type BSL signs (one word at a time)",
+                                placeholder="Example: HELLO MY NAME SARAH",
                                 lines=2,
                             )
                             with gr.Row():
                                 d1_convert_btn = gr.Button("Translate to English", variant="primary")
-                                d1_speak_btn = gr.Button("Translate & Speak", variant="secondary")
-                        
-                        gr.HTML('<hr class="section-divider">')
-                        
-                        # Method 3: Live Realtime
-                        with gr.Accordion("Live Realtime Camera", open=False):
+                                d1_speak_btn = gr.Button("Translate & speak aloud", variant="secondary")
+
+                        gr.HTML('<hr class="sig-sep">')
+
+                        with gr.Accordion("Live camera (advanced)", open=False):
                             with gr.Row():
-                                d1_live_camera_index = gr.Number(
-                                    label="Camera Index",
-                                    value=0,
-                                    precision=0,
-                                )
-                                d1_live_no_speech = gr.Checkbox(
-                                    label="Mute speech output",
-                                    value=False,
-                                )
+                                d1_live_camera_index = gr.Number(label="Camera number", value=0, precision=0)
+                                d1_live_no_speech = gr.Checkbox(label="Mute speech", value=False)
                             with gr.Row():
-                                d1_live_start_btn = gr.Button("Start Live", variant="primary")
+                                d1_live_start_btn = gr.Button("Start live recognition", variant="primary")
                                 d1_live_stop_btn = gr.Button("Stop", variant="secondary")
-                                d1_live_clear_btn = gr.Button("Clear History", variant="secondary")
-                        
-                        gr.HTML('<hr class="section-divider">')
-                        
-                        # Settings
-                        with gr.Accordion("Translation Settings", open=False):
+                                d1_live_clear_btn = gr.Button("Clear history", variant="secondary")
+
+                        with gr.Accordion("Advanced settings", open=False):
                             d1_mode = gr.Radio(
                                 choices=["simple", "groq"],
                                 value="groq" if DEFAULT_GROQ_API_KEY else "simple",
-                                label="Conversion Mode",
-                                info="Groq uses Llama 3.3 70B for natural English output.",
+                                label="Translation quality",
+                                info="'groq' gives more natural English sentences. 'simple' is faster but less fluent.",
                             )
                             d1_api_key = gr.Textbox(
-                                label="Groq API Key (optional)",
+                                label="API Key (optional, for advanced translation)",
                                 type="password",
-                                placeholder="Uses env GROQ_API_KEY if blank",
+                                placeholder="Leave blank to use default",
                             )
-                    
-                    # ── Right: Output Panel ──
+
                     with gr.Column(scale=5):
-                        gr.HTML('<div class="panel-label"><span class="panel-dot"></span> OUTPUT</div>')
-                        
-                        d1_recorded_preview = gr.Video(
-                            label="Video Preview",
-                            interactive=False,
-                            visible=True,
-                        )
-                        d1_live_preview = gr.Image(
-                            label="Live Camera Feed",
-                            streaming=True,
-                            type="numpy",
-                            interactive=False,
-                        )
-                        d1_live_status = gr.Textbox(
-                            label="Live Status",
-                            lines=1,
-                            interactive=False,
-                        )
-                        d1_video_glosses = gr.Textbox(
-                            label="Recognized Glosses",
-                            lines=2,
-                            interactive=False,
-                        )
-                        d1_text_output = gr.Textbox(
-                            label="English Translation",
-                            lines=3,
-                            interactive=False,
-                        )
-                        d1_audio_output = gr.Audio(
-                            label="Speech Output",
-                            type="filepath",
-                        )
-                
-                # Examples
+                        gr.HTML('<div class="sig-col">Results</div>')
+
+                        d1_recorded_preview = gr.Video(label="Your video", interactive=False)
+                        d1_live_preview = gr.Image(label="Live camera", streaming=True, type="numpy", interactive=False)
+                        d1_live_status = gr.Textbox(label="Status", lines=1, interactive=False)
+
+                        gr.HTML('<div class="sig-result"><div class="sig-result-h">What was signed (BSL)</div></div>')
+                        d1_video_glosses = gr.Textbox(label="BSL signs detected", lines=2, interactive=False, show_label=False)
+
+                        gr.HTML('<div class="sig-result sig-result-navy"><div class="sig-result-h">English meaning</div></div>')
+                        d1_text_output = gr.Textbox(label="Translation", lines=3, interactive=False, show_label=False)
+
+                        gr.HTML('<div class="sig-result"><div class="sig-result-h">Listen (optional)</div></div>')
+                        d1_audio_output = gr.Audio(label="Speech", type="filepath", show_label=False)
+
+                gr.HTML('<div class="sig-bsl-note">These examples use BSL word order, not English grammar.</div>')
                 gr.Examples(
                     examples=[
                         ["TOMORROW MEETING WHAT TIME"],
@@ -1561,417 +1369,228 @@ def create_demo():
                         ["I NOT UNDERSTAND"],
                     ],
                     inputs=[d1_glosses],
-                    label="Example BSL Glosses",
+                    label="Try these BSL signs",
                 )
-                
-                # ── Wire events ──
-                d1_convert_btn.click(
-                    fn=direction1_glosses_to_text,
-                    inputs=[d1_glosses, d1_mode, d1_api_key],
-                    outputs=[d1_text_output],
-                )
-                d1_speak_btn.click(
-                    fn=direction1_full_pipeline,
-                    inputs=[d1_glosses, d1_mode, d1_api_key],
-                    outputs=[d1_text_output, d1_audio_output],
-                )
-                d1_video_input.change(
-                    fn=media_preview_path,
-                    inputs=[d1_video_input],
-                    outputs=[d1_recorded_preview],
-                )
-                d1_video_btn.click(
-                    fn=direction1_video_to_speech,
-                    inputs=[d1_video_input, d1_mode, d1_api_key],
-                    outputs=[d1_video_glosses, d1_text_output, d1_audio_output],
-                )
-                d1_swin_btn.click(
-                    fn=direction1_video_swin,
-                    inputs=[d1_video_input, d1_mode, d1_api_key],
-                    outputs=[d1_video_glosses, d1_text_output, d1_audio_output],
-                )
-                d1_live_event = d1_live_start_btn.click(
-                    fn=direction1_live_stream,
-                    inputs=[d1_live_camera_index, d1_live_no_speech, d1_mode, d1_api_key],
-                    outputs=[d1_live_preview, d1_live_status, d1_video_glosses, d1_text_output, d1_audio_output],
-                    show_progress="hidden",
-                )
-                d1_live_stop_btn.click(
-                    fn=direction1_stop_live_realtime,
-                    outputs=[d1_live_status],
-                    cancels=[d1_live_event],
-                )
-                d1_live_clear_btn.click(
-                    fn=direction1_clear_live_history,
-                    outputs=[d1_live_status],
-                )
-            
-            # ═══════════════════════════════════════════
-            # TAB 2: Speech -> BSL
-            # ═══════════════════════════════════════════
-            with gr.TabItem("Speech to BSL", id="speech-to-bsl"):
+
+                # Wire events
+                d1_convert_btn.click(fn=direction1_glosses_to_text, inputs=[d1_glosses, d1_mode, d1_api_key], outputs=[d1_text_output])
+                d1_speak_btn.click(fn=direction1_full_pipeline, inputs=[d1_glosses, d1_mode, d1_api_key], outputs=[d1_text_output, d1_audio_output])
+                d1_video_input.change(fn=media_preview_path, inputs=[d1_video_input], outputs=[d1_recorded_preview])
+                d1_video_btn.click(fn=direction1_video_to_speech, inputs=[d1_video_input, d1_mode, d1_api_key], outputs=[d1_video_glosses, d1_text_output, d1_audio_output])
+                d1_swin_btn.click(fn=direction1_video_swin, inputs=[d1_video_input, d1_mode, d1_api_key], outputs=[d1_video_glosses, d1_text_output, d1_audio_output])
+                d1_live_event = d1_live_start_btn.click(fn=direction1_live_stream, inputs=[d1_live_camera_index, d1_live_no_speech, d1_mode, d1_api_key], outputs=[d1_live_preview, d1_live_status, d1_video_glosses, d1_text_output, d1_audio_output], show_progress="hidden")
+                d1_live_stop_btn.click(fn=direction1_stop_live_realtime, outputs=[d1_live_status], cancels=[d1_live_event])
+                d1_live_clear_btn.click(fn=direction1_clear_live_history, outputs=[d1_live_status])
+
+            # ══════════════════════════════════════════
+            # TAB 2: English to BSL
+            # ══════════════════════════════════════════
+            with gr.TabItem("English to BSL", id="english-to-bsl"):
                 gr.HTML("""
-                <div style="margin-bottom: 1rem;">
-                    <div class="section-header">Convert Speech or Text to BSL Signing</div>
-                    <div class="section-desc">
-                        Record your voice or type a message. The system generates BSL glosses and 
-                        renders an animated signing video using pose-based animation.
-                    </div>
-                </div>
+                <div class="sig-sh">Show Me in BSL</div>
+                <div class="sig-sd">Speak or type in English. You will see BSL signs and a signing animation.</div>
                 """)
-                
+
                 with gr.Row(equal_height=False):
-                    # ── Left: Input ──
+
                     with gr.Column(scale=5):
-                        gr.HTML('<div class="panel-label"><span class="panel-dot"></span> INPUT</div>')
-                        
+                        gr.HTML('<div class="sig-col">Input</div>')
+
                         with gr.Group():
-                            gr.Markdown("**Option A: Record or Upload Audio**")
-                            d2_audio_input = gr.Audio(
-                                label="Audio Input",
-                                type="filepath",
-                                sources=["microphone", "upload"],
-                            )
-                            d2_audio_btn = gr.Button(
-                                "Convert Audio to BSL",
-                                variant="primary",
-                                size="lg",
-                            )
-                        
-                        gr.HTML('<hr class="section-divider">')
-                        
+                            gr.HTML('<div class="sig-method">Record or upload audio</div>')
+                            gr.HTML('<div style="font-size:0.82rem;color:#6b7280;margin-bottom:0.35rem;">Speak clearly in a quiet place. This takes a few seconds to process.</div>')
+                            d2_audio_input = gr.Audio(label="Your audio", type="filepath", sources=["microphone", "upload"])
+                            d2_audio_btn = gr.Button("Convert to BSL", variant="primary", size="lg")
+
+                        gr.HTML('<hr class="sig-sep">')
+
                         with gr.Group():
-                            gr.Markdown("**Option B: Type Text**")
-                            d2_text = gr.Textbox(
-                                label="English Text",
-                                placeholder="e.g. What time is the meeting tomorrow?",
-                                lines=2,
-                            )
-                            d2_text_btn = gr.Button(
-                                "Convert Text to BSL",
-                                variant="primary",
-                            )
-                        
-                        gr.HTML('<hr class="section-divider">')
-                        
-                        with gr.Accordion("Render Settings", open=False):
-                            d2_render_engine = gr.Radio(
-                                choices=["Pose Animator", "Legacy Clip Avatar"],
-                                value="Pose Animator",
-                                label="Render Engine",
-                                info="Pose Animator produces smooth 2D skeleton-based signing. Legacy uses pre-recorded clip concatenation.",
-                            )
-                            d2_render_speed = gr.Slider(
-                                minimum=0.6,
-                                maximum=1.6,
-                                value=1.0,
-                                step=0.1,
-                                label="Signing Speed",
-                            )
-                    
-                    # ── Right: Output ──
+                            gr.HTML('<div class="sig-method">Or type in English</div>')
+                            d2_text = gr.Textbox(label="Type what you want to say", placeholder="Example: What time is the meeting tomorrow?", lines=2)
+                            d2_text_btn = gr.Button("Convert to BSL", variant="primary")
+
+                        with gr.Accordion("Animation settings", open=False):
+                            d2_render_engine = gr.Radio(choices=["Pose Animator", "Legacy Clip Avatar"], value="Pose Animator", label="Animation style", info="Pose Animator shows a skeleton signing. Legacy uses video clips joined together.")
+                            d2_render_speed = gr.Slider(minimum=0.6, maximum=1.6, value=1.0, step=0.1, label="Signing speed")
+
                     with gr.Column(scale=5):
-                        gr.HTML('<div class="panel-label"><span class="panel-dot"></span> OUTPUT</div>')
-                        
-                        d2_audio_preview = gr.Audio(
-                            label="Audio Preview",
-                            type="filepath",
-                            interactive=False,
-                        )
-                        d2_transcription = gr.Textbox(
-                            label="Transcription / Input Text",
-                            lines=2,
-                            interactive=False,
-                        )
-                        d2_glosses_output = gr.Textbox(
-                            label="BSL Glosses",
-                            lines=2,
-                            interactive=False,
-                        )
-                        d2_coverage = gr.Textbox(
-                            label="Vocabulary Coverage",
-                            lines=3,
-                            interactive=False,
-                        )
-                        d2_live_preview = gr.Image(
-                            label="Signing Preview",
-                            streaming=True,
-                            type="numpy",
-                            interactive=False,
-                        )
-                        d2_avatar_video = gr.Video(label="BSL Signing Video")
-                        d2_render_status = gr.Textbox(
-                            label="Render Status",
-                            lines=1,
-                            interactive=False,
-                        )
-                
-                # Examples
+                        gr.HTML('<div class="sig-col">Results</div>')
+
+                        d2_audio_preview = gr.Audio(label="Your audio", type="filepath", interactive=False)
+
+                        gr.HTML('<div class="sig-result"><div class="sig-result-h">What you said</div></div>')
+                        d2_transcription = gr.Textbox(label="Transcription", lines=2, interactive=False, show_label=False)
+
+                        gr.HTML('<div class="sig-result sig-result-navy"><div class="sig-result-h">BSL signs</div></div>')
+                        d2_glosses_output = gr.Textbox(label="BSL signs", lines=2, interactive=False, show_label=False)
+
+                        d2_coverage = gr.Textbox(label="Coverage", lines=2, interactive=False)
+                        d2_live_preview = gr.Image(label="Signing preview", streaming=True, type="numpy", interactive=False)
+
+                        gr.HTML('<div class="sig-result"><div class="sig-result-h">Signing video</div></div>')
+                        d2_avatar_video = gr.Video(label="BSL animation", show_label=False)
+                        d2_render_status = gr.Textbox(label="Status", lines=1, interactive=False)
+
                 gr.Examples(
-                    examples=[
-                        ["Hello, my name is John."],
-                        ["What time is the meeting?"],
-                        ["Thank you very much."],
-                        ["I need help please."],
-                    ],
+                    examples=[["Hello, my name is John."], ["What time is the meeting?"], ["Thank you very much."], ["I need help please."]],
                     inputs=[d2_text],
-                    label="Example Phrases",
+                    label="Try these phrases",
                 )
-                
-                # ── Wire events ──
-                d2_audio_btn.click(
-                    fn=direction2_audio_to_signing,
-                    inputs=[d2_audio_input, d2_render_engine, d2_render_speed],
-                    outputs=[
-                        d2_transcription, d2_glosses_output, d2_coverage,
-                        d2_live_preview, d2_avatar_video, d2_render_status,
-                    ],
-                    show_progress="hidden",
-                )
-                d2_audio_input.change(
-                    fn=media_preview_path,
-                    inputs=[d2_audio_input],
-                    outputs=[d2_audio_preview],
-                )
-                d2_text_btn.click(
-                    fn=direction2_text_to_signing,
-                    inputs=[d2_text, d2_render_engine, d2_render_speed],
-                    outputs=[
-                        d2_transcription, d2_glosses_output, d2_coverage,
-                        d2_live_preview, d2_avatar_video, d2_render_status,
-                    ],
-                    show_progress="hidden",
-                )
-            
-            # ═══════════════════════════════════════════
-            # TAB 3: About
-            # ═══════════════════════════════════════════
-            with gr.TabItem("About", id="about"):
+
+                d2_audio_btn.click(fn=direction2_audio_to_signing, inputs=[d2_audio_input, d2_render_engine, d2_render_speed], outputs=[d2_transcription, d2_glosses_output, d2_coverage, d2_live_preview, d2_avatar_video, d2_render_status], show_progress="hidden")
+                d2_audio_input.change(fn=media_preview_path, inputs=[d2_audio_input], outputs=[d2_audio_preview])
+                d2_text_btn.click(fn=direction2_text_to_signing, inputs=[d2_text, d2_render_engine, d2_render_speed], outputs=[d2_transcription, d2_glosses_output, d2_coverage, d2_live_preview, d2_avatar_video, d2_render_status], show_progress="hidden")
+
+            # ══════════════════════════════════════════
+            # TAB 3: Help & Accessibility
+            # ══════════════════════════════════════════
+            with gr.TabItem("Help & Accessibility", id="help"):
+                gr.HTML('<div class="sig-sh">How to Use This App</div><div class="sig-sd">Simple guides for BSL users and hearing users. All outputs are shown as text.</div>')
+
                 gr.HTML("""
-                <div class="about-container">
-                    <div class="section-header" style="margin-top: 0.5rem;">About Signlytic AI</div>
-                    <div class="section-desc" style="max-width: 720px;">
-                        Signlytic AI is an advanced bidirectional British Sign Language translation system 
-                        designed to bridge communication between deaf and hearing communities. It combines 
-                        state-of-the-art computer vision, natural language processing, and speech synthesis 
-                        into a unified, accessible platform.
-                    </div>
+                <div class="sig-help">
+                    <h4>Understand BSL signs (BSL to English)</h4>
+                    <p>
+                        <span class="sig-step">1</span> Go to the <strong>BSL to English</strong> tab.<br>
+                        <span class="sig-step">2</span> Record yourself signing, or upload a video file.<br>
+                        <span class="sig-step">3</span> Click <strong>Recognise BSL signs</strong>.<br>
+                        <span class="sig-step">4</span> You will see: the BSL sign name, the English meaning, and a speech player.
+                    </p>
+                </div>
+
+                <div class="sig-help">
+                    <h4>Show me in BSL (English to BSL)</h4>
+                    <p>
+                        <span class="sig-step">1</span> Go to the <strong>English to BSL</strong> tab.<br>
+                        <span class="sig-step">2</span> Record your voice, or type in English.<br>
+                        <span class="sig-step">3</span> Click <strong>Convert to BSL</strong>.<br>
+                        <span class="sig-step">4</span> You will see: BSL signs and a signing animation video.
+                    </p>
+                </div>
+
+                <div class="sig-help">
+                    <h4>What to expect</h4>
+                    <p>
+                        Processing takes a few seconds. You will always see text results &mdash; you never need to rely on audio.
+                        The system works best with clear, short phrases. Results may not be perfect for complex sentences.
+                    </p>
+                </div>
+
+                <div class="sig-help">
+                    <h4>What are BSL signs / glosses?</h4>
+                    <p>
+                        A "gloss" is the written name of a BSL sign. For example, the glosses
+                        <strong>TOMORROW MEETING WHAT TIME</strong> mean "What time is the meeting tomorrow?"
+                        BSL uses a different word order from English &mdash; this is normal.
+                    </p>
+                </div>
+
+                <div class="sig-help">
+                    <h4>Tips for best results</h4>
+                    <p>
+                        &bull; Sign clearly against a plain, well-lit background.<br>
+                        &bull; Keep both hands visible in the camera frame.<br>
+                        &bull; For speech input, speak clearly in a quiet place.<br>
+                        &bull; Short phrases give better results than long sentences.
+                    </p>
+                </div>
+
+                <div class="sig-help">
+                    <h4>BSL video guides</h4>
+                    <p>
+                        BSL video instructions for this app are planned for a future update.
+                        We are working with BSL users to create clear video guides.
+                    </p>
+                </div>
+
+                <div class="sig-help">
+                    <h4>Contact</h4>
+                    <p>
+                        Questions or feedback? Email is the easiest way to reach us.<br>
+                        You can also contact the developer on
+                        <a href="https://www.linkedin.com/in/iyanuoluwa-enoch-oke/" target="_blank">LinkedIn</a>
+                        or open an issue on
+                        <a href="https://github.com/Iyanuoluwa007/Signlytic_AI/issues" target="_blank">GitHub</a>.
+                    </p>
                 </div>
                 """)
-                
-                # Performance cards
-                with gr.Row():
-                    gr.HTML("""
-                    <div class="perf-card">
-                        <div class="perf-number">100%</div>
-                        <div class="perf-label">Top-1 Recognition Accuracy</div>
-                    </div>
-                    """)
-                    gr.HTML("""
-                    <div class="perf-card">
-                        <div class="perf-number">5,203</div>
-                        <div class="perf-label">BSL Signs Supported</div>
-                    </div>
-                    """)
-                    gr.HTML("""
-                    <div class="perf-card">
-                        <div class="perf-number">11,573+</div>
-                        <div class="perf-label">BSL Glosses in Vocabulary</div>
-                    </div>
-                    """)
-                    gr.HTML("""
-                    <div class="perf-card">
-                        <div class="perf-number">GPU</div>
-                        <div class="perf-label">Accelerated Inference</div>
-                    </div>
-                    """)
-                
-                gr.HTML("<br>")
-                
-                # System capabilities
+
+                gr.HTML('<div style="margin-top:1rem;"><div class="sig-sh" style="font-size:1.1rem;">Accessibility Statement</div></div>')
                 gr.HTML("""
-                <div class="about-container">
-                    <div style="font-size:1.1rem; font-weight:700; color:#0c1b33; margin-bottom:0.75rem;">
-                        System Capabilities
-                    </div>
-                    <table class="arch-table">
-                        <thead>
-                            <tr>
-                                <th>Direction</th>
-                                <th>Input</th>
-                                <th>Output</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>BSL to Speech</strong></td>
-                                <td>Video of BSL signs, typed glosses, live camera</td>
-                                <td>Natural English text + synthesized speech</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Speech to BSL</strong></td>
-                                <td>Audio recording, typed text</td>
-                                <td>BSL glosses + animated signing video</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="sig-a11y">
+                    <div class="sig-a11y-card"><h5>Text for Everything</h5><p>All outputs are shown as text. Speech output is optional &mdash; you never need to hear audio to use this app.</p></div>
+                    <div class="sig-a11y-card"><h5>High Contrast</h5><p>Dark text on light backgrounds. Clear visual hierarchy throughout the interface.</p></div>
+                    <div class="sig-a11y-card"><h5>Keyboard Navigation</h5><p>All controls are reachable using Tab and Enter. Visible focus rings on every element.</p></div>
+                    <div class="sig-a11y-card"><h5>Plain Language</h5><p>Short, clear labels. Technical details are kept in the System tab, not in the main interface.</p></div>
+                    <div class="sig-a11y-card"><h5>Clear Output Separation</h5><p>BSL signs, English translation, speech, and video are each shown in their own labelled section.</p></div>
+                    <div class="sig-a11y-card"><h5>BSL-Friendly Layout</h5><p>Minimal text density. Large buttons. Clear actions. Designed for BSL-first users.</p></div>
+                    <div class="sig-a11y-card"><h5>Responsive Design</h5><p>Works on desktop and tablet screens. Layout adapts without losing readability.</p></div>
+                    <div class="sig-a11y-card"><h5>Consistent Structure</h5><p>Every tab follows the same Input / Results pattern. Predictable layout throughout.</p></div>
                 </div>
                 """)
-                
-                gr.HTML("<br>")
-                
-                # Technical architecture
+
+            # ══════════════════════════════════════════
+            # TAB 4: About & System
+            # ══════════════════════════════════════════
+            with gr.TabItem("About & System", id="about"):
+                gr.HTML('<div class="sig-sh">System Overview</div><div class="sig-sd">Architecture, models, and performance benchmarks.</div>')
+
                 gr.HTML("""
-                <div class="about-container">
-                    <div style="font-size:1.1rem; font-weight:700; color:#0c1b33; margin-bottom:0.75rem;">
-                        Technical Architecture
-                    </div>
-                    <table class="arch-table">
-                        <thead>
-                            <tr>
-                                <th>Component</th>
-                                <th>Technology</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>Sign Recognition</strong></td>
-                                <td>Video-SWIN-T Transformer</td>
-                                <td>Retrieval-based matching on 5,203 pre-extracted features</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Speech Recognition</strong></td>
-                                <td>OpenAI Whisper</td>
-                                <td>Base model, 16kHz mono audio input</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Text-to-Speech</strong></td>
-                                <td>Coqui XTTS v2</td>
-                                <td>Voice cloning with speaker reference audio</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Language Model</strong></td>
-                                <td>Groq Llama 3.3 70B</td>
-                                <td>BSL gloss-to-natural-English conversion</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Avatar Rendering</strong></td>
-                                <td>2D Pose Animator</td>
-                                <td>Skeleton-based signing animation with video export</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Vocabulary</strong></td>
-                                <td>11,573+ BSL Glosses</td>
-                                <td>Extended vocabulary from BSL-1K and BSLDict datasets</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="sig-metrics">
+                    <div class="sig-metric"><div class="sig-metric-val">100%</div><div class="sig-metric-label">Top-1 Accuracy</div></div>
+                    <div class="sig-metric"><div class="sig-metric-val">5,203</div><div class="sig-metric-label">BSL Signs</div></div>
+                    <div class="sig-metric"><div class="sig-metric-val">11,573+</div><div class="sig-metric-label">Glosses</div></div>
+                    <div class="sig-metric"><div class="sig-metric-val">GPU</div><div class="sig-metric-label">Accelerated</div></div>
                 </div>
                 """)
-                
-                gr.HTML("<br>")
-                
-                # Model performance table
+
                 gr.HTML("""
-                <div class="about-container">
-                    <div style="font-size:1.1rem; font-weight:700; color:#0c1b33; margin-bottom:0.75rem;">
-                        Trained Models &amp; Results
-                    </div>
-                    <table class="arch-table">
-                        <thead>
-                            <tr>
-                                <th>Model</th>
-                                <th>Language</th>
-                                <th>Top-1 Acc.</th>
-                                <th>Top-5 Acc.</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>BSL Dict Retrieval</strong></td>
-                                <td>British</td>
-                                <td style="color:#059669; font-weight:700;">100%</td>
-                                <td style="color:#059669; font-weight:700;">100%</td>
-                            </tr>
-                            <tr>
-                                <td>BSL-100 Classification</td>
-                                <td>British</td>
-                                <td>72.34%</td>
-                                <td>95.03%</td>
-                            </tr>
-                            <tr>
-                                <td>BSL-500 Classification</td>
-                                <td>British</td>
-                                <td>59.26%</td>
-                                <td>89.04%</td>
-                            </tr>
-                            <tr>
-                                <td>Pose Recognition</td>
-                                <td>ASL</td>
-                                <td>44.44%</td>
-                                <td>81.62%</td>
-                            </tr>
-                            <tr>
-                                <td>Multi-Lingual Pose</td>
-                                <td>ASL+LSF</td>
-                                <td>20.95%</td>
-                                <td>49.17%</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div style="font-size:0.95rem;font-weight:700;color:#111827;margin-bottom:0.4rem;">Technical Architecture</div>
+                <table class="sig-table"><thead><tr><th>Component</th><th>Technology</th><th>Details</th></tr></thead><tbody>
+                <tr><td><strong>Sign Recognition</strong></td><td>Video-SWIN-T</td><td>Retrieval on 5,203 pre-extracted 768-dim features</td></tr>
+                <tr><td><strong>Speech Recognition</strong></td><td>OpenAI Whisper</td><td>Base model, 16 kHz mono</td></tr>
+                <tr><td><strong>Text-to-Speech</strong></td><td>Coqui XTTS v2</td><td>Voice cloning with speaker reference</td></tr>
+                <tr><td><strong>Language Model</strong></td><td>Groq Llama 3.3 70B</td><td>Gloss to natural English</td></tr>
+                <tr><td><strong>Avatar</strong></td><td>2D Pose Animator</td><td>Skeleton signing + video export</td></tr>
+                <tr><td><strong>Vocabulary</strong></td><td>11,573+ glosses</td><td>BSL-1K + BSLDict datasets</td></tr>
+                </tbody></table>
+                """)
+
+                gr.HTML("""
+                <div style="font-size:0.95rem;font-weight:700;color:#111827;margin-bottom:0.4rem;">Trained Models</div>
+                <table class="sig-table"><thead><tr><th>Model</th><th>Language</th><th>Top-1</th><th>Top-5</th></tr></thead><tbody>
+                <tr><td><strong>BSL Dict Retrieval</strong></td><td>British</td><td class="green">100%</td><td class="green">100%</td></tr>
+                <tr><td>BSL-100</td><td>British</td><td>72.34%</td><td>95.03%</td></tr>
+                <tr><td>BSL-500</td><td>British</td><td>59.26%</td><td>89.04%</td></tr>
+                <tr><td>Pose Recognition</td><td>ASL</td><td>44.44%</td><td>81.62%</td></tr>
+                <tr><td>Multi-Lingual</td><td>ASL+LSF</td><td>20.95%</td><td>49.17%</td></tr>
+                </tbody></table>
+                """)
+
+                gr.HTML("""
+                <div style="font-size:0.95rem;font-weight:700;color:#111827;margin-bottom:0.4rem;">Key Insights</div>
+                <div style="font-size:0.86rem;color:#4b5563;line-height:1.6;max-width:760px;">
+                <p style="margin-bottom:0.4rem;"><strong>Retrieval over classification.</strong> With one sample per class, cosine similarity on 768-dim SWIN features achieves perfect accuracy.</p>
+                <p style="margin-bottom:0.4rem;"><strong>Feature extraction</strong> takes about one hour for 5,203 videos on RTX 4060 (8 GB).</p>
+                <p><strong>End-to-end pipeline</strong> unifies vision, language, speech, and animation in one bidirectional system.</p>
                 </div>
                 """)
-                
-                gr.HTML("<br>")
-                
-                gr.HTML("""
-                <div class="about-container">
-                    <div style="font-size:1.1rem; font-weight:700; color:#0c1b33; margin-bottom:0.75rem;">
-                        Key Technical Insights
-                    </div>
-                    <div style="font-size:0.92rem; color:#475569; line-height:1.7;">
-                        <p style="margin-bottom:0.5rem;">
-                            <strong>Retrieval beats classification</strong> for single-sample-per-class problems. 
-                            The BSL Dictionary contains 5,203 clean isolated sign videos, each with one sample. 
-                            Cosine similarity matching on SWIN-extracted 768-dimensional features achieves 100% 
-                            Top-1 accuracy on same-source evaluation.
-                        </p>
-                        <p style="margin-bottom:0.5rem;">
-                            <strong>Feature extraction</strong> uses the Video-SWIN-T backbone to produce compact 
-                            768-dim embeddings per video. Full extraction across all 5,203 signs takes approximately 
-                            one hour on an RTX 4060 Laptop GPU (8GB VRAM).
-                        </p>
-                        <p>
-                            <strong>Bidirectional pipeline</strong> combines multiple AI modalities (vision, language, 
-                            speech, animation) into a single cohesive system, demonstrating end-to-end integration 
-                            from video input through language understanding to synthesized output.
-                        </p>
-                    </div>
-                </div>
-                """)
-        
-        # ─── FOOTER ───
+
+        # ── Footer ──
         gr.HTML("""
-        <div class="footer-wrapper">
-            <div class="footer-brand">Signlytic AI</div>
-            <div class="footer-author">
-                Developed by 
-                <a href="https://www.linkedin.com/in/iyanuoluwa-enoch-oke/" target="_blank" rel="noopener">
-                    Oke Iyanuoluwa Enoch
-                </a>
+        <div class="sig-footer" role="contentinfo">
+            <div class="sig-footer-brand">Signlytic AI</div>
+            <div style="font-size:0.8rem;color:rgba(255,255,255,0.55);margin-bottom:0.35rem;">Bridging communication between BSL users and hearing communities</div>
+            <div class="sig-footer-author">Developed by <a href="https://www.linkedin.com/in/iyanuoluwa-enoch-oke/" target="_blank" rel="noopener">Oke Iyanuoluwa Enoch</a></div>
+            <div class="sig-footer-links">
+                <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank">GitHub</a>
+                <a href="https://signlytic-ai-website.vercel.app" target="_blank">Website</a>
+                <a href="https://huggingface.co/spaces/Iyanuoluwa007/signlytic-ai" target="_blank">HuggingFace</a>
             </div>
-            <div class="footer-links">
-                <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank" rel="noopener">GitHub</a>
-                <a href="https://signlytic-ai-website.vercel.app" target="_blank" rel="noopener">Website</a>
-                <a href="https://huggingface.co/spaces/Iyanuoluwa007/signlytic-ai" target="_blank" rel="noopener">HuggingFace</a>
-            </div>
-            <div class="footer-uni">
-                Independent Robotics & AI Systems Engineer | MSc Robotics & Automation, University of Salford
-            </div>
+            <div class="sig-footer-sub">Independent Robotics & AI Systems Engineer &middot; v2.0 &middot; March 2026</div>
         </div>
         """)
-    
+
     return demo
 
 
@@ -1984,26 +1603,23 @@ def main():
     parser.add_argument("--share", action="store_true", help="Create public link")
     parser.add_argument("--port", type=int, default=7860, help="Port number")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
-    
     args = parser.parse_args()
-    
-    # Fix Windows asyncio issue
-    import sys
-    if sys.platform == 'win32':
+
+    if sys.platform == "win32":
         import asyncio
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    
+
     print("=" * 60)
     print("  Signlytic AI - BSL Translation System")
     print("  Developed by Oke Iyanuoluwa Enoch")
     print("=" * 60)
-    print(f"  Vocabulary:  {DEFAULT_VOCAB}")
-    print(f"  Video dir:   {DEFAULT_VIDEO_DIR}")
-    print(f"  FFmpeg:      {'OK' if ensure_ffmpeg_available() else 'NOT FOUND'}")
-    print(f"  GROQ_API_KEY: {'FOUND' if DEFAULT_GROQ_API_KEY else 'NOT FOUND'}")
-    print(f"  BSL Dict:    {'AVAILABLE' if BSL_DICT_AVAILABLE else 'NOT AVAILABLE'}")
+    print(f"  Vocabulary:    {DEFAULT_VOCAB}")
+    print(f"  Video dir:     {DEFAULT_VIDEO_DIR}")
+    print(f"  FFmpeg:        {'OK' if ensure_ffmpeg_available() else 'NOT FOUND'}")
+    print(f"  GROQ_API_KEY:  {'FOUND' if DEFAULT_GROQ_API_KEY else 'NOT FOUND'}")
+    print(f"  BSL Dict:      {'AVAILABLE' if BSL_DICT_AVAILABLE else 'NOT AVAILABLE'}")
     print("=" * 60)
-    
+
     demo = create_demo()
     demo.launch(
         server_name=args.host,
