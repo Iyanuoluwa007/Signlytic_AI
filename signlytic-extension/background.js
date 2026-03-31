@@ -6,7 +6,7 @@ const activeTabs = new Map(); // tabId -> { overlayReady: bool, settings: {} }
 
 // --- Default settings ---
 const DEFAULT_SETTINGS = {
-  enabled: false,
+  enabled: true,
   renderMode: '2d',          // '2d' | '3d'
   position: 'bottom-right',  // 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
   size: 'medium',            // 'small' | 'medium' | 'large'
@@ -111,4 +111,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // Clean up when a tab closes
 chrome.tabs.onRemoved.addListener((tabId) => {
   activeTabs.delete(tabId);
+});
+
+// Auto-inject overlay on page load -- content script handles dedup
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete') return;
+  if (!tab.url) return;
+  // Never inject on chrome:// or extension pages
+  if (tab.url.startsWith('chrome://') ||
+      tab.url.startsWith('chrome-extension://') ||
+      tab.url.startsWith('devtools://') ||
+      tab.url.startsWith('about:')) return;
+
+  chrome.storage.sync.get('settings', ({ settings }) => {
+    const s = settings || DEFAULT_SETTINGS;
+    if (s.enabled) {
+      // Small delay so content script is ready
+      setTimeout(() => {
+        chrome.tabs.sendMessage(tabId, { type: 'INJECT_OVERLAY' }).catch(() => {});
+      }, 500);
+    }
+  });
+});
+
+// Remove overlay on tab navigation start (before new page loads)
+chrome.webNavigation?.onBeforeNavigate?.addListener((details) => {
+  if (details.frameId !== 0) return; // main frame only
+  chrome.tabs.sendMessage(details.tabId, { type: 'REMOVE_OVERLAY' }).catch(() => {});
 });

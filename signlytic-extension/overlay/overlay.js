@@ -42,15 +42,16 @@ function applySettings(s) {
   settings = s;
   renderMode = s.renderMode || '2d';
 
-  const posClasses = ['pos-bottom-right','pos-bottom-left','pos-top-right','pos-top-left'];
-  panel.classList.remove(...posClasses);
-  panel.classList.add(`pos-${s.position || 'bottom-right'}`);
+  // Tell parent content_script to snap iframe to requested corner
+  try {
+    window.parent.postMessage({ type: 'SET_POSITION', position: s.position || 'bottom-right' }, '*');
+  } catch (_) {}
 
   const sizeClasses = ['size-small','size-medium','size-large'];
   panel.classList.remove(...sizeClasses);
   panel.classList.add(`size-${s.size || 'medium'}`);
 
-  const widthMap = { small: 260, medium: 320, large: 400 };
+  const widthMap = { small: 300, medium: 400, large: 520 };
   const w = widthMap[s.size || 'medium'];
   canvas2d.width = w;
 
@@ -170,10 +171,114 @@ const HAND_CONNECTIONS = [
   [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17],
 ];
 
-function drawFrame2d(frame) {
+// ─── Skeleton normalisation ──────────────────────────────────────────────────
+// Normalise body landmarks so the torso is always the same size/position
+// Uses shoulder midpoint as anchor and shoulder width as scale reference
+function normaliseFrame(frame) {
+  if (!frame?.body) return frame;
+  const body = frame.body;
+
+  const lShoulder = body[11];
+  const rShoulder = body[12];
+  if (!lShoulder || !rShoulder) return frame;
+
+  // Anchor: midpoint between shoulders, vertically centred at 0.35
+  const anchorX = (lShoulder[0] + rShoulder[0]) / 2;
+  const anchorY = (lShoulder[1] + rShoulder[1]) / 2;
+
+  // Scale: shoulder width normalised to a fixed reference width (0.25 of frame)
+  const shoulderW = Math.abs(lShoulder[0] - rShoulder[0]);
+  if (shoulderW < 0.01) return frame; // degenerate frame
+  const targetW = 0.25;
+  const scale = targetW / shoulderW;
+
+  // Target anchor position in canvas (upper-centre)
+  const targetX = 0.5;
+  const targetY = 0.30;
+
+  function normLms(lms) {
+    if (!lms) return null;
+    return lms.map(lm => {
+      if (!lm) return lm;
+      return [
+        targetX + (lm[0] - anchorX) * scale,
+        targetY + (lm[1] - anchorY) * scale,
+        lm[2] || 0,
+      ];
+    });
+  }
+
+  return {
+    body: normLms(frame.body),
+    lh:   normLms(frame.lh),
+    rh:   normLms(frame.rh),
+  };
+}
+
+function drawFingerspell(gloss) {
   const W = canvas2d.width, H = canvas2d.height;
   ctx2d.clearRect(0, 0, W, H);
-  if (!frame) return;
+  ctx2d.fillStyle = '#06080f';
+  ctx2d.fillRect(0, 0, W, H);
+  if (!gloss) return;
+
+  const letters = gloss.toUpperCase().split('');
+  const maxFontSize = 38;
+  const padding = 8;
+  const fontSize = Math.min(maxFontSize, Math.floor((W - padding * 2) / Math.max(letters.length, 1) * 0.85));
+  const letterW = fontSize * 0.72;
+  const totalW = letters.length * letterW + (letters.length - 1) * 4;
+  let startX = (W - totalW) / 2 + letterW / 2;
+
+  letters.forEach((letter, i) => {
+    const x = startX + i * (letterW + 4);
+    const boxX = x - letterW / 2;
+    const boxY = H / 2 - fontSize * 0.65;
+    const boxW = letterW;
+    const boxH = fontSize * 1.3;
+
+    // Card background
+    ctx2d.fillStyle = 'rgba(14,124,107,0.2)';
+    ctx2d.beginPath();
+    ctx2d.roundRect(boxX, boxY, boxW, boxH, 5);
+    ctx2d.fill();
+
+    // Card border
+    ctx2d.strokeStyle = 'rgba(94,234,212,0.4)';
+    ctx2d.lineWidth = 1;
+    ctx2d.stroke();
+
+    // Letter
+    ctx2d.fillStyle = '#5eead4';
+    ctx2d.font = `600 ${fontSize}px JetBrains Mono, monospace`;
+    ctx2d.textAlign = 'center';
+    ctx2d.textBaseline = 'middle';
+    ctx2d.fillText(letter, x, H / 2 + 1);
+  });
+
+  // Label
+  ctx2d.font = '10px JetBrains Mono, monospace';
+  ctx2d.fillStyle = '#3d4a5c';
+  ctx2d.textAlign = 'center';
+  ctx2d.fillText('fingerspell', W / 2, H - 8);
+}
+
+function getCanvasDimensions() {
+  // offsetWidth is unreliable inside iframe -- use panel's computed width
+  const panelW = panel.getBoundingClientRect().width || 400;
+  const areaH  = document.getElementById('canvas-area')?.getBoundingClientRect().height || 220;
+  return { w: Math.floor(panelW), h: Math.floor(areaH) };
+}
+
+function drawFrame2d(frame, currentGloss) {
+  frame = normaliseFrame(frame);  // stabilise scale/position
+  const { w: displayW, h: displayH } = getCanvasDimensions();
+  if (displayW > 10 && canvas2d.width  !== displayW) canvas2d.width  = displayW;
+  if (displayH > 10 && canvas2d.height !== displayH) canvas2d.height = displayH;
+  const W = canvas2d.width  || 400;
+  const H = canvas2d.height || 220;
+  ctx2d.clearRect(0, 0, W, H);
+  if (!frame) { drawFingerspell(currentGloss); return; }
 
   function pt(lms, i) {
     if (!lms?.[i]) return null;
@@ -225,7 +330,7 @@ function play2dQueue(queue) {
     if (!sign) { stop2dAnimation(); setStatus('idle','idle'); return; }
 
     setActiveGloss(current2dSign);
-    drawFrame2d(sign.frames[current2dFrame]);
+    drawFrame2d(sign.frames[current2dFrame], sign.gloss);
 
     current2dFrame++;
     if (current2dFrame >= sign.frames.length) {
@@ -239,6 +344,15 @@ function play2dQueue(queue) {
 }
 
 // ─── Sign lookup ──────────────────────────────────────────────────────────────
+// Auto-clear stale cache on version change
+const _CACHE_VER = '0.3.5';
+try {
+  if (localStorage.getItem('slytic-cv') !== _CACHE_VER) {
+    indexedDB.deleteDatabase('signlytic-signs');
+    localStorage.setItem('slytic-cv', _CACHE_VER);
+  }
+} catch (_) {}
+
 let _idb = null;
 async function openIDB() {
   if (_idb) return _idb;
@@ -283,9 +397,9 @@ async function isLocalDashboardRunning() {
 async function loadSignFrames(gloss) {
   const key = gloss.toUpperCase();
 
-  // 1. IndexedDB cache
+  // 1. IndexedDB cache -- only trust if non-empty array
   const cached = await idbGet(key);
-  if (cached) return cached;
+  if (cached && Array.isArray(cached) && cached.length > 0) return cached;
 
   // 2. Bundled core (174 signs, always available offline)
   try {
@@ -293,23 +407,27 @@ async function loadSignFrames(gloss) {
     const res = await fetch(url);
     if (res.ok) {
       const f = await res.json();
-      idbSet(key, f);
-      return f;
+      if (Array.isArray(f) && f.length > 0) {
+        idbSet(key, f);
+        return f;
+      }
     }
-  } catch {}
+  } catch (_) {} // expected for signs not in core
 
   // 3. Local FastAPI dashboard (private, full dictionary, no licence risk)
   try {
     const res = await fetch(
       `${LOCAL_API}/api/signs/${encodeURIComponent(key)}`,
-      { signal: AbortSignal.timeout(3000) }
+      { signal: AbortSignal.timeout(800) }
     );
     if (res.ok) {
       const f = await res.json();
-      idbSet(key, f);
-      return f;
+      if (Array.isArray(f) && f.length > 0) {
+        idbSet(key, f);
+        return f;
+      }
     }
-  } catch {}
+  } catch (_) {} // silent -- dashboard may not be running
 
   // Not found -- caller will fingerspell
   return null;
@@ -334,10 +452,17 @@ async function handleTranslate(text, source) {
   setStatus('signing', `signing ${glosses.length} gloss${glosses.length>1?'es':''}`);
 
   // Build frame queue
+  // For signs with no pose data, hold fingerspell for 20 frames (~0.8s at 25fps)
+  const FINGERSPELL_HOLD = 20;
   const queue = [];
   for (const gloss of glosses) {
     const frames = await loadSignFrames(gloss);
-    queue.push({ gloss, frames: frames?.length ? frames : [null] });
+    if (frames?.length) {
+      queue.push({ gloss, frames });
+    } else {
+      // Pad null so fingerspell shows for FINGERSPELL_HOLD frames
+      queue.push({ gloss, frames: Array(FINGERSPELL_HOLD).fill(null) });
+    }
   }
 
   if (renderMode === '3d' && avatarLoaded && avatarRenderer?.ready) {
@@ -355,27 +480,148 @@ async function handleTranslate(text, source) {
   }
 }
 
-// ─── Drag to reposition ───────────────────────────────────────────────────────
-let dragging = false, dragStart = { x:0, y:0, px:0, py:0 };
+// ─── Drag to reposition (moves iframe via parent postMessage) ─────────────────
+let dragging = false;
+let dragStartX = 0, dragStartY = 0;
 
 header.addEventListener('mousedown', (e) => {
   if (e.target.closest('.ctrl-btn')) return;
   dragging = true;
-  const rect = panel.getBoundingClientRect();
-  dragStart = { x: e.clientX, y: e.clientY, px: rect.left, py: rect.top };
+  dragStartX = e.screenX;
+  dragStartY = e.screenY;
   panel.style.transition = 'none';
-  panel.style.left = rect.left+'px'; panel.style.top = rect.top+'px';
-  panel.style.right = 'auto'; panel.style.bottom = 'auto';
   e.preventDefault();
 });
+
 document.addEventListener('mousemove', (e) => {
   if (!dragging) return;
-  panel.style.left = (dragStart.px + e.clientX - dragStart.x)+'px';
-  panel.style.top  = (dragStart.py + e.clientY - dragStart.y)+'px';
+  const dx = e.screenX - dragStartX;
+  const dy = e.screenY - dragStartY;
+  dragStartX = e.screenX;
+  dragStartY = e.screenY;
+  try {
+    window.parent.postMessage({ type: 'DRAG_DELTA', dx, dy }, '*');
+  } catch (_) {}
 });
-document.addEventListener('mouseup', () => { if (dragging) { dragging=false; panel.style.transition=''; } });
+
+document.addEventListener('mouseup', () => {
+  if (dragging) {
+    dragging = false;
+    panel.style.transition = '';
+  }
+});
+
+// ─── Broadcast panel bounds to parent page (for pointer-events toggle) ─────────
+function broadcastBounds() {
+  const rect = panel.getBoundingClientRect();
+  if (!rect.width) return;
+  // Post to parent content_script via window.parent
+  try {
+    window.parent.postMessage({
+      type: 'PANEL_BOUNDS',
+      bounds: { x: rect.left, y: rect.top, w: rect.width, h: rect.height }
+    }, '*');
+  } catch (_) {}
+}
+
+// Broadcast on load, drag, resize, settings change
+const _boundsObserver = new ResizeObserver(broadcastBounds);
+_boundsObserver.observe(panel);
+
+// Poll every 300ms to catch drag repositioning
+setInterval(broadcastBounds, 300);
+
+// ─── Resize handle logic ─────────────────────────────────────────────────────
+let resizing = false;
+let resizeStart = { x: 0, y: 0, w: 0, h: 0 };
+let resizeDir = 'se'; // 'se' bottom-right, 'sw' bottom-left
+
+function initResizeHandle(handleEl, dir) {
+  handleEl.addEventListener('mousedown', (e) => {
+    resizing = true;
+    resizeDir = dir;
+    const rect = panel.getBoundingClientRect();
+    resizeStart = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height, l: rect.left };
+    panel.style.transition = 'none';
+    e.preventDefault();
+    e.stopPropagation();
+  });
+}
+
+const handleBR = document.getElementById('resize-handle-br');
+const handleSW = document.getElementById('resize-handle');
+if (handleBR) initResizeHandle(handleBR, 'se');
+if (handleSW) initResizeHandle(handleSW, 'sw');
+
+document.addEventListener('mousemove', (e) => {
+  if (!resizing) return;
+  const dx = e.clientX - resizeStart.x;
+  const dy = e.clientY - resizeStart.y;
+  const minW = 260, maxW = 700;
+  const minH = 160, maxH = 500;
+
+  let newW = resizeDir === 'se'
+    ? Math.min(maxW, Math.max(minW, resizeStart.w + dx))
+    : Math.min(maxW, Math.max(minW, resizeStart.w - dx));
+  let newH = Math.min(maxH, Math.max(minH, resizeStart.h + dy));
+
+  panel.style.width  = newW + 'px';
+  panel.style.height = newH + 'px';  // explicit height overrides flexbox
+  panel.style.removeProperty('right');
+
+  if (resizeDir === 'sw') {
+    panel.style.left = (resizeStart.l + (resizeStart.w - newW)) + 'px';
+  }
+
+  // Canvas area gets remaining height after header/toggle/gloss/status (~120px)
+  const canvasH = Math.max(100, newH - 120);
+  const canvasArea = document.getElementById('canvas-area');
+  if (canvasArea) canvasArea.style.height = canvasH + 'px';
+
+  // Update canvas buffer
+  canvas2d.width  = newW;
+  canvas2d.height = canvasH;
+
+  // Resize 3D renderer
+  if (avatarRenderer) avatarRenderer.resize(newW, canvasH);
+});
+
+document.addEventListener('mouseup', () => {
+  if (resizing) {
+    resizing = false;
+    panel.style.transition = '';
+  }
+});
 
 // ─── Button handlers ──────────────────────────────────────────────────────────
+// ─── Manual input wiring ─────────────────────────────────────────────────────
+const manualBar   = document.getElementById('manual-input-bar');
+const manualInput = document.getElementById('manual-input');
+const manualSend  = document.getElementById('manual-send');
+
+function showManualInput(show) {
+  if (manualBar) manualBar.style.display = show ? 'block' : 'none';
+  if (show && manualInput) manualInput.focus();
+}
+
+function submitManualText() {
+  const text = manualInput?.value?.trim();
+  if (!text) return;
+  handleTranslate(text, 'manual');
+  if (manualInput) manualInput.value = '';
+}
+
+if (manualSend) {
+  manualSend.addEventListener('click', submitManualText);
+}
+if (manualInput) {
+  manualInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitManualText(); }
+  });
+  // Prevent panel drag when typing
+  manualInput.addEventListener('mousedown', (e) => e.stopPropagation());
+}
+
 btnMinimise.addEventListener('click', () => {
   isMinimised = !isMinimised;
   panel.classList.toggle('minimised', isMinimised);
@@ -399,19 +645,28 @@ window.addEventListener('message', (event) => {
   if (!msg?.type) return;
 
   switch (msg.type) {
-    case 'INIT':
+    case 'INIT': {
       applySettings(msg.settings || {});
       panel.classList.remove('hidden');
-      setStatus('listening','listening...');
-      // If settings say 3D mode, pre-load avatar immediately
+      const initSrc = msg.settings?.captionSource || 'auto';
+      if (initSrc === 'mic')         setStatus('listening', 'mic active — speak now');
+      else if (initSrc === 'manual') setStatus('listening', 'manual mode — type below');
+      else                           setStatus('listening', 'waiting for captions...');
+      showManualInput(initSrc === 'manual');
+      requestAnimationFrame(() => {
+        const { w, h } = getCanvasDimensions();
+        if (w > 10) { canvas2d.width = w; canvas2d.height = h; }
+      });
       if ((msg.settings?.renderMode === '3d') && !avatarLoaded) {
         load3DAvatar();
       }
       break;
+    }
 
     case 'SETTINGS_CHANGED': {
       const prev = settings.avatarGender;
       applySettings(msg.settings || {});
+      showManualInput((msg.settings?.captionSource || 'auto') === 'manual');
       // Reload avatar if gender changed while in 3D mode
       if (renderMode === '3d' && msg.settings?.avatarGender !== prev && avatarRenderer) {
         avatarLoaded = false;

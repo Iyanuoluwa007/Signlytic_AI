@@ -90,7 +90,7 @@ function sendPatch(patch) {
 
 function updateStatusIndicator(enabled) {
   statusIndicator.classList.toggle('on', !!enabled);
-  statusMsg.textContent = enabled ? 'active — overlay injected' : 'inactive';
+  statusMsg.textContent = enabled ? 'active — overlay injected' : 'paused — click to enable';
 }
 
 function updateSourceHint(source) {
