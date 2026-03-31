@@ -37,6 +37,13 @@ sys.path.insert(0, os.path.join(project_root, "src", "inference"))
 sys.path.insert(0, os.path.join(project_root, "scripts"))
 
 try:
+    from src.inference.avatar_3d_renderer import Avatar3DRenderer
+    AVATAR_3D_AVAILABLE = True
+except ImportError as _e3d:
+    AVATAR_3D_AVAILABLE = False
+    print(f"Avatar3DRenderer unavailable: {_e3d}")
+
+try:
     import gradio as gr
 except ImportError:
     print("Gradio required. Install with: pip install gradio")
@@ -85,6 +92,7 @@ _tts = None
 _tts_disabled_reason = None
 _avatar_renderer = None
 _pose_sign_renderer = None
+_avatar_3d_renderer = None
 _sign_recognizer = None
 _bsl_dict_recognizer = None
 _live_running = False
@@ -312,6 +320,70 @@ details summary { color: #0f172a !important; font-weight: 600 !important; }
     .sig-metrics { grid-template-columns: repeat(2, 1fr); }
     .sig-footer { border-radius: 0 0 10px 10px; }
 }
+
+/* === Signlytic Dark Theme Override === */
+body, .gradio-container, .main, .wrap, .app {
+    background: #080a10 !important;
+    color: #e2e8f0 !important;
+}
+.tabitem, .tab-nav, .panel, .form, .block, .box, .gap {
+    background: #0c0e16 !important;
+    border-color: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+label, .label-wrap span, .block label, .caption-lg, .prose, p, span {
+    color: #94a3b8 !important;
+}
+h1, h2, h3, h4, h5, h6 {
+    color: #e2e8f0 !important;
+}
+input, textarea, select, .input-wrap input, .input-wrap textarea {
+    background: #111827 !important;
+    border-color: #1e3a5f !important;
+    color: #f1f5f9 !important;
+}
+button.primary, .btn-primary, button[variant="primary"] {
+    background: #1e3a5f !important;
+    border-color: #0e7c6b !important;
+    color: #ffffff !important;
+}
+button.secondary, button[variant="secondary"] {
+    background: #0f172a !important;
+    border-color: #1e293b !important;
+    color: #94a3b8 !important;
+}
+.tab-nav button { 
+    color: #94a3b8 !important; 
+    background: #0c0e16 !important; 
+    border-color: #1e293b !important;
+}
+.tab-nav button.selected { 
+    color: #5eead4 !important; 
+    border-color: #0e7c6b !important;
+    background: #0f1f2e !important;
+}
+.accordion, .accordion > .label-wrap {
+    background: #0f172a !important; 
+    border-color: #1e293b !important; 
+    color: #94a3b8 !important;
+}
+.gr-radio label, .radio-group label { color: #94a3b8 !important; }
+.gr-check-radio:checked { accent-color: #0e7c6b !important; }
+.sig-sh { color: #5eead4 !important; }
+.sig-col { color: #0e7c6b !important; }
+.sig-result { background: #0f172a !important; border-color: #1e3a5f !important; }
+.sig-result-h { color: #5eead4 !important; }
+.sig-help { background: #0f172a !important; border-color: #1e293b !important; }
+.sig-step { background: #0e7c6b !important; color: #fff !important; }
+footer, .footer { display: none !important; }
+
+/* -- Gradio 6.x tab panel dark overrides -- */
+.tab-nav { background: #0c0e16 !important; border-bottom: 1px solid #1e293b !important; }
+.tabitem > div, .tabitem { background: #080a10 !important; }
+div.form { background: #111827 !important; border-color: #1e293b !important; }
+.contain { background: #111827 !important; }
+div[data-testid='block'] { background: #111827 !important; }
+.gap-4, .gap-2 { background: #080a10 !important; }
 """
 
 
@@ -457,6 +529,19 @@ def get_pose_sign_renderer():
     if _pose_sign_renderer is None:
         _pose_sign_renderer = PoseSignRenderer(project_root=Path(project_root))
     return _pose_sign_renderer
+
+
+def get_avatar_3d_renderer():
+    global _avatar_3d_renderer
+    if not AVATAR_3D_AVAILABLE:
+        raise RuntimeError("Avatar3DRenderer not available.")
+    if _avatar_3d_renderer is None:
+        pose_renderer = get_pose_sign_renderer()
+        _avatar_3d_renderer = Avatar3DRenderer(
+            project_root=Path(project_root),
+            pose_renderer=pose_renderer,
+        )
+    return _avatar_3d_renderer
 
 
 def get_bsl_dict_recognizer():
@@ -809,16 +894,17 @@ def _direction2_render_sequence(
     coverage_text: str,
     render_engine: str,
     render_speed: float,
+    avatar_gender: str = "Male",
 ):
     glosses = [str(g).strip().upper() for g in (glosses or []) if str(g).strip()]
     gloss_str = " ".join(glosses)
     if not glosses:
-        yield transcription_text, "", coverage_text, None, None, "No glosses generated."
+        yield transcription_text, "", coverage_text, None, None, "No glosses generated.", ""
         return
 
     engine_raw = (render_engine or "Pose Animator").strip()
     engine_aliases = {
-        "3D Pose Animator": "Pose Animator",
+        "3D Avatar": "3D Avatar",
         "2D Pose Animator": "Pose Animator",
     }
     engine = engine_aliases.get(engine_raw, engine_raw)
@@ -828,6 +914,37 @@ def _direction2_render_sequence(
         speed = 1.0
     speed = max(0.6, min(1.6, speed))
 
+    if engine == "3D Avatar":
+        if not AVATAR_3D_AVAILABLE:
+            yield transcription_text, gloss_str, coverage_text, None, None, "3D Avatar renderer not available.", ""
+            return
+        avatar_gender = "female" if "female" in (render_engine or "").lower() else "male"
+        yield transcription_text, gloss_str, coverage_text, None, None, "Loading 3D renderer...", ""
+        try:
+            renderer_3d = get_avatar_3d_renderer()
+        except Exception as _e3d:
+            yield transcription_text, gloss_str, coverage_text, None, None, f"3D renderer failed: {_e3d}", ""
+            return
+        cov3d = renderer_3d.get_coverage(glosses)
+        cov3d_text = (
+            f"{coverage_text}\n\n3D coverage: {cov3d['coverage']:.1f}%"
+            f" ({cov3d['available_count']}/{len(glosses)})"
+        )
+        if cov3d["missing"]:
+            cov3d_text += f"\nMissing: {', '.join(cov3d['missing'][:10])}"
+        yield transcription_text, gloss_str, cov3d_text, None, None, "Generating 3D animation...", ""
+        try:
+            html_3d = renderer_3d.render_sequence_html(
+                glosses=glosses,
+                speed=speed,
+                avatar=avatar_gender.lower() if avatar_gender else "male",
+                gloss_str=gloss_str,
+            )
+            yield transcription_text, gloss_str, cov3d_text, None, None, "3D avatar ready.", html_3d
+        except Exception as _e3d:
+            yield transcription_text, gloss_str, cov3d_text, None, None, f"3D render failed: {_e3d}", ""
+        return
+
     if engine == "Legacy Clip Avatar":
         legacy_renderer = get_avatar_renderer()
         legacy_cov = legacy_renderer.get_coverage(glosses)
@@ -836,17 +953,17 @@ def _direction2_render_sequence(
         )
         if legacy_cov["missing"]:
             legacy_coverage += f"\nMissing videos: {', '.join(legacy_cov['missing'][:10])}"
-        yield transcription_text, gloss_str, legacy_coverage, None, None, "Rendering legacy clip avatar..."
+        yield transcription_text, gloss_str, legacy_coverage, None, None, "Rendering legacy clip avatar...", ""
         avatar_video = render_avatar_video(glosses)
         status = "Legacy clip avatar rendered." if avatar_video else "Legacy clip avatar unavailable."
-        yield transcription_text, gloss_str, legacy_coverage, None, avatar_video, status
+        yield transcription_text, gloss_str, legacy_coverage, None, avatar_video, status, ""
         return
 
-    yield transcription_text, gloss_str, coverage_text, None, None, "Initializing pose renderer..."
+    yield transcription_text, gloss_str, coverage_text, None, None, "Initializing pose renderer...", ""
     try:
         pose_renderer = get_pose_sign_renderer()
     except Exception as e:
-        yield transcription_text, gloss_str, coverage_text, None, None, f"Pose renderer failed: {e}"
+        yield transcription_text, gloss_str, coverage_text, None, None, f"Pose renderer failed: {e}", ""
         return
 
     pose_cov = pose_renderer.get_coverage(glosses)
@@ -858,7 +975,7 @@ def _direction2_render_sequence(
     if pose_cov["missing"]:
         pose_coverage += f"\nMissing: {', '.join(pose_cov['missing'][:10])}"
 
-    yield transcription_text, gloss_str, pose_coverage, None, None, "Animating signs..."
+    yield transcription_text, gloss_str, pose_coverage, None, None, "Animating signs...", ""
 
     last_frame = None
     last_status = "Animation started."
@@ -895,7 +1012,7 @@ def _direction2_render_sequence(
             if writer is not None:
                 frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 writer.write(frame_bgr)
-            yield transcription_text, gloss_str, pose_coverage, frame_rgb, None, status
+            yield transcription_text, gloss_str, pose_coverage, frame_rgb, None, status, ""
     except Exception as e:
         last_status = f"Rendering failed: {e}"
     finally:
@@ -903,7 +1020,7 @@ def _direction2_render_sequence(
             writer.release()
 
     if frame_count == 0:
-        yield transcription_text, gloss_str, pose_coverage, None, None, last_status
+        yield transcription_text, gloss_str, pose_coverage, None, None, last_status, ""
         return
 
     final_video = None
@@ -921,13 +1038,13 @@ def _direction2_render_sequence(
             last_status = f"{last_status} MP4 failed: {e}"
 
     final_status = f"Complete. {frame_count} frames rendered."
-    yield transcription_text, gloss_str, pose_coverage, last_frame, final_video, final_status
+    yield transcription_text, gloss_str, pose_coverage, last_frame, final_video, final_status, ""
 
 
-def direction2_audio_to_signing(audio_input, render_engine, render_speed):
+def direction2_audio_to_signing(audio_input, render_engine, render_speed, avatar_gender="Male"):
     input_path = file_to_path(audio_input)
     if not input_path:
-        yield "", "", "", None, None, "Please record or upload audio."
+        yield "", "", "", None, None, "Please record or upload audio.", ""
         return
     wav_path = None
     try:
@@ -944,6 +1061,7 @@ def direction2_audio_to_signing(audio_input, render_engine, render_speed):
             coverage_text=coverage,
             render_engine=render_engine,
             render_speed=render_speed,
+            avatar_gender=avatar_gender,
         )
     except Exception as e:
         yield f"Error: {e}", "", "", None, None, f"Audio pipeline failed: {e}"
@@ -955,10 +1073,10 @@ def direction2_audio_to_signing(audio_input, render_engine, render_speed):
                 pass
 
 
-def direction2_text_to_signing(text_input, render_engine, render_speed):
+def direction2_text_to_signing(text_input, render_engine, render_speed, avatar_gender="Male"):
     text = (text_input or "").strip()
     if not text:
-        yield "", "", "", None, None, "Please enter text."
+        yield "", "", "", None, None, "Please enter text.", ""
         return
     try:
         pipeline = get_speech_to_bsl()
@@ -971,9 +1089,10 @@ def direction2_text_to_signing(text_input, render_engine, render_speed):
             coverage_text=coverage,
             render_engine=render_engine,
             render_speed=render_speed,
+            avatar_gender=avatar_gender,
         )
     except Exception as e:
-        yield text, "", "", None, None, f"Text pipeline failed: {e}"
+        yield text, "", "", None, None, f"Text pipeline failed: {e}", ""
 
 
 def render_avatar_video(glosses: list) -> str:
@@ -1199,7 +1318,7 @@ def create_demo():
                             d2_text_btn = gr.Button("Convert to BSL", variant="primary")
 
                         with gr.Accordion("Animation settings", open=False):
-                            d2_render_engine = gr.Radio(choices=["Pose Animator", "Legacy Clip Avatar"], value="Pose Animator", label="Animation style", info="Pose Animator shows a skeleton signing. Legacy uses video clips joined together.")
+                            d2_render_engine = gr.Radio(choices=["Pose Animator", "3D Avatar", "Legacy Clip Avatar"], value="Pose Animator", label="Animation style", info="Pose Animator: skeleton. 3D Avatar: rigged character. Legacy: video clips.")
                             d2_render_speed = gr.Slider(minimum=0.6, maximum=1.6, value=1.0, step=0.1, label="Signing speed")
 
                     with gr.Column(scale=5):
@@ -1219,6 +1338,13 @@ def create_demo():
                         gr.HTML('<div class="sig-result"><div class="sig-result-h">Signing video</div></div>')
                         d2_avatar_video = gr.Video(label="BSL animation", show_label=False)
                         d2_render_status = gr.Textbox(label="Status", lines=1, interactive=False)
+                        d2_avatar_gender = gr.Radio(
+                            choices=["Male", "Female"],
+                            value="Male",
+                            label="Avatar gender",
+                            visible=False,
+                        )
+                        d2_avatar_3d = gr.HTML(value="")
 
                 gr.Examples(
                     examples=[["Hello, my name is John."], ["What time is the meeting?"], ["Thank you very much."], ["I need help please."]],
@@ -1226,9 +1352,14 @@ def create_demo():
                     label="Try these phrases",
                 )
 
-                d2_audio_btn.click(fn=direction2_audio_to_signing, inputs=[d2_audio_input, d2_render_engine, d2_render_speed], outputs=[d2_transcription, d2_glosses_output, d2_coverage, d2_live_preview, d2_avatar_video, d2_render_status], show_progress="hidden")
+                d2_audio_btn.click(fn=direction2_audio_to_signing, inputs=[d2_audio_input, d2_render_engine, d2_render_speed, d2_avatar_gender], outputs=[d2_transcription, d2_glosses_output, d2_coverage, d2_live_preview, d2_avatar_video, d2_render_status, d2_avatar_3d], show_progress="hidden")
                 d2_audio_input.change(fn=media_preview_path, inputs=[d2_audio_input], outputs=[d2_audio_preview])
-                d2_text_btn.click(fn=direction2_text_to_signing, inputs=[d2_text, d2_render_engine, d2_render_speed], outputs=[d2_transcription, d2_glosses_output, d2_coverage, d2_live_preview, d2_avatar_video, d2_render_status], show_progress="hidden")
+                d2_text_btn.click(fn=direction2_text_to_signing, inputs=[d2_text, d2_render_engine, d2_render_speed, d2_avatar_gender], outputs=[d2_transcription, d2_glosses_output, d2_coverage, d2_live_preview, d2_avatar_video, d2_render_status, d2_avatar_3d], show_progress="hidden")
+                d2_render_engine.change(
+                    fn=lambda e: gr.update(visible=(e == "3D Avatar")),
+                    inputs=[d2_render_engine],
+                    outputs=[d2_avatar_gender],
+                )
 
             # ══════════════════════════════════════════
             # TAB 3: Help & Accessibility
@@ -1412,7 +1543,7 @@ def main():
     print("=" * 60)
 
     demo = create_demo()
-    demo.launch(
+    demo.launch(allowed_paths=[str(Path(project_root) / 'data' / 'avatars')], 
         server_name=args.host,
         server_port=args.port,
         share=args.share,
