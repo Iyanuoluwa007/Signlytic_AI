@@ -6,7 +6,7 @@ __pycache__/
 
 # Models & data (large / sensitive)
 models/
-data/
+/data/
 outputs/
 evaluation_results/
 evaluation/
@@ -140,7 +140,7 @@ Thumbs.db
 # ============================================
 
 # Large data files
-data/
+/data/
 !data/.gitkeep
 
 # Model weights (large files)
