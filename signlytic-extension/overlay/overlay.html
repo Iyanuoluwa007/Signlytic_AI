@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signlytic Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-base:     #06080f;
+    --bg-surface:  #0d1117;
+    --bg-elevated: #111827;
+    --bg-card:     #161f2e;
+    --accent:      #0e7c6b;
+    --accent-light:#5eead4;
+    --navy:        #1e3a5f;
+    --text-primary:#e8edf5;
+    --text-muted:  #6b7a8d;
+    --text-dim:    #3d4a5c;
+    --border:      rgba(94,234,212,0.1);
+    --shadow:      0 8px 32px rgba(0,0,0,0.6);
+    --radius:      12px;
+    --font-sans:   'Outfit', system-ui, sans-serif;
+    --font-mono:   'JetBrains Mono', monospace;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: transparent;
+    font-family: var(--font-sans);
+    overflow: hidden;
+  }
+
+  /* ── Panel ── */
+  #panel {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    width: 320px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow), 0 0 0 1px rgba(14,124,107,0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: all;
+    user-select: none;
+  }
+
+  #panel.hidden   { opacity: 0; pointer-events: none; transform: scale(0.96); }
+
+  #panel.size-small  { width: 260px; }
+  #panel.size-medium { width: 320px; }
+  #panel.size-large  { width: 400px; }
+
+  #panel.pos-bottom-right { bottom: 20px; right: 20px; left: auto; top: auto; }
+  #panel.pos-bottom-left  { bottom: 20px; left: 20px; right: auto; top: auto; }
+  #panel.pos-top-right    { top: 20px; right: 20px; left: auto; bottom: auto; }
+  #panel.pos-top-left     { top: 20px; left: 20px; right: auto; bottom: auto; }
+
+  /* ── Header ── */
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px 8px 12px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    cursor: grab; flex-shrink: 0;
+  }
+  #header:active { cursor: grabbing; }
+
+  #header-left { display: flex; align-items: center; gap: 7px; }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-light);
+    box-shadow: 0 0 6px var(--accent-light);
+  }
+  .logo-dot.inactive { background: var(--text-dim); box-shadow: none; }
+
+  #header-title {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  #header-controls { display: flex; align-items: center; gap: 4px; }
+
+  .ctrl-btn {
+    width: 22px; height: 22px;
+    border: none; background: none;
+    cursor: pointer; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 13px;
+    transition: background 0.15s, color 0.15s;
+    pointer-events: all;
+  }
+  .ctrl-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+
+  /* ── Mode toggle ── */
+  #mode-toggle {
+    display: flex; align-items: center;
+    padding: 6px 10px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    gap: 4px; flex-shrink: 0;
+  }
+
+  .mode-btn {
+    flex: 1; padding: 4px 0;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.04em;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    pointer-events: all;
+  }
+  .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .mode-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent-light); }
+
+  /* ── Canvas area ── */
+  #canvas-area {
+    position: relative;
+    background: var(--bg-base);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  #canvas-2d { width: 100%; display: block; }
+
+  #canvas-3d-container {
+    position: absolute; inset: 0;
+    display: none;
+    background: var(--bg-base);
+  }
+
+  #canvas-3d { width: 100%; height: 100%; display: block; }
+
+  /* ── 3D loading overlay ── */
+  #avatar-loading {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-base);
+    gap: 10px;
+    z-index: 10;
+  }
+  #avatar-loading.visible { display: flex; }
+
+  .loading-ring {
+    width: 28px; height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-light);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #loading-label {
+    font-size: 10px; font-family: var(--font-mono);
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  #loading-progress {
+    width: 120px; height: 2px;
+    background: var(--bg-card);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  #loading-bar {
+    height: 100%; width: 0%;
+    background: var(--accent-light);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  /* ── Skeleton placeholder ── */
+  #skeleton-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 180px;
+    gap: 8px; opacity: 0.35;
+  }
+
+  .sk-svg { width: 64px; height: 64px; }
+
+  #placeholder-label {
+    font-size: 10px; font-family: var(--font-mono);
+    color: var(--text-muted); letter-spacing: 0.05em;
+  }
+
+  /* ── Avatar gender badge ── */
+  #gender-badge {
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: 9px; font-family: var(--font-mono);
+    color: var(--text-dim);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    background: rgba(6,8,15,0.7);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    display: none;
+    z-index: 5;
+  }
+
+  /* ── Gloss row ── */
+  #gloss-row {
+    padding: 5px 10px 7px;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 4px;
+    min-height: 30px; align-items: center;
+    flex-shrink: 0;
+  }
+
+  .gloss-token {
+    font-size: 10px; font-family: var(--font-mono); font-weight: 500;
+    padding: 2px 7px; border-radius: 4px;
+    background: rgba(14,124,107,0.15);
+    border: 1px solid rgba(94,234,212,0.2);
+    color: var(--accent-light);
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .gloss-token.active {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 0 8px rgba(14,124,107,0.4);
+  }
+  .gloss-empty { font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); font-style: italic; }
+
+  /* ── Status bar ── */
+  #status-bar {
+    display: flex; align-items: center;
+    padding: 5px 10px;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    gap: 7px; flex-shrink: 0; min-height: 28px;
+  }
+
+  #status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%; background: var(--text-dim);
+    flex-shrink: 0; transition: background 0.3s;
+  }
+  #status-dot.listening   { background: var(--accent-light); animation: pulse 1.4s ease-in-out infinite; }
+  #status-dot.translating { background: #fbbf24; }
+  #status-dot.signing     { background: #34d399; }
+  #status-dot.loading     { background: #60a5fa; animation: pulse 1.4s ease-in-out infinite; }
+  #status-dot.error       { background: #f87171; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  #status-text {
+    font-size: 10px; font-weight: 400;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; flex: 1;
+  }
+
+  /* ── Minimised ── */
+  #panel.minimised #canvas-area,
+  #panel.minimised #gloss-row,
+  #panel.minimised #mode-toggle { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="panel" class="pos-bottom-right size-medium hidden">
+
+  <!-- Header -->
+  <div id="header">
+    <div id="header-left">
+      <div class="logo-dot inactive" id="logo-dot"></div>
+      <span id="header-title">Signlytic BSL</span>
+    </div>
+    <div id="header-controls">
+      <button class="ctrl-btn" id="btn-minimise" title="Minimise">&#8722;</button>
+      <button class="ctrl-btn" id="btn-close" title="Close">&#215;</button>
+    </div>
+  </div>
+
+  <!-- 2D / 3D toggle -->
+  <div id="mode-toggle">
+    <button class="mode-btn active" id="btn-2d" data-mode="2d">2D Skeleton</button>
+    <button class="mode-btn" id="btn-3d" data-mode="3d">3D Avatar</button>
+  </div>
+
+  <!-- Canvas area -->
+  <div id="canvas-area" style="height:180px;">
+
+    <!-- 2D skeleton canvas -->
+    <canvas id="canvas-2d" width="320" height="180"></canvas>
+
+    <!-- Skeleton idle placeholder -->
+    <div id="skeleton-placeholder">
+      <svg class="sk-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="10" r="7" stroke="#5eead4" stroke-width="1.5"/>
+        <line x1="32" y1="17" x2="32" y2="40" stroke="#5eead4" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="32" y1="24" x2="18" y2="33" stroke="#5eead4" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="32" y1="24" x2="46" y2="33" stroke="#5eead4" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="32" y1="40" x2="22" y2="56" stroke="#5eead4" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="32" y1="40" x2="42" y2="56" stroke="#5eead4" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span id="placeholder-label">waiting for input</span>
+    </div>
+
+    <!-- 3D avatar container -->
+    <div id="canvas-3d-container">
+      <canvas id="canvas-3d"></canvas>
+      <div id="avatar-loading">
+        <div class="loading-ring"></div>
+        <span id="loading-label">loading avatar...</span>
+        <div id="loading-progress"><div id="loading-bar"></div></div>
+      </div>
+      <div id="gender-badge">male</div>
+    </div>
+
+  </div>
+
+  <!-- Gloss tokens -->
+  <div id="gloss-row">
+    <span class="gloss-empty" id="gloss-empty">no glosses yet</span>
+  </div>
+
+  <!-- Status bar -->
+  <div id="status-bar">
+    <div id="status-dot"></div>
+    <span id="status-text">idle</span>
+  </div>
+
+</div>
+
+<!-- Three.js r128 from cdnjs -->
+<script src="three.min.js"></script>
+<!-- GLTFLoader for r128 -->
+<script src="GLTFLoader.js"></script>
+
+<script src="avatar3d.js"></script>
+<script src="overlay.js"></script>
+</body>
+</html>

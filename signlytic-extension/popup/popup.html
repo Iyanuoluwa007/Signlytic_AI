@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signlytic AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-base:     #06080f;
+    --bg-surface:  #0d1117;
+    --bg-elevated: #111827;
+    --bg-card:     #161f2e;
+    --accent:      #0e7c6b;
+    --accent-light:#5eead4;
+    --navy:        #1e3a5f;
+    --text-primary:#e8edf5;
+    --text-muted:  #6b7a8d;
+    --text-dim:    #3d4a5c;
+    --border:      rgba(94,234,212,0.1);
+    --radius:      8px;
+    --font-sans:   'Outfit', system-ui, sans-serif;
+    --font-mono:   'JetBrains Mono', monospace;
+  }
+
+  html {
+    width: 300px;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { width: 300px; }
+
+  /* ── Header ── */
+  .header {
+    padding: 14px 16px 12px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .brand-mark {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    flex-shrink: 0;
+  }
+
+  .brand-text { line-height: 1.15; }
+  .brand-name {
+    font-size: 13px; font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .brand-sub {
+    font-size: 9px; font-weight: 400;
+    color: var(--text-muted);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  /* ── Power toggle ── */
+  .power-wrap {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .power-label {
+    font-size: 10px; font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .toggle-switch {
+    position: relative; width: 36px; height: 20px;
+  }
+  .toggle-switch input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .toggle-thumb {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 12px; height: 12px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); }
+  input:checked + .toggle-track .toggle-thumb {
+    transform: translateX(16px);
+    background: #fff;
+  }
+
+  /* ── Sections ── */
+  .section {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label {
+    font-size: 9px; font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 9px;
+  }
+
+  /* ── Option groups (pill buttons) ── */
+  .option-group {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .opt-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.15s;
+  }
+  .opt-btn:hover:not(.active) {
+    border-color: rgba(94,234,212,0.3);
+    color: var(--accent-light);
+  }
+  .opt-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* ── Slider (speed) ── */
+  .slider-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .slider-label { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+  .slider-val {
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--accent-light); flex-shrink: 0; width: 28px; text-align: right;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--bg-card);
+    border-radius: 3px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px; height: 13px;
+    background: var(--accent-light);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(94,234,212,0.4);
+  }
+
+  /* ── Status row ── */
+  .status-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 16px;
+    background: var(--bg-elevated);
+  }
+  .status-indicator {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-indicator.on {
+    background: var(--accent-light);
+    box-shadow: 0 0 5px var(--accent-light);
+  }
+  .status-msg {
+    font-size: 10px; font-family: var(--font-mono);
+    color: var(--text-muted);
+    flex: 1;
+  }
+  .version-tag {
+    font-size: 9px; font-family: var(--font-mono);
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Source description ── */
+  .source-hint {
+    font-size: 10px; color: var(--text-dim); margin-top: 6px;
+    font-family: var(--font-mono);
+    min-height: 14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-brand">
+    <div class="brand-mark">S</div>
+    <div class="brand-text">
+      <div class="brand-name">Signlytic AI</div>
+      <div class="brand-sub">BSL Overlay</div>
+    </div>
+  </div>
+  <div class="power-wrap">
+    <span class="power-label">On</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggle-enabled">
+      <div class="toggle-track">
+        <div class="toggle-thumb"></div>
+      </div>
+    </label>
+  </div>
+</div>
+
+<!-- Caption Source -->
+<div class="section">
+  <div class="section-label">Caption Source</div>
+  <div class="option-group" data-key="captionSource">
+    <button class="opt-btn active" data-val="auto">Auto-detect</button>
+    <button class="opt-btn" data-val="captions">Captions</button>
+    <button class="opt-btn" data-val="mic">Microphone</button>
+    <button class="opt-btn" data-val="manual">Manual</button>
+  </div>
+  <div class="source-hint" id="source-hint">Detects page captions, falls back to mic</div>
+</div>
+
+<!-- Render Mode -->
+<div class="section">
+  <div class="section-label">Render Mode</div>
+  <div class="option-group" data-key="renderMode">
+    <button class="opt-btn active" data-val="2d">2D Skeleton</button>
+    <button class="opt-btn" data-val="3d">3D Avatar</button>
+  </div>
+</div>
+
+<!-- Avatar Gender (shown only in 3D mode) -->
+<div class="section" id="avatar-section">
+  <div class="section-label">Avatar</div>
+  <div class="option-group" data-key="avatarGender">
+    <button class="opt-btn active" data-val="male">Male</button>
+    <button class="opt-btn" data-val="female">Female</button>
+  </div>
+</div>
+
+<!-- Position -->
+<div class="section">
+  <div class="section-label">Position</div>
+  <div class="option-group" data-key="position">
+    <button class="opt-btn" data-val="top-left">Top L</button>
+    <button class="opt-btn" data-val="top-right">Top R</button>
+    <button class="opt-btn active" data-val="bottom-right">Bot R</button>
+    <button class="opt-btn" data-val="bottom-left">Bot L</button>
+  </div>
+</div>
+
+<!-- Size -->
+<div class="section">
+  <div class="section-label">Size</div>
+  <div class="option-group" data-key="size">
+    <button class="opt-btn" data-val="small">Small</button>
+    <button class="opt-btn active" data-val="medium">Medium</button>
+    <button class="opt-btn" data-val="large">Large</button>
+  </div>
+</div>
+
+<!-- Sign Speed -->
+<div class="section">
+  <div class="section-label">Sign Speed</div>
+  <div class="slider-row">
+    <span class="slider-label">Slow</span>
+    <input type="range" id="speed-slider" min="0.5" max="2.0" step="0.1" value="1.0">
+    <span class="slider-label">Fast</span>
+    <span class="slider-val" id="speed-val">1.0x</span>
+  </div>
+</div>
+
+<!-- Status row -->
+<div class="status-row">
+  <div class="status-indicator" id="status-indicator"></div>
+  <span class="status-msg" id="status-msg">inactive</span>
+  <span class="version-tag">v0.1.0</span>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

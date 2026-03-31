@@ -472,6 +472,29 @@ async def avatar_file(name: str):
 
 
 # ── Run ───────────────────────────────────────────────────────────────────────
+
+
+# Extension sign data endpoint
+# Serves pose frame JSON for the Chrome extension's lazy-load fallback
+# Only accessible from localhost -- not a public API
+EXTENSION_SIGNS_DIR = Path(r"D:\Signlytic_AI\code\bsl_translation_project\extension-data\signs")
+
+@app.get("/api/signs/{gloss}")
+async def get_sign_frames(gloss: str, request: Request):
+    # Only allow requests from localhost (extension content scripts)
+    host = request.headers.get("host", "")
+    origin = request.headers.get("origin", "")
+    if "localhost" not in host and "127.0.0.1" not in host:
+        return JSONResponse({"error": "local only"}, status_code=403)
+
+    sign_file = EXTENSION_SIGNS_DIR / f"{gloss.upper()}.json"
+    if not sign_file.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    import json
+    frames = json.loads(sign_file.read_text(encoding="utf-8"))
+    return JSONResponse(frames)
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()

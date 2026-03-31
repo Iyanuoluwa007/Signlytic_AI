@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "version": "0.1.0",
+    "total_signs": 5203,
+    "bundled_core": 0,
+    "cdnBase": "https://raw.githubusercontent.com/Iyanuoluwa007/Signlytic_AI/main/extension-data/signs/",
+    "note": "core/ directory will contain top-200 most frequent BSL signs as individual JSON files. All others lazy-loaded from CDN and cached in IndexedDB."
+  },
+  "fingerspell": [
+    "A","B","C","D","E","F","G","H","I","J","K","L","M",
+    "N","O","P","Q","R","S","T","U","V","W","X","Y","Z"
+  ],
+  "bundled": [],
+  "cdnOnly": []
+}
