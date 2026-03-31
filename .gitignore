@@ -206,3 +206,8 @@ evaluation_results.json
 *.pem
 *.key
 credentials.json
+
+# Backup and patch scripts
+app.py.bak_*
+scripts/patch_*.py
+scripts/patch_*.py
