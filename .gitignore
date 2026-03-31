@@ -215,3 +215,14 @@ scripts/patch_*.py
 # Backup and patch scripts
 app.py.bak_*
 scripts/patch_*.py
+
+BSL/
+
+outputs/
+
+models/
+
+structure.txt
+file_list.txt
+extraction_log.txt
+bobsl_structure_report.txt
