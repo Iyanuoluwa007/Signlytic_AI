@@ -33,52 +33,129 @@ let lastSentText = '';         // debounce — avoid re-sending same sentence
 let debounceTimer = null;
 
 // ─── Initialise ─────────────────────────────────────────────────────────────
-chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res) => {
-  settings = res?.settings || {};
-  if (settings.enabled) injectOverlay();
-});
+function safeMessage(msg, cb) {
+  try { chrome.runtime.sendMessage(msg, cb); } catch (_) {}
+}
+
+try {
+  chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res) => {
+    if (chrome.runtime.lastError) return;
+    settings = res?.settings || {};
+    injectOverlay();
+  });
+} catch (_) {}
 
 chrome.runtime.onMessage.addListener((msg) => {
   switch (msg.type) {
     case 'INJECT_OVERLAY':    injectOverlay();    break;
     case 'REMOVE_OVERLAY':    removeOverlay();    break;
     case 'RELAY_TEXT':        /* unused — direct post */ break;
-    case 'SETTINGS_CHANGED':
+    case 'SETTINGS_CHANGED': {
+      const prevSource = settings.captionSource;
       settings = msg.settings;
       if (overlayFrame) postToOverlay({ type: 'SETTINGS_CHANGED', settings });
+      // Restart detection if caption source changed
+      if (msg.settings.captionSource !== prevSource) {
+        stopCaptionDetection();
+        stopMic();
+        startCaptionDetection();
+      }
       break;
+    }
   }
 });
 
 // ─── Overlay injection ──────────────────────────────────────────────────────
+// ─── Iframe position state (module-level) ────────────────────────────────────
+const PAD = 16;
+let iframeTop  = -1; // -1 = not yet initialised
+let iframeLeft = -1;
+
+function applyIframePos() {
+  if (!overlayFrame) return;
+  iframeTop  = Math.max(0, Math.min(window.innerHeight - 100, iframeTop));
+  iframeLeft = Math.max(0, Math.min(window.innerWidth  - 100, iframeLeft));
+  overlayFrame.style.top    = iframeTop  + 'px';
+  overlayFrame.style.left   = iframeLeft + 'px';
+  overlayFrame.style.bottom = 'auto';
+  overlayFrame.style.right  = 'auto';
+}
+
+// Module-level message listener -- always active, single registration
+window.addEventListener('message', (e) => {
+  if (!e.data?.type || !overlayFrame) return;
+
+  if (e.data.type === 'PANEL_BOUNDS') {
+    const { w, h } = e.data.bounds;
+    if (w > 50) {
+      overlayFrame.style.width  = (w + PAD * 2) + 'px';
+      overlayFrame.style.height = (h + PAD * 2) + 'px';
+    }
+  }
+
+  if (e.data.type === 'DRAG_DELTA') {
+    iframeTop  += e.data.dy;
+    iframeLeft += e.data.dx;
+    applyIframePos();
+  }
+
+  if (e.data.type === 'SET_POSITION') {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const iw = overlayFrame.offsetWidth  || 432;
+    const ih = overlayFrame.offsetHeight || 432;
+    switch (e.data.position) {
+      case 'bottom-right': iframeTop = vh-ih-10; iframeLeft = vw-iw-10; break;
+      case 'bottom-left':  iframeTop = vh-ih-10; iframeLeft = 10;       break;
+      case 'top-right':    iframeTop = 10;        iframeLeft = vw-iw-10; break;
+      case 'top-left':     iframeTop = 10;        iframeLeft = 10;       break;
+    }
+    applyIframePos();
+  }
+
+  if (e.data.type === 'OVERLAY_CLOSED') {
+    removeOverlay();
+  }
+});
+
 function injectOverlay() {
-  if (overlayFrame) return; // already injected
+  if (overlayFrame) return;
+  if (document.getElementById('signlytic-overlay-frame')) {
+    overlayFrame = document.getElementById('signlytic-overlay-frame');
+    return;
+  }
 
   const url = chrome.runtime.getURL('overlay/overlay.html');
   const iframe = document.createElement('iframe');
   iframe.id = 'signlytic-overlay-frame';
   iframe.src = url;
 
+  // Default: bottom-right, 420x420
+  const defW = 432, defH = 432;
+  if (iframeTop  < 0) iframeTop  = window.innerHeight - defH - 10;
+  if (iframeLeft < 0) iframeLeft = window.innerWidth  - defW - 10;
+
   Object.assign(iframe.style, {
-    position:   'fixed',
-    zIndex:     '2147483647',
-    border:     'none',
-    background: 'transparent',
-    pointerEvents: 'none',
-    width:      '1px',
-    height:     '1px',
-    bottom:     '0',
-    right:      '0',
+    position:      'fixed',
+    zIndex:        '2147483647',
+    border:        'none',
+    background:    'transparent',
+    pointerEvents: 'all',
+    width:         defW + 'px',
+    height:        defH + 'px',
+    top:           iframeTop  + 'px',
+    left:          iframeLeft + 'px',
+    bottom:        'auto',
+    right:         'auto',
   });
 
   document.documentElement.appendChild(iframe);
   overlayFrame = iframe;
 
-  // Once iframe loads, send initial settings and start detection
   iframe.addEventListener('load', () => {
     postToOverlay({ type: 'INIT', settings });
-    chrome.runtime.sendMessage({ type: 'OVERLAY_READY' });
-    startCaptionDetection();
+    safeMessage({ type: 'OVERLAY_READY' });
+    // Small delay so page CC DOM (YouTube etc) has time to initialise
+    setTimeout(() => startCaptionDetection(), 1500);
   });
 }
 
@@ -88,7 +165,7 @@ function removeOverlay() {
   if (overlayFrame) {
     overlayFrame.remove();
     overlayFrame = null;
-    chrome.runtime.sendMessage({ type: 'OVERLAY_REMOVED' });
+    safeMessage({ type: 'OVERLAY_REMOVED' });
   }
 }
 
@@ -99,22 +176,16 @@ function postToOverlay(data) {
 }
 
 // ─── Caption detection (MutationObserver) ───────────────────────────────────
-function startCaptionDetection() {
-  const source = settings.captionSource || 'auto';
-  if (source === 'mic') { startMic(); return; }
+// Sites where mic fallback makes sense
+const MIC_FRIENDLY_HOSTS = [
+  'youtube.com', 'bbc.co.uk', 'netflix.com', 'amazon.',
+  'channel4.com', 'disneyplus.', 'tv.apple.com', 'vimeo.com',
+  'twitch.tv', 'dailymotion.com',
+];
 
-  const selector = resolveSelector();
-
-  if (selector) {
-    console.log(`[Signlytic] Caption source detected: ${selector.name}`);
-    activeSource = 'captions';
-    watchCaptionNode(selector.selector);
-  } else if (source === 'auto') {
-    // No captions found — fall back to mic
-    console.log('[Signlytic] No caption node found — falling back to microphone.');
-    activeSource = 'mic';
-    startMic();
-  }
+function isMicFriendlySite() {
+  const host = window.location.hostname;
+  return MIC_FRIENDLY_HOSTS.some(h => host.includes(h));
 }
 
 function resolveSelector() {
@@ -126,7 +197,88 @@ function resolveSelector() {
   return null;
 }
 
+function startCaptionDetection() {
+  const source = settings.captionSource || 'auto';
+
+  if (source === 'mic') {
+    activeSource = 'mic';
+    startMic();
+    return;
+  }
+
+  if (source === 'manual') {
+    // Manual mode: overlay shows a text input, user types directly
+    // Content script just signals overlay to show manual input UI
+    activeSource = 'manual';
+    postToOverlay({ type: 'STATUS', status: 'listening', message: 'manual mode — type in overlay' });
+    return;
+  }
+
+  // 'auto' or 'captions'
+  const selector = resolveSelector();
+  if (selector) {
+    console.log('[Signlytic] Caption source: ' + selector.name);
+    activeSource = 'captions';
+    watchCaptionNode(selector.selector);
+  } else if (source === 'captions') {
+    // Explicit captions mode but none found yet -- keep polling
+    waitForCaptions();
+  } else {
+    // Auto mode -- poll silently
+    waitForCaptions();
+  }
+}
+
+let captionPollInterval = null;
+
+function waitForCaptions() {
+  // Clear any existing poll first
+  if (captionPollInterval) { clearInterval(captionPollInterval); captionPollInterval = null; }
+
+  postToOverlay({ type: 'STATUS', status: 'listening', message: 'waiting for captions...' });
+
+  let attempts = 0;
+  captionPollInterval = setInterval(() => {
+    if (!overlayFrame) { clearInterval(captionPollInterval); return; }
+    attempts++;
+    const selector = resolveSelector();
+    if (selector) {
+      clearInterval(captionPollInterval);
+      captionPollInterval = null;
+      console.log('[Signlytic] Captions appeared: ' + selector.name);
+      activeSource = 'captions';
+      watchCaptionNode(selector.selector);
+      postToOverlay({ type: 'STATUS', status: 'listening', message: 'captions detected — listening' });
+    }
+    if (attempts > 300) {
+      clearInterval(captionPollInterval);
+      captionPollInterval = null;
+      postToOverlay({ type: 'STATUS', status: 'idle', message: 'no captions found — enable CC' });
+    }
+  }, 1000);
+}
+
+// Track when captions were last seen -- used to detect CC being turned off
+let lastCaptionSeen = 0;
+let captionWatchdogTimer = null;
+
 function watchCaptionNode(selector) {
+  // Watchdog: if no caption text seen for 4s, assume CC turned off -- go back to polling
+  function resetWatchdog() {
+    clearTimeout(captionWatchdogTimer);
+    captionWatchdogTimer = setTimeout(() => {
+      const nodes = document.querySelectorAll(selector);
+      if (!nodes.length || !Array.from(nodes).some(n => n.textContent.trim())) {
+        // Captions gone -- stop current observer and restart polling
+        stopCaptionDetection();
+        postToOverlay({ type: 'STATUS', status: 'listening', message: 'waiting for captions...' });
+        waitForCaptions();
+      } else {
+        resetWatchdog();
+      }
+    }, 4000);
+  }
+
   // Observe the document body for new caption text nodes matching selector
   captionObserver = new MutationObserver(() => {
     const nodes = document.querySelectorAll(selector);
@@ -140,9 +292,13 @@ function watchCaptionNode(selector) {
       .trim();
 
     if (text && text !== lastSentText) {
+      lastCaptionSeen = Date.now();
+      resetWatchdog();
       debouncedSend(text, 'captions');
     }
   });
+
+  resetWatchdog(); // start watchdog immediately
 
   captionObserver.observe(document.body, {
     childList: true,
@@ -152,6 +308,9 @@ function watchCaptionNode(selector) {
 }
 
 function stopCaptionDetection() {
+  clearTimeout(captionWatchdogTimer);
+  captionWatchdogTimer = null;
+  if (captionPollInterval) { clearInterval(captionPollInterval); captionPollInterval = null; }
   if (captionObserver) {
     captionObserver.disconnect();
     captionObserver = null;
@@ -178,6 +337,8 @@ function startMic() {
     postToOverlay({ type: 'STATUS', status: 'listening' });
   };
 
+  let interimTimer = null;
+
   speechRecognition.onresult = (event) => {
     let finalText = '';
     let interimText = '';
@@ -192,10 +353,19 @@ function startMic() {
     }
 
     if (finalText.trim()) {
+      clearTimeout(interimTimer);
       debouncedSend(finalText.trim(), 'mic');
     } else if (interimText.trim()) {
-      // Send interim so overlay can show "listening" state with live text
+      // Show live text in overlay immediately
       postToOverlay({ type: 'INTERIM_TEXT', text: interimText.trim() });
+      // Also translate interim after 1.5s if no final result arrives
+      // This handles continuous speech where isFinal is delayed
+      clearTimeout(interimTimer);
+      if (interimText.trim().split(' ').length >= 3) {
+        interimTimer = setTimeout(() => {
+          debouncedSend(interimText.trim(), 'mic');
+        }, 1500);
+      }
     }
   };
 
@@ -207,10 +377,12 @@ function startMic() {
   };
 
   speechRecognition.onend = () => {
-    // Auto-restart unless overlay was removed
-    if (overlayFrame && settings.enabled) {
-      speechRecognition.start();
-    }
+    try {
+      // Only auto-restart if user explicitly set captionSource to 'mic'
+      if (overlayFrame && settings.enabled && settings.captionSource === 'mic') {
+        speechRecognition.start();
+      }
+    } catch (_) {}
   };
 
   speechRecognition.start();
