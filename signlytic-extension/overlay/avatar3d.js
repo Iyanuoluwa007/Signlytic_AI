@@ -11,11 +11,11 @@
 
 // ─── CDN / GitHub paths ───────────────────────────────────────────────────────
 const AVATAR_CDN = {
-  male:   'https://signlytic-ai-website.vercel.app/avatars/Male.glb',
-  female: 'https://signlytic-ai-website.vercel.app/avatars/Female.glb',
+  male:   'https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.5/Male.glb',
+  female: 'https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.5/Female.glb',
 };
 
-const BONE_PREFIX = { male: 'mixamorig9:', female: 'mixamorig8:' };
+const BONE_PREFIX = { male: 'mixamorig9', female: 'mixamorig8' };
 
 // MediaPipe Holistic body landmark indices (upper body only — BSL relevant)
 const MP = {
@@ -240,22 +240,27 @@ class ThreeAvatarRenderer {
     this.model = gltf.scene;
 
     // Scale and position — Mixamo avatars are typically very tall
-    this.model.scale.setScalar(0.013);
-    this.model.position.set(0, -0.1, 0);
+    // Auto-scale: measure model height and fit to ~1.8 units
+    const autoBox = new THREE.Box3().setFromObject(this.model);
+    const autoH = autoBox.max.y - autoBox.min.y;
+    const targetH = 1.8;
+    const sc = autoH > 0.01 ? targetH / autoH : 1.0;
+    this.model.scale.setScalar(sc);
+    // Position after scaling: feet on y=0
+    const posBox = new THREE.Box3().setFromObject(this.model);
+    this.model.position.y = -posBox.min.y;
     this.model.rotation.y = 0; // face forward
 
     this.scene.add(this.model);
 
-    // Build bone map
+    // Build bone map — match by name prefix (isBone unreliable in r128 GLTFLoader)
     const prefix = BONE_PREFIX[this.gender];
     this.model.traverse(obj => {
-      if (!obj.isBone) return;
+      if (!obj.name || !obj.name.startsWith(prefix)) return;
       const shortName = obj.name.replace(prefix, '');
-      // Find the matching key in BONE_NAMES
       for (const [key, bname] of Object.entries(BONE_NAMES)) {
         if (bname === shortName) {
           this.bones[key] = obj;
-          // Store rest quaternion (T-pose)
           this.restQ[key] = obj.quaternion.clone();
           break;
         }
@@ -274,8 +279,8 @@ class ThreeAvatarRenderer {
   applyFrame(frame) {
     if (!this.ready || !frame) return;
     if (frame.body) this._drivePose(frame.body);
-    if (frame.lh)   this._driveHand(frame.lh,  'l');
-    if (frame.rh)   this._driveHand(frame.rh,  'r');
+    if (frame.lh)   this._driveHand(frame.lh,  'r');  // mirror: left data -> right bone
+    if (frame.rh)   this._driveHand(frame.rh,  'l');  // mirror: right data -> left bone
   }
 
   // ── Reset to T-pose ────────────────────────────────────────────────────────
@@ -293,9 +298,9 @@ class ThreeAvatarRenderer {
     const lm = (i) => {
       if (!body[i]) return null;
       return new THREE.Vector3(
-         body[i][0] * 2 - 1,   // centre on 0
-        -(body[i][1] * 2 - 1), // flip Y
-         body[i][2] || 0
+        -(body[i][0] * 2 - 1),  // negate X to mirror (image-space to avatar-space)
+        -(body[i][1] * 2 - 1),  // flip Y
+        -(body[i][2] || 0)      // negate Z (depth toward camera)
       );
     };
 
@@ -306,20 +311,20 @@ class ThreeAvatarRenderer {
     const lWrist    = lm(MP.L_WRIST);
     const rWrist    = lm(MP.R_WRIST);
 
-    // ── Left arm ──
-    if (lShoulder && lElbow && this.bones.lArm) {
-      this._driveSegment('lArm', lShoulder, lElbow, new THREE.Vector3(-1, 0, 0));
+    // ── Left arm (driven by RIGHT landmarks - mirror for face-to-face) ──
+    if (rShoulder && rElbow && this.bones.lArm) {
+      this._driveSegment('lArm', rShoulder, rElbow, new THREE.Vector3(-1, 0, 0));
     }
-    if (lElbow && lWrist && this.bones.lForeArm) {
-      this._driveSegment('lForeArm', lElbow, lWrist, new THREE.Vector3(-1, 0, 0));
+    if (rElbow && rWrist && this.bones.lForeArm) {
+      this._driveSegment('lForeArm', rElbow, rWrist, new THREE.Vector3(-1, 0, 0));
     }
 
-    // ── Right arm ──
-    if (rShoulder && rElbow && this.bones.rArm) {
-      this._driveSegment('rArm', rShoulder, rElbow, new THREE.Vector3(1, 0, 0));
+    // ── Right arm (driven by LEFT landmarks - mirror for face-to-face) ──
+    if (lShoulder && lElbow && this.bones.rArm) {
+      this._driveSegment('rArm', lShoulder, lElbow, new THREE.Vector3(1, 0, 0));
     }
-    if (rElbow && rWrist && this.bones.rForeArm) {
-      this._driveSegment('rForeArm', rElbow, rWrist, new THREE.Vector3(1, 0, 0));
+    if (lElbow && lWrist && this.bones.rForeArm) {
+      this._driveSegment('rForeArm', lElbow, lWrist, new THREE.Vector3(1, 0, 0));
     }
 
     // ── Spine lean (from shoulder midpoint vs hip midpoint) ──
@@ -391,14 +396,14 @@ class ThreeAvatarRenderer {
         if (!hand[fromIdx] || !hand[toIdx]) continue;
 
         const from = new THREE.Vector3(
-           hand[fromIdx][0] * 2 - 1,
-          -hand[fromIdx][1] * 2 + 1,
-           hand[fromIdx][2] || 0
+          -(hand[fromIdx][0] * 2 - 1),
+          -(hand[fromIdx][1] * 2 - 1),
+          -(hand[fromIdx][2] || 0)
         );
         const to = new THREE.Vector3(
-           hand[toIdx][0] * 2 - 1,
-          -hand[toIdx][1] * 2 + 1,
-           hand[toIdx][2] || 0
+          -(hand[toIdx][0] * 2 - 1),
+          -(hand[toIdx][1] * 2 - 1),
+          -(hand[toIdx][2] || 0)
         );
 
         this._driveSegment(boneKey, from, to, fingerAxis.clone());

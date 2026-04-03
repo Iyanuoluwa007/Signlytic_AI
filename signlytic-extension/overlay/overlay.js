@@ -83,6 +83,7 @@ function applyMode(mode, forceReload = true) {
     btn2d.classList.remove('active');
     canvas2d.style.display    = 'none';
     canvas3dCont.style.display = 'block';
+    placeholder.style.display  = 'none';
     genderBadge.style.display  = 'block';
     genderBadge.textContent    = settings.avatarGender || 'male';
     if (forceReload || !avatarLoaded) load3DAvatar();
@@ -92,6 +93,12 @@ function applyMode(mode, forceReload = true) {
 // ─── 3D Avatar loading ────────────────────────────────────────────────────────
 async function load3DAvatar(forceGender) {
   const gender = forceGender || settings.avatarGender || 'male';
+
+  // Already loaded? Skip.
+  if (avatarRenderer && avatarLoaded && avatarRenderer.gender === gender) {
+    setStatus('listening', 'avatar ready');
+    return;
+  }
 
   // Initialise renderer if needed
   if (!avatarRenderer) {
@@ -577,11 +584,13 @@ async function handleTranslate(text, source) {
   if (renderMode === '3d' && avatarLoaded && avatarRenderer?.ready) {
     // 3D playback
     placeholder.style.display = 'none';
+    const aw = document.getElementById('avatar-waiting');
+    if (aw) aw.style.display = 'none';
     avatarRenderer.speed = settings.signSpeed || 1.0;
     avatarRenderer.playQueue(
       queue,
       (idx) => setActiveGloss(idx),                      // onGlossChange
-      ()    => { setStatus('idle','idle'); avatarRenderer.resetPose(); } // onDone
+      ()    => { setStatus('idle','idle'); avatarRenderer.resetPose(); const aw2=document.getElementById('avatar-waiting'); if(aw2)aw2.style.display='block'; } // onDone
     );
   } else {
     // 2D fallback
