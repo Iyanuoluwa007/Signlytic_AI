@@ -682,9 +682,11 @@ document.addEventListener('mousemove', (e) => {
     panel.style.left = (resizeStart.l + (resizeStart.w - newW)) + 'px';
   }
 
-  // Canvas area gets remaining height after header/toggle/gloss/status (~120px)
-  const canvasH = Math.max(100, newH - 120);
+  // Canvas area gets remaining height after all other elements
   const canvasArea = document.getElementById('canvas-area');
+  const otherH = [header, document.getElementById('mode-toggle'), manualBar, glossRow, document.getElementById('status-bar')]
+    .reduce((sum, el) => sum + (el && el.offsetHeight && el.style.display !== 'none' ? el.offsetHeight : 0), 0);
+  const canvasH = Math.max(80, newH - Math.max(otherH, 100) - 4);
   if (canvasArea) canvasArea.style.height = canvasH + 'px';
 
   // Update canvas buffer

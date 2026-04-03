@@ -309,11 +309,26 @@
   </div>
 </div>
 
+<!-- Feedback -->
+<div class="section" style="display:flex; align-items:center; justify-content:center;">
+  <a href="https://forms.gle/oTy7Bi414fuThFc1A" target="_blank" rel="noopener noreferrer"
+     style="display:flex; align-items:center; gap:6px; padding:7px 14px;
+            background:var(--bg-card); border:1px solid var(--border);
+            border-radius:6px; text-decoration:none; color:var(--accent-light);
+            font-family:var(--font-sans); font-size:11px; font-weight:500;
+            transition:all 0.15s; width:100%; justify-content:center;"
+     onmouseover="this.style.borderColor='rgba(94,234,212,0.4)';this.style.background='rgba(14,124,107,0.1)'"
+     onmouseout="this.style.borderColor='rgba(94,234,212,0.1)';this.style.background='var(--bg-card)'">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Give us feedback
+  </a>
+</div>
+
 <!-- Status row -->
 <div class="status-row">
   <div class="status-indicator" id="status-indicator"></div>
   <span class="status-msg" id="status-msg">inactive</span>
-  <span class="version-tag">v0.1.0</span>
+  <span class="version-tag">v0.3.5</span>
 </div>
 
 <script src="popup.js"></script>
