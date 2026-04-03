@@ -603,7 +603,7 @@ export default function Home() {
           </Reveal>
 
           {/* Dual flow */}
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-4 max-w-[760px] mx-auto">
             {[
               {
                 title: "BSL to English",
@@ -753,14 +753,14 @@ export default function Home() {
       {/* ═════════ FEEDBACK & EXTENSION ═════════ */}
       <section className="border-t border-white/[0.04] py-16">
         <div className={containerCls}>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-3 gap-4">
             {/* Feedback */}
             <Reveal>
               <a
                 href="https://forms.gle/oTy7Bi414fuThFc1A"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-[#0e7c6b]/30 transition-all group"
+                className="block bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-[#0e7c6b]/30 transition-all group h-full flex flex-col"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-[#0e7c6b]/10 border border-[#0e7c6b]/20 flex items-center justify-center">
@@ -782,22 +782,41 @@ export default function Home() {
             <Reveal delay={60}>
               <a
                 href="/extension"
-                className="block bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-white/[0.1] transition-all group"
+                className="block bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-white/[0.1] transition-all group h-full flex flex-col"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                   </div>
-                  <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.14em]">Coming Soon</div>
+                  <div className="text-[10px] font-bold text-[#0e7c6b] uppercase tracking-[0.14em]">Beta Available</div>
                 </div>
                 <h3 className="text-[15px] font-semibold text-white/85 mb-1.5 group-hover:text-white transition-colors">Browser Extension</h3>
                 <p className="text-[13px] text-white/30 leading-relaxed">
-                  Automatic BSL signing from screen captions. Works with YouTube, Google Meet, Zoom, and Teams.
+                  Real-time BSL signing overlay for YouTube, BBC iPlayer, Netflix and more. Free to download.
                 </p>
                 <div className="mt-4 text-[12px] text-white/25 font-medium group-hover:text-white/50 transition-colors">
-                  Learn more &#8594;
+                  Download Beta &#8594;
                 </div>
               </a>
+            </Reveal>
+
+            {/* Windows App */}
+            <Reveal delay={120}>
+              <div className="block bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 opacity-60 h-full flex flex-col">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                  </div>
+                  <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.14em]">Coming Soon</div>
+                </div>
+                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5">Windows App</h3>
+                <p className="text-[13px] text-white/30 leading-relaxed">
+                  System-wide BSL signing overlay for any app — VLC, Teams desktop, Zoom and more. Built on Electron.
+                </p>
+                <div className="mt-auto pt-4 text-[12px] text-white/15 font-medium">
+                  In development &#8594;
+                </div>
+              </div>
             </Reveal>
           </div>
         </div>
