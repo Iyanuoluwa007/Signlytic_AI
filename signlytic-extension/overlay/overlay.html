@@ -219,6 +219,18 @@
   }
 
   /* ── Avatar gender badge ── */
+  #avatar-waiting {
+    position: absolute;
+    bottom: 12px; left: 0; right: 0;
+    text-align: center;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    z-index: 5;
+    pointer-events: none;
+  }
+
   #gender-badge {
     position: absolute;
     top: 6px; right: 8px;
@@ -398,6 +410,7 @@
     <!-- 3D avatar container -->
     <div id="canvas-3d-container">
       <canvas id="canvas-3d"></canvas>
+      <div id="avatar-waiting">waiting for input</div>
       <div id="avatar-loading">
         <div class="loading-ring"></div>
         <span id="loading-label">loading avatar...</span>
