@@ -223,6 +223,37 @@
     font-family: var(--font-mono);
     min-height: 14px;
   }
+
+  /* Excluded site notice */
+  #excluded-notice {
+    display: none;
+    padding: 10px 16px;
+    background: rgba(248,113,113,0.06);
+    border-bottom: 1px solid rgba(248,113,113,0.15);
+  }
+  #excluded-notice .exc-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  #excluded-notice .exc-icon {
+    color: #f87171; flex-shrink: 0;
+  }
+  #excluded-notice .exc-text {
+    font-size: 10px; color: #f87171;
+    font-family: var(--font-mono);
+    flex: 1;
+  }
+  #excluded-notice .exc-btn {
+    font-size: 10px; font-family: var(--font-sans);
+    font-weight: 500; color: var(--accent-light);
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 5px; padding: 4px 8px;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  #excluded-notice .exc-btn:hover {
+    border-color: rgba(94,234,212,0.4);
+    background: rgba(14,124,107,0.1);
+  }
 </style>
 </head>
 <body>
@@ -244,6 +275,15 @@
         <div class="toggle-thumb"></div>
       </div>
     </label>
+  </div>
+</div>
+
+<!-- Excluded site notice (hidden by default, shown via JS) -->
+<div id="excluded-notice">
+  <div class="exc-row">
+    <svg class="exc-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+    <span class="exc-text" id="exc-hostname">This site is excluded</span>
+    <button class="exc-btn" id="btn-unexclude">Enable here</button>
   </div>
 </div>
 

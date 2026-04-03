@@ -744,6 +744,15 @@ btnClose.addEventListener('click', () => {
   window.parent.postMessage({ type: 'OVERLAY_CLOSED' }, '*');
 });
 
+// Exclude this site
+const btnExclude = document.getElementById('btn-exclude');
+if (btnExclude) {
+  btnExclude.addEventListener('click', () => {
+    window.parent.postMessage({ type: 'EXCLUDE_SITE' }, '*');
+    panel.classList.add('hidden');
+  });
+}
+
 btn2d.addEventListener('click', () => applyMode('2d'));
 btn3d.addEventListener('click', () => {
   applyMode('3d');
