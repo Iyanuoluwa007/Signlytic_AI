@@ -288,6 +288,18 @@
     text-overflow: ellipsis; flex: 1;
   }
 
+  #feedback-link {
+    font-size: 9px; font-family: var(--font-mono);
+    color: var(--text-dim);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    transition: color 0.15s;
+    flex-shrink: 0;
+    pointer-events: all;
+    display: flex; align-items: center; gap: 3px;
+  }
+  #feedback-link:hover { color: var(--accent-light); }
+
   /* ── Resize handle ── */
   #resize-handle {
     position: absolute;
@@ -423,6 +435,10 @@
   <div id="status-bar">
     <div id="status-dot"></div>
     <span id="status-text">idle</span>
+    <a id="feedback-link" href="https://forms.gle/oTy7Bi414fuThFc1A" target="_blank" rel="noopener noreferrer" title="Give feedback">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      feedback
+    </a>
   </div>
 
 </div>
