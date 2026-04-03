@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, type ChangeEvent } from "react";
 
-/* ═══════════════════════════════════════
-   TRANSLATION ENGINE
-   ═══════════════════════════════════════ */
+/* =========================================
+   LOCAL FALLBACK DICTIONARIES
+   Used when API routes are unavailable
+   ========================================= */
 const G: Record<string, string> = {
   hello:"HELLO",hi:"HELLO",my:"MY",name:"NAME",is:"",what:"WHAT",time:"TIME",
   the:"",a:"",an:"",meeting:"MEETING",tomorrow:"TOMORROW",yesterday:"YESTERDAY",
@@ -35,10 +36,10 @@ const R: Record<string, string> = {
   LOVE:"love",LIKE:"like",KNOW:"know",THINK:"think",LEARN:"learn",
   GIVE:"give",TAKE:"take",START:"start",STOP:"stop",FINISH:"finish",WAIT:"wait",
 };
-function toGloss(t: string) {
+function localToGloss(t: string) {
   return t.toLowerCase().match(/[a-z']+/g)?.map(w => G[w] ?? w.toUpperCase()).filter(Boolean).filter((g,i,a) => i===0||a[i-1]!==g).join(" ") ?? "";
 }
-function toEnglish(gl: string) {
+function localToEnglish(gl: string) {
   const g = gl.toUpperCase().split(/\s+/).filter(Boolean);
   if (!g.length) return "";
   let s = g.map(w => R[w] ?? w.toLowerCase()).join(" ");
@@ -47,9 +48,9 @@ function toEnglish(gl: string) {
   return s;
 }
 
-/* ═══════════════════════════════════════
+/* =========================================
    UI COMPONENTS
-   ═══════════════════════════════════════ */
+   ========================================= */
 const Label = ({ children }: { children: string }) => (
   <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.12em] mb-3 pl-2 border-l-2 border-[#0e7c6b]">{children}</div>
 );
@@ -59,58 +60,93 @@ const ResultCard = ({ label, children, accent = "teal" }: { label: string; child
     {children}
   </div>
 );
-const Badge = ({ children, variant = "green" }: { children: string; variant?: "green" | "amber" }) => {
-  const cls = variant === "green" ? "bg-[#0e7c6b]/10 text-[#5eead4] border-[#0e7c6b]/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20";
+const Badge = ({ children, variant = "green" }: { children: string; variant?: "green" | "amber" | "red" }) => {
+  const cls = variant === "green" ? "bg-[#0e7c6b]/10 text-[#5eead4] border-[#0e7c6b]/20"
+    : variant === "red" ? "bg-red-500/10 text-red-400 border-red-500/20"
+    : "bg-amber-500/10 text-amber-400 border-amber-500/20";
   return <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cls}`}>{children}</span>;
 };
 
-/* ═══════════════════════════════════════
+/* =========================================
    PAGE
-   ═══════════════════════════════════════ */
+   ========================================= */
 export default function DemoPage() {
   const [tab, setTab] = useState(0);
 
-  /* Tab 1 state */
+  /* --- Tab 1: BSL to English --- */
   const [d1Glosses, setD1Glosses] = useState("");
-  const [d1Video, setD1Video] = useState<File | null>(null);
   const [d1DetectedGlosses, setD1DetectedGlosses] = useState("");
   const [d1Translation, setD1Translation] = useState("");
   const [d1Processing, setD1Processing] = useState(false);
-  const d1FileRef = useRef<HTMLInputElement>(null);
+  const [d1Source, setD1Source] = useState<"ai" | "local" | "">("");
 
-  const handleD1Translate = () => {
-    if (!d1Glosses.trim()) return;
+  const handleD1Translate = async () => {
+    const input = d1Glosses.trim();
+    if (!input) return;
     setD1Processing(true);
-    setTimeout(() => { setD1Translation(toEnglish(d1Glosses)); setD1DetectedGlosses(d1Glosses.toUpperCase()); setD1Processing(false); }, 500);
-  };
-  const handleD1Video = () => {
-    setD1Processing(true);
-    setTimeout(() => {
-      setD1DetectedGlosses("DEMO MODE");
-      setD1Translation("Video recognition requires a local GPU with Video-SWIN-T. Clone the repository and run app.py locally for full sign recognition.");
+    setD1DetectedGlosses(input.toUpperCase());
+    setD1Translation("");
+    setD1Source("");
+
+    try {
+      const res = await fetch("/api/glosses-to-english", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ glosses: input }),
+      });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = await res.json();
+      if (data.english) {
+        setD1Translation(data.english);
+        setD1Source("ai");
+      } else {
+        throw new Error("Empty response");
+      }
+    } catch {
+      // Fallback to local dictionary
+      setD1Translation(localToEnglish(input));
+      setD1Source("local");
+    } finally {
       setD1Processing(false);
-    }, 800);
+    }
   };
 
-  /* Tab 2 state */
+  /* --- Tab 2: English to BSL --- */
   const [d2Text, setD2Text] = useState("");
   const [d2Echo, setD2Echo] = useState("");
   const [d2Glosses, setD2Glosses] = useState("");
-  const [d2Coverage, setD2Coverage] = useState("");
   const [d2Processing, setD2Processing] = useState(false);
+  const [d2Source, setD2Source] = useState<"ai" | "local" | "">("");
 
-  const handleD2Convert = () => {
-    if (!d2Text.trim()) return;
+  const handleD2Convert = async () => {
+    const input = d2Text.trim();
+    if (!input) return;
     setD2Processing(true);
-    setTimeout(() => {
-      const glosses = toGloss(d2Text);
-      setD2Echo(d2Text);
-      setD2Glosses(glosses);
-      const words = d2Text.toLowerCase().match(/[a-z']+/g) || [];
-      const known = words.filter(w => w in G).length;
-      setD2Coverage(`${known}/${words.length} words matched (${Math.round(known / words.length * 100)}%)`);
+    setD2Echo(input);
+    setD2Glosses("");
+    setD2Source("");
+
+    try {
+      const res = await fetch("/api/english-to-glosses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: input }),
+      });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = await res.json();
+      if (data.glosses) {
+        setD2Glosses(data.glosses);
+        setD2Source("ai");
+      } else {
+        throw new Error("Empty response");
+      }
+    } catch {
+      // Fallback to local dictionary
+      setD2Glosses(localToGloss(input));
+      setD2Source("local");
+    } finally {
       setD2Processing(false);
-    }, 500);
+    }
   };
 
   const tabs = ["BSL to English", "English to BSL", "Help & Accessibility", "About & System"];
@@ -135,12 +171,12 @@ export default function DemoPage() {
         </div>
       </nav>
 
-      {/* GPU Notice Banner */}
-      <div className="bg-amber-500/[0.04] border-b border-amber-500/10">
+      {/* Status Banner */}
+      <div className="bg-[#0e7c6b]/[0.04] border-b border-[#0e7c6b]/10">
         <div className="max-w-[1120px] mx-auto px-6 py-2.5 flex items-center justify-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 flex-shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <p className="text-[11px] text-amber-400/80">
-            <span className="font-semibold">Demo mode</span> — Text translation works here. For full functionality (video recognition, speech, animation), <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-amber-300">clone the repository</a> and run locally with GPU.
+          <div className="w-1.5 h-1.5 rounded-full bg-[#5eead4] animate-pulse flex-shrink-0" />
+          <p className="text-[11px] text-[#5eead4]/80">
+            <span className="font-semibold">Live</span> &mdash; Text translation powered by Llama 3.3 70B. Video recognition, speech, and signing animation require <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[#5eead4]">local GPU setup</a>.
           </p>
         </div>
       </div>
@@ -176,42 +212,36 @@ export default function DemoPage() {
 
           <div className="p-6 md:p-8">
 
-            {/* ═══ TAB 1: BSL to English ═══ */}
+            {/* === TAB 1: BSL to English === */}
             {tab === 0 && (
               <div>
                 <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">Understand BSL Signs</h2>
-                <p className="text-[13px] text-white/35 mb-6">Upload a video, record via camera, or type BSL signs to see the English meaning.</p>
+                <p className="text-[13px] text-white/35 mb-6">Type BSL glosses to see the English meaning. Video and camera recognition require local GPU.</p>
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <Label>Input</Label>
 
-                    {/* Video upload */}
+                    {/* Video / Camera â€” GPU required callout */}
                     <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 mb-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[13px] font-semibold text-white/70">Upload a video</span>
-                        <Badge variant="amber">GPU required</Badge>
+                        <span className="text-[13px] font-semibold text-white/70">Video or camera recognition</span>
+                        <Badge variant="red">Local GPU only</Badge>
                       </div>
-                      <p className="text-[11px] text-white/25 mb-3">Upload a pre-recorded BSL video file for recognition.</p>
-                      <input type="file" ref={d1FileRef} accept="video/*" className="hidden" onChange={(e: ChangeEvent<HTMLInputElement>) => setD1Video(e.target.files?.[0] ?? null)} />
-                      <div onClick={() => d1FileRef.current?.click()} className="border-2 border-dashed border-white/[0.08] rounded-xl h-28 flex flex-col items-center justify-center cursor-pointer hover:border-white/[0.15] transition-colors mb-3">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/20 mb-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <span className="text-[11px] text-white/25">{d1Video ? d1Video.name : "Drop video or click to upload"}</span>
-                      </div>
-                      <button onClick={handleD1Video} disabled={d1Processing} className="w-full bg-white text-[#08090d] font-semibold py-2 rounded-lg text-[12px] hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all disabled:opacity-30">Recognise BSL signs</button>
-                    </div>
-
-                    {/* Camera / Live translation */}
-                    <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 mb-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[13px] font-semibold text-white/70">Record via camera</span>
-                        <Badge variant="amber">GPU required</Badge>
-                      </div>
-                      <p className="text-[11px] text-white/25 mb-3">Use your webcam for live BSL recognition and real-time translation.</p>
-                      <div className="border-2 border-dashed border-white/[0.08] rounded-xl h-28 flex flex-col items-center justify-center">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/15 mb-1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                        <span className="text-[11px] text-white/20 mb-0.5">Live camera translation</span>
-                        <span className="text-[9px] text-white/12">Requires local GPU with Video-SWIN-T</span>
+                      <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg px-4 py-4">
+                        <p className="text-[12px] text-white/35 leading-relaxed mb-3">
+                          BSL video recognition uses Video-SWIN-T with 5,203 pre-extracted sign features.
+                          This requires a local NVIDIA GPU.
+                        </p>
+                        <a
+                          href="https://github.com/Iyanuoluwa007/Signlytic_AI"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#5eead4] hover:text-[#5eead4]/80 transition-colors"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                          Clone repository and run locally
+                        </a>
                       </div>
                     </div>
 
@@ -226,8 +256,9 @@ export default function DemoPage() {
                     <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[13px] font-semibold text-white/70">Type BSL glosses</span>
-                        <Badge variant="green">Available</Badge>
+                        <Badge variant="green">Live</Badge>
                       </div>
+                      <p className="text-[11px] text-white/25 mb-3">Type BSL sign glosses (e.g. TOMORROW MEETING WHAT TIME) and get natural English.</p>
                       <textarea value={d1Glosses} onChange={e => setD1Glosses(e.target.value)} placeholder="HELLO MY NAME SARAH" rows={3}
                         className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2.5 text-[14px] text-white/80 placeholder:text-white/15 focus:outline-none focus:border-[#0e7c6b]/40 resize-none mb-3 font-[inherit]"
                         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleD1Translate(); }}} />
@@ -236,9 +267,9 @@ export default function DemoPage() {
 
                     {/* Examples */}
                     <div className="mt-4">
-                      <div className="text-[10px] text-white/15 italic mb-2">BSL uses different word order than English.</div>
+                      <div className="text-[10px] text-white/15 italic mb-2">BSL uses different word order than English. Try these:</div>
                       <div className="flex flex-wrap gap-1.5">
-                        {["TOMORROW MEETING WHAT TIME","MY NAME SARAH","YESTERDAY I GO DOCTOR","THANK YOU MUCH","I NOT UNDERSTAND"].map(ex => (
+                        {["TOMORROW MEETING WHAT TIME","MY NAME SARAH","YESTERDAY I GO DOCTOR","THANK YOU MUCH","I NOT UNDERSTAND","PLEASE HELP ME","WHERE SCHOOL"].map(ex => (
                           <button key={ex} onClick={() => setD1Glosses(ex)} className="px-2.5 py-1 text-[11px] text-white/30 bg-white/[0.02] border border-white/[0.05] rounded-lg hover:border-white/[0.1] hover:text-white/50 transition-all">{ex}</button>
                         ))}
                       </div>
@@ -251,44 +282,49 @@ export default function DemoPage() {
                     {d1Processing && (
                       <div className="flex items-center gap-2 mb-3 p-3 bg-white/[0.02] rounded-xl">
                         <div className="w-4 h-4 border-[1.5px] border-[#0e7c6b]/40 border-t-[#0e7c6b] rounded-full animate-spin" />
-                        <span className="text-[12px] text-white/30">Processing...</span>
+                        <span className="text-[12px] text-white/30">Translating via Llama 3.3 70B...</span>
                       </div>
                     )}
-                    <ResultCard label="What was signed (BSL)">
+                    <ResultCard label="BSL glosses">
                       <div className="text-[14px] text-white/60 min-h-[40px] font-mono">{d1DetectedGlosses || <span className="text-white/15 italic font-sans">Waiting for input...</span>}</div>
                     </ResultCard>
-                    <ResultCard label="English meaning" accent="navy">
+                    <ResultCard label="English translation" accent="navy">
                       <div className="text-[15px] text-white/80 min-h-[60px] leading-relaxed">{d1Translation || <span className="text-white/15 italic">Translation will appear here</span>}</div>
+                      {d1Source && (
+                        <div className="mt-2">
+                          <span className={`text-[9px] font-bold uppercase tracking-wider ${d1Source === "ai" ? "text-[#5eead4]/50" : "text-amber-400/50"}`}>
+                            {d1Source === "ai" ? "Powered by Llama 3.3 70B via Groq" : "Offline fallback (dictionary)"}
+                          </span>
+                        </div>
+                      )}
                     </ResultCard>
-                    <ResultCard label="Listen (optional)">
-                      <div className="text-[12px] text-white/20 italic">Speech output requires local GPU with Coqui XTTS v2</div>
+                    <ResultCard label="Speech output">
+                      <div className="text-[12px] text-white/20 italic">Text-to-speech requires local Coqui XTTS v2 with GPU</div>
                     </ResultCard>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ═══ TAB 2: English to BSL ═══ */}
+            {/* === TAB 2: English to BSL === */}
             {tab === 1 && (
               <div>
                 <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">Show Me in BSL</h2>
-                <p className="text-[13px] text-white/35 mb-6">Speak or type in English. You will see BSL signs and can preview signing animation.</p>
+                <p className="text-[13px] text-white/35 mb-6">Type in English to see the BSL gloss sequence. Audio input requires local GPU.</p>
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <Label>Input</Label>
 
-                    {/* Audio */}
+                    {/* Audio â€” GPU required */}
                     <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 mb-3">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[13px] font-semibold text-white/70">Record or upload audio</span>
-                        <Badge variant="amber">GPU required</Badge>
+                        <Badge variant="red">Local GPU only</Badge>
                       </div>
-                      <div className="border-2 border-dashed border-white/[0.08] rounded-xl h-24 flex items-center justify-center">
-                        <div className="text-center">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/15 mx-auto mb-1"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-                          <span className="text-[11px] text-white/20">Requires OpenAI Whisper (local GPU)</span>
-                        </div>
+                      <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg px-4 py-3 flex items-center gap-3">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/15 flex-shrink-0"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+                        <span className="text-[11px] text-white/25">Requires OpenAI Whisper (local GPU)</span>
                       </div>
                     </div>
 
@@ -301,7 +337,7 @@ export default function DemoPage() {
                     <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[13px] font-semibold text-white/70">Type what you want to say</span>
-                        <Badge variant="green">Available</Badge>
+                        <Badge variant="green">Live</Badge>
                       </div>
                       <textarea value={d2Text} onChange={e => setD2Text(e.target.value)} placeholder="What time is the meeting tomorrow?" rows={3}
                         className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2.5 text-[14px] text-white/80 placeholder:text-white/15 focus:outline-none focus:border-[#0e7c6b]/40 resize-none mb-3 font-[inherit]"
@@ -310,7 +346,7 @@ export default function DemoPage() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-1.5">
-                      {["Hello, my name is John.","What time is the meeting?","Thank you very much.","I need help please.","Where is the school?"].map(ex => (
+                      {["Hello, my name is John.","What time is the meeting?","Thank you very much.","I need help please.","Where is the school?","I don't understand.","Good morning, how are you?"].map(ex => (
                         <button key={ex} onClick={() => setD2Text(ex)} className="px-2.5 py-1 text-[11px] text-white/30 bg-white/[0.02] border border-white/[0.05] rounded-lg hover:border-white/[0.1] hover:text-white/50 transition-all">{ex}</button>
                       ))}
                     </div>
@@ -321,28 +357,35 @@ export default function DemoPage() {
                     {d2Processing && (
                       <div className="flex items-center gap-2 mb-3 p-3 bg-white/[0.02] rounded-xl">
                         <div className="w-4 h-4 border-[1.5px] border-[#0e7c6b]/40 border-t-[#0e7c6b] rounded-full animate-spin" />
-                        <span className="text-[12px] text-white/30">Converting...</span>
+                        <span className="text-[12px] text-white/30">Converting via Llama 3.3 70B...</span>
                       </div>
                     )}
                     <ResultCard label="What you said">
                       <div className="text-[14px] text-white/60 min-h-[30px]">{d2Echo || <span className="text-white/15 italic">Waiting for input...</span>}</div>
                     </ResultCard>
-                    <ResultCard label="BSL signs" accent="navy">
+                    <ResultCard label="BSL glosses" accent="navy">
                       <div className="text-[15px] text-white/80 min-h-[40px] font-mono leading-relaxed">{d2Glosses || <span className="text-white/15 italic font-sans">Glosses will appear here</span>}</div>
-                    </ResultCard>
-                    <ResultCard label="Coverage">
-                      <div className="text-[12px] text-white/40">{d2Coverage || "No data yet"}</div>
+                      {d2Source && (
+                        <div className="mt-2">
+                          <span className={`text-[9px] font-bold uppercase tracking-wider ${d2Source === "ai" ? "text-[#5eead4]/50" : "text-amber-400/50"}`}>
+                            {d2Source === "ai" ? "Powered by Llama 3.3 70B via Groq" : "Offline fallback (dictionary)"}
+                          </span>
+                        </div>
+                      )}
                     </ResultCard>
 
                     {/* Signing animation preview */}
                     <ResultCard label="Signing animation">
                       <div className="border-2 border-dashed border-white/[0.06] rounded-lg h-40 flex flex-col items-center justify-center mb-2">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="text-white/10 mb-2"><circle cx="12" cy="5" r="2"/><path d="M12 7v6"/><path d="M8 11l4 2 4-2"/><path d="M8 21l4-6 4 6"/></svg>
-                        <span className="text-[11px] text-white/20 mb-0.5">BSL signing preview</span>
+                        <span className="text-[11px] text-white/20 mb-0.5">3D avatar signing preview</span>
+                        <span className="text-[9px] text-white/12">Pose data deployment in progress</span>
                       </div>
-                      <div className="bg-amber-500/[0.05] border border-amber-500/10 rounded-lg px-3 py-2">
-                        <p className="text-[10px] text-amber-400/70 leading-relaxed">
-                          <span className="font-bold">Pose animation requires local GPU</span> — The system supports 2D Pose Animator for skeleton-based signing and 3D character animation. Clone the repository and run with GPU to generate signing videos.
+                      <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg px-3 py-2">
+                        <p className="text-[10px] text-white/30 leading-relaxed">
+                          Signing animation uses pose frame data for each gloss.
+                          The 3D avatar will animate once pose data is deployed to CDN.
+                          Run locally for full 2D skeleton and 3D character animation now.
                         </p>
                       </div>
                     </ResultCard>
@@ -351,17 +394,17 @@ export default function DemoPage() {
               </div>
             )}
 
-            {/* ═══ TAB 3: Help ═══ */}
+            {/* === TAB 3: Help === */}
             {tab === 2 && (
               <div>
                 <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">How to Use This App</h2>
                 <p className="text-[13px] text-white/35 mb-6">Simple guides for BSL users and hearing users.</p>
                 <div className="space-y-3">
                   {[
-                    { title: "BSL to English", body: "Go to the BSL to English tab. Type BSL signs like TOMORROW MEETING WHAT TIME and click Translate. You can also upload a video or use your camera for live recognition (requires local GPU)." },
-                    { title: "English to BSL", body: "Go to the English to BSL tab. Type an English sentence and click Convert to BSL to see glosses. The signing animation preview shows where the 2D Pose Animator or 3D character output would appear." },
+                    { title: "BSL to English (Live)", body: "Go to the BSL to English tab. Type BSL glosses like TOMORROW MEETING WHAT TIME and click Translate. The system uses Llama 3.3 70B to produce natural English. Video and camera recognition require a local GPU." },
+                    { title: "English to BSL (Live)", body: "Go to the English to BSL tab. Type an English sentence and click Convert to BSL. The AI generates proper BSL gloss ordering. Audio input requires a local GPU with Whisper." },
                     { title: "What are glosses?", body: "A \"gloss\" is the written name of a BSL sign. For example, TOMORROW MEETING WHAT TIME means \"What time is the meeting tomorrow?\" BSL uses a different word order than English." },
-                    { title: "Full System", body: "The complete system includes Video-SWIN-T recognition (5,203 signs), Groq LLM translation, Coqui XTTS v2 speech, and animated signing. Clone the GitHub repository and run locally with a GPU." },
+                    { title: "Full System (Local GPU)", body: "The complete system includes Video-SWIN-T recognition (5,203 signs), Groq LLM translation, Coqui XTTS v2 speech, and 3D avatar animation. Clone the GitHub repository and run locally with a GPU for the full experience." },
                     { title: "Accessibility", body: "All outputs include visible text. Nothing relies on audio. The interface supports keyboard navigation. Press Enter to submit in any text field." },
                   ].map(h => (
                     <div key={h.title} className="bg-white/[0.02] border border-white/[0.06] border-l-2 border-l-[#0e7c6b] rounded-xl p-5">
@@ -373,9 +416,9 @@ export default function DemoPage() {
               </div>
             )}
 
-            {/* ═══ TAB 4: About ═══ */}
+            {/* === TAB 4: About === */}
             {tab === 3 && (
-              <div>
+              <div className="max-w-[760px] mx-auto">
                 <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">System Overview</h2>
                 <p className="text-[13px] text-white/35 mb-6">Architecture, models, and performance.</p>
 
@@ -392,7 +435,7 @@ export default function DemoPage() {
                   <table className="w-full text-[13px]">
                     <thead><tr className="bg-[#0e7c6b]/15">{["Component","Technology","Details"].map(h => <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-[#5eead4] uppercase tracking-[0.1em]">{h}</th>)}</tr></thead>
                     <tbody>
-                      {[["Sign Recognition","Video-SWIN-T","5,203 pre-extracted 768-dim features"],["Speech Recognition","OpenAI Whisper","Base model, 16 kHz mono"],["Text-to-Speech","Coqui XTTS v2","Voice cloning with speaker reference"],["Language Model","Groq Llama 3.3 70B","Gloss to natural English"],["Signing Animation","2D Pose Animator","Skeleton signing + 3D character support"],["Vocabulary","11,573+ glosses","BSL-1K + BSLDict datasets"]].map(([c,t,d]) => (
+                      {[["Sign Recognition","Video-SWIN-T","5,203 pre-extracted 768-dim features"],["Speech Recognition","OpenAI Whisper","Base model, 16 kHz mono"],["Text-to-Speech","Coqui XTTS v2","Voice cloning with speaker reference"],["Language Model","Groq Llama 3.3 70B","Gloss to natural English (live on demo)"],["Signing Animation","3D Avatar + 2D Pose","Mixamo avatars + skeleton signing"],["Vocabulary","11,573+ glosses","BSL-1K + BSLDict datasets"]].map(([c,t,d]) => (
                         <tr key={c} className="border-t border-white/[0.04] hover:bg-white/[0.01]">
                           <td className="px-4 py-3 font-medium text-white/60">{c}</td>
                           <td className="px-4 py-3 font-mono text-[12px] text-[#5eead4]/70">{t}</td>
@@ -424,7 +467,7 @@ export default function DemoPage() {
         </div>
 
         <div className="text-center mt-8">
-          <p className="text-white/15 text-[11px]">Signlytic AI &middot; Independent Robotics &amp; AI Systems Engineer &middot; v2.0 &middot; March 2026</p>
+          <p className="text-white/15 text-[11px]">Signlytic AI &middot; Independent Robotics &amp; AI Systems Engineer &middot; v2.1 &middot; April 2026</p>
         </div>
       </div>
 
@@ -438,3 +481,5 @@ export default function DemoPage() {
     </div>
   );
 }
+
+
