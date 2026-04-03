@@ -102,3 +102,40 @@ function updateAvatarSection(renderMode) {
     avatarSection.style.display = renderMode === '3d' ? '' : 'none';
   }
 }
+
+
+// --- Site exclusion UI ---
+(function() {
+  const notice = document.getElementById('excluded-notice');
+  const hostEl = document.getElementById('exc-hostname');
+  const btnUn  = document.getElementById('btn-unexclude');
+  if (!notice || !btnUn) return;
+
+  // Get current tab hostname
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (!tabs[0]?.url) return;
+    let hostname;
+    try { hostname = new URL(tabs[0].url).hostname; } catch (_) { return; }
+    if (!hostname) return;
+
+    chrome.storage.sync.get({ excludedSites: [] }, ({ excludedSites }) => {
+      if (excludedSites.includes(hostname)) {
+        notice.style.display = 'block';
+        hostEl.textContent = hostname + ' is excluded';
+      }
+    });
+
+    btnUn.addEventListener('click', () => {
+      chrome.storage.sync.get({ excludedSites: [] }, ({ excludedSites }) => {
+        const updated = excludedSites.filter(h => h !== hostname);
+        chrome.storage.sync.set({ excludedSites: updated }, () => {
+          notice.style.display = 'none';
+          // Re-inject overlay on the tab
+          if (tabs[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'INJECT_OVERLAY' }).catch(() => {});
+          }
+        });
+      });
+    });
+  });
+})();

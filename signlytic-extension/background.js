@@ -101,6 +101,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
       return true; // async
 
+    // Site exclusion
+    case 'EXCLUDE_SITE':
+      if (msg.hostname) {
+        chrome.storage.sync.get({ excludedSites: [] }, ({ excludedSites }) => {
+          if (!excludedSites.includes(msg.hostname)) {
+            excludedSites.push(msg.hostname);
+            chrome.storage.sync.set({ excludedSites });
+            console.log('[Signlytic] Excluded site:', msg.hostname);
+          }
+        });
+      }
+      sendResponse({ ok: true });
+      break;
+
     default:
       break;
   }
@@ -123,14 +137,18 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       tab.url.startsWith('devtools://') ||
       tab.url.startsWith('about:')) return;
 
-  chrome.storage.sync.get('settings', ({ settings }) => {
+  chrome.storage.sync.get(['settings', 'excludedSites'], ({ settings, excludedSites }) => {
     const s = settings || DEFAULT_SETTINGS;
-    if (s.enabled) {
-      // Small delay so content script is ready
-      setTimeout(() => {
-        chrome.tabs.sendMessage(tabId, { type: 'INJECT_OVERLAY' }).catch(() => {});
-      }, 500);
-    }
+    if (!s.enabled) return;
+    // Check site exclusion list
+    try {
+      const hostname = new URL(tab.url).hostname;
+      if ((excludedSites || []).includes(hostname)) return;
+    } catch (_) {}
+    // Small delay so content script is ready
+    setTimeout(() => {
+      chrome.tabs.sendMessage(tabId, { type: 'INJECT_OVERLAY' }).catch(() => {});
+    }, 500);
   });
 });
 

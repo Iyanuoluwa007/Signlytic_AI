@@ -41,13 +41,21 @@ try {
   chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res) => {
     if (chrome.runtime.lastError) return;
     settings = res?.settings || {};
-    injectOverlay();
+    // Check exclusion list before injecting
+    chrome.storage.sync.get({ excludedSites: [] }, ({ excludedSites }) => {
+      if ((excludedSites || []).includes(window.location.hostname)) return;
+      injectOverlay();
+    });
   });
 } catch (_) {}
 
 chrome.runtime.onMessage.addListener((msg) => {
   switch (msg.type) {
-    case 'INJECT_OVERLAY':    injectOverlay();    break;
+    case 'INJECT_OVERLAY':
+      chrome.storage.sync.get({ excludedSites: [] }, ({ excludedSites }) => {
+        if (!(excludedSites || []).includes(window.location.hostname)) injectOverlay();
+      });
+      break;
     case 'REMOVE_OVERLAY':    removeOverlay();    break;
     case 'RELAY_TEXT':        /* unused — direct post */ break;
     case 'SETTINGS_CHANGED': {
@@ -113,6 +121,13 @@ window.addEventListener('message', (e) => {
   }
 
   if (e.data.type === 'OVERLAY_CLOSED') {
+    removeOverlay();
+  }
+  if (e.data.type === 'EXCLUDE_SITE') {
+    chrome.runtime.sendMessage({
+      type: 'EXCLUDE_SITE',
+      hostname: window.location.hostname
+    });
     removeOverlay();
   }
 });
