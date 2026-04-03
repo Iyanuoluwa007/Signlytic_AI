@@ -1,4 +1,4 @@
-﻿"use client";
+-"use client";
 
 import { useState, useRef, type ChangeEvent } from "react";
 
@@ -222,7 +222,7 @@ export default function DemoPage() {
                   <div>
                     <Label>Input</Label>
 
-                    {/* Video / Camera â€” GPU required callout */}
+                    {/* Video / Camera - GPU required callout */}
                     <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 mb-3">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[13px] font-semibold text-white/70">Video or camera recognition</span>
@@ -316,7 +316,7 @@ export default function DemoPage() {
                   <div>
                     <Label>Input</Label>
 
-                    {/* Audio â€” GPU required */}
+                    {/* Audio - GPU required */}
                     <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 mb-3">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-[13px] font-semibold text-white/70">Record or upload audio</span>
