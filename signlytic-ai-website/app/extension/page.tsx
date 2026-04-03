@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.5/signlytic-extension-v0.3.5.zip";
+const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.5/signlytic-extension.zip";
 
 export default function ExtensionPage() {
   return (
@@ -25,7 +25,7 @@ export default function ExtensionPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[radial-gradient(ellipse_at_center,rgba(14,124,107,0.06)_0%,transparent_70%)] pointer-events-none" />
 
         <div className="relative max-w-[680px] mx-auto px-6 text-center">
-          {/* Badge — now Beta */}
+          {/* Badge â€” now Beta */}
           <div className="inline-flex items-center gap-2 border border-[#0e7c6b]/30 bg-[#0e7c6b]/10 rounded-full px-4 py-1.5 mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-[#5eead4] shadow-[0_0_6px_rgba(94,234,212,0.7)] animate-pulse" />
             <span className="text-[11px] font-semibold text-[#5eead4] tracking-wide uppercase">Beta Available Now</span>
@@ -47,7 +47,7 @@ export default function ExtensionPage() {
           </h1>
 
           <p className="text-white/35 text-[16px] leading-relaxed max-w-lg mx-auto mb-10">
-            A Chrome extension that detects live captions on YouTube, BBC iPlayer, Netflix and more — and translates them into BSL signing in real time.
+            A Chrome extension that detects live captions on YouTube, BBC iPlayer, Netflix and more â€” and translates them into BSL signing in real time.
           </p>
 
           {/* How it works */}
@@ -66,7 +66,7 @@ export default function ExtensionPage() {
               className="inline-flex items-center gap-2.5 bg-[#0e7c6b] hover:bg-[#0e7c6b]/90 text-white font-semibold px-7 py-3 rounded-xl text-[14px] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(14,124,107,0.35)]"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Beta — v0.3.5
+              Download Beta â€” v0.3.5
             </a>
             <a
               href="https://github.com/Iyanuoluwa007/Signlytic-Overlay"
@@ -93,7 +93,7 @@ export default function ExtensionPage() {
             <div className="space-y-5">
               {[
                 { n: "1", t: "Download & unzip", d: 'Click "Download Beta" above. Unzip the folder anywhere on your computer.' },
-                { n: "2", t: "Open Chrome Extensions", d: 'Go to chrome://extensions — enable Developer Mode (toggle top-right).' },
+                { n: "2", t: "Open Chrome Extensions", d: 'Go to chrome://extensions â€” enable Developer Mode (toggle top-right).' },
                 { n: "3", t: "Load Unpacked", d: 'Click "Load Unpacked" and select the unzipped signlytic-extension folder. The Signlytic icon appears in your toolbar.' },
               ].map((s) => (
                 <div key={s.n} className="flex gap-4">
@@ -184,7 +184,7 @@ export default function ExtensionPage() {
       <section className="border-t border-white/[0.04] py-16">
         <div className="max-w-[480px] mx-auto px-6 text-center">
           <h2 className="text-[1.2rem] font-bold text-white/85 mb-3 tracking-[-0.01em]">Tried it? Share your feedback</h2>
-          <p className="text-[13px] text-white/30 mb-6">This is an early beta — your feedback shapes what gets built next.</p>
+          <p className="text-[13px] text-white/30 mb-6">This is an early beta â€” your feedback shapes what gets built next.</p>
           <a
             href="https://forms.gle/oTy7Bi414fuThFc1A"
             target="_blank"
@@ -219,3 +219,4 @@ export default function ExtensionPage() {
     </div>
   );
 }
+
