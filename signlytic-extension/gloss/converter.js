@@ -18,7 +18,7 @@ const FUNCTION_WORDS = new Set([
   'is', 'are', 'was', 'were', 'be', 'been', 'being', 'am',
   'have', 'has', 'had', 'do', 'does', 'did',
   'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from',
-  'up', 'about', 'into', 'through', 'during', 'before', 'after',
+  'up', 'into', 'through', 'during', 'before', 'after',
   'above', 'below', 'between', 'each', 'more', 'most',
   'other', 'some', 'such', 'than', 'too', 'very',
   'just', 'that', 'this', 'these', 'those',
