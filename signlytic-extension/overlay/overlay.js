@@ -642,6 +642,29 @@ function broadcastBounds() {
   } catch (_) {}
 }
 
+// --- Caption toast ---
+let toastTimer = null;
+function showCaptionToast(source) {
+  const toast = document.getElementById('caption-toast');
+  if (!toast) return;
+  const msg = toast.querySelector('.toast-msg');
+  if (msg) msg.textContent = (source || 'Captions') + ' detected';
+  toast.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 8000);
+}
+const toastSwitch = document.getElementById('toast-switch');
+const toastDismiss = document.getElementById('toast-dismiss');
+if (toastSwitch) toastSwitch.addEventListener('click', () => {
+  document.getElementById('caption-toast').style.display = 'none';
+  clearTimeout(toastTimer);
+  window.parent.postMessage({ type: 'SWITCH_TO_CAPTIONS' }, '*');
+});
+if (toastDismiss) toastDismiss.addEventListener('click', () => {
+  document.getElementById('caption-toast').style.display = 'none';
+  clearTimeout(toastTimer);
+});
+
 // Broadcast on load, drag, resize, settings change
 const _boundsObserver = new ResizeObserver(broadcastBounds);
 _boundsObserver.observe(panel);

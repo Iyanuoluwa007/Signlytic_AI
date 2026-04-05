@@ -231,6 +231,22 @@
     pointer-events: none;
   }
 
+  #caption-toast {
+    position: absolute; top: 6px; left: 8px; right: 8px;
+    display: none; background: var(--bg-elevated);
+    border: 1px solid var(--accent); border-radius: 8px;
+    padding: 6px 10px; z-index: 20;
+    animation: toastIn 0.2s ease-out;
+  }
+  @keyframes toastIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+  .toast-row { display:flex; align-items:center; gap:6px; }
+  .toast-msg { flex:1; font-size:10px; font-family:var(--font-mono); color:var(--accent-light); }
+  .toast-btn { font-size:9px; font-family:var(--font-sans); font-weight:600; padding:3px 8px; border-radius:4px; cursor:pointer; border:none; pointer-events:all; }
+  .toast-accept { background:var(--accent); color:#fff; }
+  .toast-accept:hover { background:#0d9b86; }
+  .toast-dismiss { background:none; color:var(--text-dim); border:1px solid var(--border); }
+  .toast-dismiss:hover { color:var(--text-muted); }
+
   #gender-badge {
     position: absolute;
     top: 6px; right: 8px;
@@ -390,6 +406,7 @@
 
   <!-- Canvas area -->
   <div id="canvas-area" style="height:220px; min-height:160px;">
+    <div id="caption-toast"><div class="toast-row"><span class="toast-msg">Captions detected</span><button class="toast-btn toast-accept" id="toast-switch">Switch</button><button class="toast-btn toast-dismiss" id="toast-dismiss">Dismiss</button></div></div>
 
     <!-- 2D skeleton canvas -->
     <canvas id="canvas-2d" width="320" height="180"></canvas>
