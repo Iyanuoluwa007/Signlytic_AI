@@ -60,7 +60,7 @@ export async function GET(
   const key = gloss.toUpperCase().replace(/[^A-Z0-9_-]/g, "");
 
   if (!key) {
-    return NextResponse.json({ error: "Invalid gloss" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid gloss" }, { status: 400, headers: { "Access-Control-Allow-Origin": "*" } });
   }
 
   // 1. Check Redis cache
@@ -72,6 +72,7 @@ export async function GET(
         "Content-Type": "application/json",
         "Cache-Control": "public, max-age=86400, s-maxage=604800",
         "X-Cache": "HIT",
+        "Access-Control-Allow-Origin": "*",
       },
     });
   }
@@ -79,7 +80,7 @@ export async function GET(
   // 2. Fetch from GitHub private repo
   const data = await fetchFromGitHub(key);
   if (!data) {
-    return NextResponse.json({ error: "Sign not found" }, { status: 404 });
+    return NextResponse.json({ error: "Sign not found" }, { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
   }
 
   // 3. Cache in Redis (async, don't block response)
@@ -91,6 +92,18 @@ export async function GET(
       "Content-Type": "application/json",
       "Cache-Control": "public, max-age=86400, s-maxage=604800",
       "X-Cache": "MISS",
+    },
+  });
+}
+
+// CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
     },
   });
 }
