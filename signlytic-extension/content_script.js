@@ -262,14 +262,27 @@ function waitForCaptions() {
     }
   }, 1000);
 }
+let captionNotifyCount = 0;
+const CAPTION_NOTIFY_MAX = 3;
+const CAPTION_NOTIFY_INTERVAL = 120000; // 2 minutes
+
 function startBackgroundCaptionPoll() {
   stopBackgroundCaptionPoll();
+  captionNotifyCount = 0;
   bgCaptionPoll = setInterval(() => {
     if (!overlayFrame) { stopBackgroundCaptionPoll(); return; }
+    if (captionNotifyCount >= CAPTION_NOTIFY_MAX) { stopBackgroundCaptionPoll(); return; }
     const selector = resolveSelector();
     if (selector) {
-      stopBackgroundCaptionPoll();
-      postToOverlay({ type: 'CAPTION_AVAILABLE', source: selector.name });
+      captionNotifyCount++;
+      postToOverlay({ type: 'CAPTION_AVAILABLE', source: selector.name, count: captionNotifyCount });
+      if (captionNotifyCount >= CAPTION_NOTIFY_MAX) {
+        stopBackgroundCaptionPoll();
+      } else {
+        // Pause polling for 2 mins before next notification
+        clearInterval(bgCaptionPoll);
+        bgCaptionPoll = setTimeout(() => startBackgroundCaptionPoll(), CAPTION_NOTIFY_INTERVAL);
+      }
     }
   }, 3000);
 }
@@ -374,10 +387,10 @@ function startMic() {
       // Also translate interim after 1.5s if no final result arrives
       // This handles continuous speech where isFinal is delayed
       clearTimeout(interimTimer);
-      if (interimText.trim().split(' ').length >= 3) {
+      if (interimText.trim().length >= 3) {
         interimTimer = setTimeout(() => {
           debouncedSend(interimText.trim(), 'mic');
-        }, 1500);
+        }, 500);
       }
     }
   };
@@ -390,7 +403,7 @@ function startMic() {
   speechRecognition.onend = () => {
     try {
       // Only auto-restart if user explicitly set captionSource to 'mic'
-      if (overlayFrame && settings.enabled && settings.captionSource === 'mic') {
+      if (overlayFrame && settings.enabled && (settings.captionSource === 'mic' || (settings.captionSource === 'auto' && activeSource === 'mic'))) {
         speechRecognition.start();
       }
     } catch (_) {}
@@ -411,5 +424,5 @@ function debouncedSend(text, source) {
     if (text === lastSentText) return;
     lastSentText = text;
     postToOverlay({ type: 'TRANSLATE', text, source });
-  }, 300); // 300ms debounce - catches rapid caption updates
+  }, 150); // 150ms debounce - catches rapid caption updates
 }

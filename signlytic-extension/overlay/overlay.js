@@ -170,8 +170,47 @@ function renderGlosses(glosses, activeIdx = -1) {
 
 function setActiveGloss(idx) {
   if (idx === activeGlossIdx) return;
-  glossTokenEls.forEach((el, i) => el.classList.toggle('active', i === idx));
   activeGlossIdx = idx;
+  glossTokenEls.forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+}
+
+// Cleanup sweep: fade and remove completed glosses
+let _cleanupTimer = null;
+function startGlossCleanup() {
+  if (_cleanupTimer) return;
+  _cleanupTimer = setInterval(() => {
+    if (!glossTokenEls.length || activeGlossIdx < 0) return;
+    glossTokenEls.forEach((el, i) => {
+      if (i >= activeGlossIdx) return;  // not yet signed
+      if (el.dataset.fading) return;     // already fading
+      // Mark as fading immediately
+      el.dataset.fading = '1';
+      // Fade after 1.5s
+      setTimeout(() => {
+        if (!el.parentNode) return;
+        el.style.transition = 'opacity 0.4s';
+        el.style.opacity = '0.15';
+        // Delete 0.5s after fade
+        setTimeout(() => {
+          if (!el.parentNode) return;
+          el.style.transition = 'all 0.25s';
+          el.style.maxWidth = '0';
+          el.style.padding = '0';
+          el.style.margin = '0';
+          el.style.border = 'none';
+          el.style.overflow = 'hidden';
+          el.style.opacity = '0';
+          setTimeout(() => { if (el.parentNode) el.remove(); }, 300);
+        }, 500);
+      }, 1500);
+    });
+  }, 500);  // sweep every 500ms
+}
+
+function stopGlossCleanup() {
+  if (_cleanupTimer) { clearInterval(_cleanupTimer); _cleanupTimer = null; }
 }
 
 // ─── 2D Skeleton renderer ─────────────────────────────────────────────────────
@@ -430,6 +469,7 @@ function stop2dAnimation() {
   current2dSign = 0; current2dFrame = 0;
   signQueue2d = [];
   prevLH = null; prevRH = null; prevBody = null;
+  stopGlossCleanup();
   ctx2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
   placeholder.style.display = 'flex';
 }
@@ -439,6 +479,7 @@ function play2dQueue(queue) {
   if (!queue?.length) return;
   signQueue2d = queue;
   placeholder.style.display = 'none';
+  startGlossCleanup();
 
   const FPS = 25 * (settings.signSpeed || 1.0);
   anim2dTimer = setInterval(() => {
@@ -457,6 +498,26 @@ function play2dQueue(queue) {
       }
     }
   }, 1000 / FPS);
+}
+
+// --- Append to running queue (for streaming mic chunks) ---
+function append2dQueue(newSigns) {
+  if (!anim2dTimer || !signQueue2d.length) {
+    play2dQueue(newSigns);
+    return;
+  }
+  signQueue2d = signQueue2d.concat(newSigns);
+  // Append only NEW gloss tokens — don't rebuild the row
+  const emptyEl = document.getElementById('gloss-empty');
+  if (emptyEl) emptyEl.style.display = 'none';
+  newSigns.forEach(s => {
+    const span = document.createElement('span');
+    span.className = 'gloss-token';
+    span.textContent = s.gloss;
+    glossRow.appendChild(span);
+    glossTokenEls.push(span);
+  });
+  setStatus('signing', 'signing ' + signQueue2d.length + ' glosses');
 }
 
 // ─── Sign lookup ──────────────────────────────────────────────────────────────
@@ -564,7 +625,8 @@ async function handleTranslate(text, source) {
   const glosses = converter.textToGloss(text);
   if (!glosses?.length) { setStatus('idle','no glosses produced'); return; }
 
-  renderGlosses(glosses, -1);
+  const willAppend = source !== 'manual' && anim2dTimer;
+  if (!willAppend) renderGlosses(glosses, -1);
   setStatus('signing', `signing ${glosses.length} gloss${glosses.length>1?'es':''}`);
 
   // Build frame queue
@@ -592,8 +654,11 @@ async function handleTranslate(text, source) {
       (idx) => setActiveGloss(idx),                      // onGlossChange
       ()    => { setStatus('idle','idle'); avatarRenderer.resetPose(); const aw2=document.getElementById('avatar-waiting'); if(aw2)aw2.style.display='block'; } // onDone
     );
+  } else if (source !== 'manual' && anim2dTimer) {
+    // Streaming (mic/captions/auto): append to running queue
+    append2dQueue(queue);
   } else {
-    // 2D fallback
+    // Manual or first chunk: start fresh
     play2dQueue(queue);
   }
 }
@@ -642,27 +707,36 @@ function broadcastBounds() {
   } catch (_) {}
 }
 
-// --- Caption toast ---
-let toastTimer = null;
+// --- Caption notification bar ---
+let notifyTimer = null;
+let notifyShowCount = 0;
 function showCaptionToast(source) {
-  const toast = document.getElementById('caption-toast');
-  if (!toast) return;
-  const msg = toast.querySelector('.toast-msg');
-  if (msg) msg.textContent = (source || 'Captions') + ' detected';
-  toast.style.display = 'block';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 8000);
+  const bar = document.getElementById('caption-notify');
+  if (!bar) return;
+  notifyShowCount++;
+  const msg = document.getElementById('notify-msg');
+  const dismissBtn = document.getElementById('notify-dismiss');
+  if (notifyShowCount >= 3) {
+    if (msg) msg.textContent = 'Captions available (final reminder)';
+    if (dismissBtn) dismissBtn.textContent = 'Stay on audio';
+  } else {
+    if (msg) msg.textContent = 'Captions detected - switch to captions?';
+    if (dismissBtn) dismissBtn.textContent = 'Keep audio';
+  }
+  bar.style.display = 'block';
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(() => { bar.style.display = 'none'; }, 45000);
 }
-const toastSwitch = document.getElementById('toast-switch');
-const toastDismiss = document.getElementById('toast-dismiss');
-if (toastSwitch) toastSwitch.addEventListener('click', () => {
-  document.getElementById('caption-toast').style.display = 'none';
-  clearTimeout(toastTimer);
+const notifySwitch = document.getElementById('notify-switch');
+const notifyDismiss = document.getElementById('notify-dismiss');
+if (notifySwitch) notifySwitch.addEventListener('click', () => {
+  document.getElementById('caption-notify').style.display = 'none';
+  clearTimeout(notifyTimer);
   window.parent.postMessage({ type: 'SWITCH_TO_CAPTIONS' }, '*');
 });
-if (toastDismiss) toastDismiss.addEventListener('click', () => {
-  document.getElementById('caption-toast').style.display = 'none';
-  clearTimeout(toastTimer);
+if (notifyDismiss) notifyDismiss.addEventListener('click', () => {
+  document.getElementById('caption-notify').style.display = 'none';
+  clearTimeout(notifyTimer);
 });
 
 // Broadcast on load, drag, resize, settings change
@@ -845,6 +919,12 @@ window.addEventListener('message', (event) => {
 
     case 'STATUS':
       setStatus(msg.status, msg.message || msg.status);
+      break;
+    case 'COUNTDOWN':
+      setStatus('listening', msg.message);
+      break;
+    case 'CAPTION_AVAILABLE':
+      showCaptionToast(msg.source);
       break;
   }
 });
