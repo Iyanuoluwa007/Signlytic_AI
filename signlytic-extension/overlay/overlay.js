@@ -591,7 +591,22 @@ async function loadSignFrames(gloss) {
     }
   } catch (_) {} // expected for signs not in core
 
-  // 3. Local FastAPI dashboard (private, full dictionary, no licence risk)
+  // 3. Vercel CDN (5,203 signs via private GitHub + Redis cache)
+  try {
+    const res = await fetch(
+      `https://signlytic-ai-website.vercel.app/api/signs/${encodeURIComponent(key)}`,
+      { signal: AbortSignal.timeout(3000) }
+    );
+    if (res.ok) {
+      const f = await res.json();
+      if (Array.isArray(f) && f.length > 0) {
+        idbSet(key, f);
+        return f;
+      }
+    }
+  } catch (_) {}
+
+  // 4. Local FastAPI dashboard (fallback when offline)
   try {
     const res = await fetch(
       `${LOCAL_API}/api/signs/${encodeURIComponent(key)}`,
