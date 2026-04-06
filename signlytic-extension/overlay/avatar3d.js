@@ -113,6 +113,8 @@ class ThreeAvatarRenderer {
     this.mixer    = null;
     this.bones    = {};       // key → THREE.Bone
     this.restQ    = {};       // key → THREE.Quaternion (rest pose)
+    this.restDir  = {};       // key → THREE.Vector3 (bone Y-axis in world, from T-pose)
+    this.restWorldQ = {};     // key → THREE.Quaternion (bone world quat in T-pose)
     this.clock    = new THREE.Clock();
 
     // Sign queue playback
@@ -151,8 +153,8 @@ class ThreeAvatarRenderer {
 
     // Camera — orthographic-ish perspective, framed on upper body
     this.camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
-    this.camera.position.set(0, 1.35, 3.2);
-    this.camera.lookAt(0, 1.1, 0);
+    this.camera.position.set(0, 1.3, 1.6);
+    this.camera.lookAt(0, 1.2, 0);
 
     // Lighting
     const ambient = new THREE.AmbientLight(0x5eead4, 0.4);
@@ -267,8 +269,53 @@ class ThreeAvatarRenderer {
       }
     });
 
+    // Compute actual rest world directions from T-pose (Y-axis = bone pointing direction)
+    this.restDir = {};
+    this.restWorldQ = {};
+    // Body-driven bones: zero Z in restDir to match Z-zeroed landmarks
+    // This prevents Z-rotation jitter through the arm FK chain
+    const bodyDrivenBones = new Set([
+      'lArm','lForeArm','lHand','rArm','rForeArm','rHand',
+      'lShoulder','rShoulder','spine','spine1','spine2','neck','head'
+    ]);
+    for (const [key, bone] of Object.entries(this.bones)) {
+      const wq = new THREE.Quaternion();
+      bone.getWorldQuaternion(wq);
+      this.restWorldQ[key] = wq.clone();
+      // Bone's Y-axis in world space = the direction it points in T-pose
+      const dir = new THREE.Vector3(0, 1, 0).applyQuaternion(wq);
+      if (bodyDrivenBones.has(key)) {
+        dir.z = 0; // flatten to XY plane for body landmark driving
+      }
+      this.restDir[key] = dir.normalize();
+    }
+
     const boneCount = Object.keys(this.bones).length;
     console.log(`[Signlytic 3D] Loaded ${this.gender} avatar. Bones mapped: ${boneCount}/${Object.keys(BONE_NAMES).length}`);
+
+    // === BONE REST DIAGNOSTICS ===
+    const diagBones = ['lArm','lForeArm','lHand','rArm','rForeArm','rHand','spine1','lShoulder','rShoulder'];
+    console.log('[Signlytic 3D] === BONE REST DIAGNOSTICS ===');
+    for (const key of diagBones) {
+      const bone = this.bones[key];
+      if (!bone) { console.log(`  ${key}: NOT FOUND`); continue; }
+      const wq = new THREE.Quaternion();
+      bone.getWorldQuaternion(wq);
+      const xAxis = new THREE.Vector3(1,0,0).applyQuaternion(wq);
+      const yAxis = new THREE.Vector3(0,1,0).applyQuaternion(wq);
+      const zAxis = new THREE.Vector3(0,0,1).applyQuaternion(wq);
+      const rq = this.restQ[key];
+      // Also get bone world position
+      const wp = new THREE.Vector3();
+      bone.getWorldPosition(wp);
+      console.log(`  ${key}:`);
+      console.log(`    worldPos: (${wp.x.toFixed(3)}, ${wp.y.toFixed(3)}, ${wp.z.toFixed(3)})`);
+      console.log(`    restQ: x=${rq.x.toFixed(4)} y=${rq.y.toFixed(4)} z=${rq.z.toFixed(4)} w=${rq.w.toFixed(4)}`);
+      console.log(`    world +X axis: (${xAxis.x.toFixed(3)}, ${xAxis.y.toFixed(3)}, ${xAxis.z.toFixed(3)})`);
+      console.log(`    world +Y axis: (${yAxis.x.toFixed(3)}, ${yAxis.y.toFixed(3)}, ${yAxis.z.toFixed(3)})`);
+      console.log(`    world +Z axis: (${zAxis.x.toFixed(3)}, ${zAxis.y.toFixed(3)}, ${zAxis.z.toFixed(3)})`);
+    }
+    console.log('[Signlytic 3D] === END DIAGNOSTICS ===');
 
     this.loading = false;
     this.ready   = true;
@@ -286,8 +333,32 @@ class ThreeAvatarRenderer {
   // ── Reset to T-pose ────────────────────────────────────────────────────────
   resetPose() {
     if (!this.ready) return;
+    // Reset all bones to rest first
     for (const [key, bone] of Object.entries(this.bones)) {
       if (this.restQ[key]) bone.quaternion.copy(this.restQ[key]);
+    }
+    // Then drive arms to a natural resting position (slightly forward, at sides)
+    // Use _driveSegment with downward target directions
+    if (this.restDir) {
+      const downL = new THREE.Vector3(0.15, -0.9, 0.1).normalize();
+      const downR = new THREE.Vector3(-0.15, -0.9, 0.1).normalize();
+      const idlePairs = [
+        ['lArm',    downL], ['lForeArm', downL],
+        ['rArm',    downR], ['rForeArm', downR],
+      ];
+      for (const [boneName, targetDir] of idlePairs) {
+        const bone = this.bones[boneName];
+        const restDir = this.restDir[boneName];
+        if (!bone || !restDir) continue;
+        const deltaQ = new THREE.Quaternion().setFromUnitVectors(restDir.clone().normalize(), targetDir);
+        const parentWorldQ = new THREE.Quaternion();
+        if (bone.parent) bone.parent.getWorldQuaternion(parentWorldQ);
+        const localQ = parentWorldQ.clone().invert()
+          .multiply(deltaQ)
+          .multiply(parentWorldQ)
+          .multiply(this.restQ[boneName] || new THREE.Quaternion());
+        bone.quaternion.copy(localQ);
+      }
     }
   }
 
@@ -297,10 +368,12 @@ class ThreeAvatarRenderer {
     // MediaPipe: x=right, y=down, z=depth. Three.js: x=right, y=up, z=toward camera
     const lm = (i) => {
       if (!body[i]) return null;
+      // Zero Z for body landmarks - MediaPipe body Z is too noisy and
+      // causes arms to reach backward. BSL signs are frontal, XY is sufficient.
       return new THREE.Vector3(
-        -(body[i][0] * 2 - 1),  // negate X to mirror (image-space to avatar-space)
+        (body[i][0] * 2 - 1),   // X: removed negation to correct signing direction
         -(body[i][1] * 2 - 1),  // flip Y
-        -(body[i][2] || 0)      // negate Z (depth toward camera)
+        0                        // Z zeroed - body depth unreliable
       );
     };
 
@@ -340,8 +413,8 @@ class ThreeAvatarRenderer {
   // ── Drive a single bone segment toward a target direction ──────────────────
   // boneName:  key in this.bones
   // from, to:  THREE.Vector3 world positions of parent/child joints
-  // restDir:   the bone's rest direction in local parent space (e.g. arm points left)
-  _driveSegment(boneName, from, to, restDir) {
+  // restDirOverride: optional THREE.Vector3 to override auto-detected rest direction
+  _driveSegment(boneName, from, to, restDirOverride) {
     const bone = this.bones[boneName];
     if (!bone) return;
 
@@ -349,21 +422,29 @@ class ThreeAvatarRenderer {
     const targetDir = to.clone().sub(from).normalize();
     if (targetDir.length() < 0.001) return;
 
-    // World-space rotation from rest direction to target direction
-    const worldQ = new THREE.Quaternion().setFromUnitVectors(restDir.normalize(), targetDir);
+    // Use auto-detected rest direction from T-pose (bone Y-axis in world space)
+    const restDir = this.restDir[boneName];
+    if (!restDir) return;
 
-    // Convert to local space: localQ = parentWorldQ⁻¹ × worldQ × restQ
+    // Delta rotation: world-space rotation from rest direction to target direction
+    const deltaQ = new THREE.Quaternion().setFromUnitVectors(restDir.clone().normalize(), targetDir);
+
+    // Correct local-space conversion:
+    // desiredWorldQ = deltaQ * restWorldQ  (apply delta to rest world orientation)
+    // localQ = parentWorldQ^-1 * desiredWorldQ
+    //        = parentWorldQ^-1 * deltaQ * parentWorldQ * restQ
     const parentWorldQ = new THREE.Quaternion();
     if (bone.parent) {
       bone.parent.getWorldQuaternion(parentWorldQ);
     }
 
     const localQ = parentWorldQ.clone().invert()
-      .multiply(worldQ)
+      .multiply(deltaQ)
+      .multiply(parentWorldQ)
       .multiply(this.restQ[boneName] || new THREE.Quaternion());
 
     // Smooth interpolation (slerp 0.6 for responsiveness without jitter)
-    bone.quaternion.slerp(localQ, 0.6);
+    bone.quaternion.slerp(localQ, 0.85);
   }
 
   // ── Hand landmark → finger bone driving ───────────────────────────────────
@@ -471,6 +552,8 @@ class ThreeAvatarRenderer {
     this.ready  = false;
     this.bones  = {};
     this.restQ  = {};
+    this.restDir = {};
+    this.restWorldQ = {};
 
     if (this.model) {
       this.scene.remove(this.model);
