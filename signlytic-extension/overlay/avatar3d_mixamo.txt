@@ -11,11 +11,11 @@
 
 // ÔöÇÔöÇÔöÇ CDN / GitHub paths ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 const AVATAR_CDN = {
-  male:   'https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.6/Male.glb',
-  female: 'https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.6/Female.glb',
+  male:   'https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.5/Male.glb',
+  female: 'https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.5/Female.glb',
 };
 
-const BONE_PREFIX = { male: 'mixamorig', female: 'mixamorig' };
+const BONE_PREFIX = { male: 'mixamorig9', female: 'mixamorig8' };
 
 // MediaPipe Holistic body landmark indices (upper body only ÔÇö BSL relevant)
 const MP = {
@@ -151,8 +151,8 @@ class ThreeAvatarRenderer {
 
     // Camera ÔÇö orthographic-ish perspective, framed on upper body
     this.camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
-    this.camera.position.set(0, 1.55, 2.2);
-    this.camera.lookAt(0, 1.3, 0);
+    this.camera.position.set(0, 1.35, 3.2);
+    this.camera.lookAt(0, 1.1, 0);
 
     // Lighting
     const ambient = new THREE.AmbientLight(0x5eead4, 0.4);
@@ -269,42 +269,6 @@ class ThreeAvatarRenderer {
 
     const boneCount = Object.keys(this.bones).length;
     console.log(`[Signlytic 3D] Loaded ${this.gender} avatar. Bones mapped: ${boneCount}/${Object.keys(BONE_NAMES).length}`);
-
-    // -- Post-load: measure, scale, center, frame camera --
-    const bbox = new THREE.Box3().setFromObject(this.model);
-    const size = new THREE.Vector3();
-    bbox.getSize(size);
-    console.log('[Signlytic 3D] Raw size - W:', size.x.toFixed(2), 'H:', size.y.toFixed(2), 'D:', size.z.toFixed(2));
-
-    // Auto-scale to ~1.7m if needed
-    if (size.y > 0.001 && size.y < 1.0) {
-      const sf = 1.7 / size.y;
-      this.model.scale.multiplyScalar(sf);
-      this.model.updateMatrixWorld(true);
-      console.log('[Signlytic 3D] Scaled by', sf.toFixed(1));
-    }
-
-    // Re-measure after scale
-    const b2 = new THREE.Box3().setFromObject(this.model);
-    const s2 = new THREE.Vector3();
-    const c2 = new THREE.Vector3();
-    b2.getSize(s2);
-    b2.getCenter(c2);
-
-    // Center model and put feet on ground
-    this.model.position.x -= c2.x;
-    this.model.position.z -= c2.z;
-    this.model.position.y -= b2.min.y;
-
-    // Frame camera: upper body (chest to head + hands visible)
-    const targetY = s2.y * 0.72;
-    const camZ = s2.y * 0.95;
-    this.camera.position.set(0, targetY, camZ);
-    this.camera.lookAt(0, targetY, 0);
-    this.camera.updateProjectionMatrix();
-
-    console.log('[Signlytic 3D] Final H:', s2.y.toFixed(2), 'W:', s2.x.toFixed(2));
-    console.log('[Signlytic 3D] Camera at (0,', targetY.toFixed(2) + ',', camZ.toFixed(2) + ')');
 
     this.loading = false;
     this.ready   = true;

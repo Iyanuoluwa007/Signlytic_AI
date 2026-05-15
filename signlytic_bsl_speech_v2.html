@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signlytic AI - BSL to Speech</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050810;--bg-s:#0a0f1a;--bg-e:#111827;--bg-c:#161f2e;--bg-glass:rgba(10,15,26,0.65);
+  --accent:#0e7c6b;--accent-l:#5eead4;--accent-g:rgba(94,234,212,0.12);
+  --green:#34d399;--yellow:#fbbf24;--red:#f87171;--blue:#60a5fa;--purple:#a78bfa;
+  --t1:#e8edf5;--t2:#94a3b8;--t3:#475569;--t4:#1e293b;
+  --brd:rgba(94,234,212,0.08);--brd-a:rgba(94,234,212,0.2);
+  --r:12px;--r-s:8px;--r-l:16px;
+  --f:'Outfit',system-ui,sans-serif;--fm:'JetBrains Mono',monospace;
+  --shadow:0 8px 32px rgba(0,0,0,0.5),0 0 0 1px rgba(94,234,212,0.06);
+}
+html,body{width:100%;height:100%;background:var(--bg);font-family:var(--f);color:var(--t1);overflow:hidden}
+.app{display:grid;grid-template-rows:auto auto auto 1fr auto auto;height:100vh;max-width:920px;margin:0 auto;padding:10px 14px;gap:6px}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
+.hdr-l{display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--t3);transition:all .4s}
+.dot.on{background:var(--accent-l);box-shadow:0 0 10px var(--accent-l),0 0 20px rgba(94,234,212,0.3)}
+.brand{font-size:13px;font-weight:600;letter-spacing:.1em;color:var(--t2);text-transform:uppercase}
+.btn-ghost{font:500 11px/1 var(--fm);padding:5px 12px;border-radius:6px;border:1px solid var(--brd);background:0;color:var(--t3);cursor:pointer;transition:all .15s}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent-l)}
+.sent{background:var(--bg-glass);backdrop-filter:blur(12px);border:1px solid var(--brd);border-radius:var(--r);padding:10px 16px;min-height:40px;display:flex;align-items:center}
+.sent-txt{font-size:15px;font-weight:400;color:var(--t1);transition:opacity .3s}
+.sent-txt.empty{color:var(--t3);font-style:italic;font-size:13px}
+.gbar{display:flex;align-items:center;gap:5px;padding:2px 0;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.gbar::-webkit-scrollbar{display:none}
+.gbar-lbl{font:500 8px/1 var(--fm);color:var(--t3);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0;padding:3px 6px;background:var(--bg-e);border-radius:4px}
+.gpill{font:500 10px/1 var(--fm);padding:4px 10px;border-radius:16px;background:rgba(14,124,107,0.15);border:1px solid rgba(94,234,212,0.2);color:var(--accent-l);text-transform:uppercase;white-space:nowrap;flex-shrink:0;animation:pillIn .25s cubic-bezier(.34,1.56,.64,1)}
+.gpill.act{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 14px rgba(14,124,107,0.5)}
+@keyframes pillIn{from{opacity:0;transform:scale(.7) translateY(4px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.gbar-idle{font:400 10px/1 var(--fm);color:var(--t3);font-style:italic;animation:softPulse 2.5s ease-in-out infinite}
+@keyframes softPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.cam{position:relative;flex:1;background:var(--bg-s);border-radius:var(--r-l);border:1px solid var(--brd);overflow:hidden;min-height:260px}
+#vid{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+#lmCanvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none}
+.cam-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg-s)}
+.cam-ph svg{opacity:.25}
+.cam-ph span{font:400 12px/1 var(--fm);color:var(--t3);letter-spacing:.05em}
+.btn-cam{font:600 13px/1 var(--f);padding:10px 24px;border-radius:var(--r);background:linear-gradient(135deg,var(--accent),#0d9b86);color:#fff;border:0;cursor:pointer;box-shadow:0 4px 16px rgba(14,124,107,0.4);transition:all .2s}
+.btn-cam:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(14,124,107,0.5)}
+.cur-g{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);text-align:center;z-index:10;pointer-events:none}
+.cur-word{font:600 22px/1 var(--fm);padding:8px 24px;border-radius:var(--r);background:var(--bg-glass);backdrop-filter:blur(16px);border:1px solid var(--brd-a);color:#fff;text-transform:uppercase;display:none;box-shadow:var(--shadow)}
+.cur-word.vis{display:inline-block;animation:wordPop .2s cubic-bezier(.34,1.56,.64,1)}
+@keyframes wordPop{from{transform:scale(.85);opacity:.5}to{transform:scale(1);opacity:1}}
+.conf-row{margin-top:6px;display:none}
+.conf-row.vis{display:flex;flex-direction:column;align-items:center;gap:3px}
+.conf-bg{width:140px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden}
+.conf-fill{height:100%;border-radius:2px;transition:width .2s,background .2s}
+.conf-fill.hi{background:var(--green)}.conf-fill.md{background:var(--yellow)}.conf-fill.lo{background:var(--red)}
+.conf-txt{font:400 9px/1 var(--fm);color:var(--t2)}
+.idle{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font:400 11px/1 var(--fm);color:var(--t3);letter-spacing:.05em;animation:softPulse 2.5s ease-in-out infinite;z-index:5;display:none}
+.emo{position:absolute;top:10px;right:10px;background:var(--bg-glass);backdrop-filter:blur(14px);border:1px solid var(--brd);border-radius:var(--r);padding:8px 10px;z-index:10;min-width:95px;display:none}
+.emo-t{font:500 7px/1 var(--fm);color:var(--t3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px}
+.emo-i{display:flex;align-items:center;gap:6px;padding:2px 0}
+.emo-d{width:5px;height:5px;border-radius:50%;opacity:.35;transition:all .4s}
+.emo-d.on{width:7px;height:7px;opacity:1;box-shadow:0 0 6px currentColor}
+.emo-n{font:400 9px/1 var(--fm);color:var(--t3);transition:all .3s}
+.emo-n.on{color:var(--t1);font-weight:500}
+.pipe{display:flex;gap:3px;padding:4px 0;flex-shrink:0}
+.ps{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 4px;border-radius:var(--r-s);border:1px solid var(--brd);background:var(--bg-e);transition:all .35s;position:relative;overflow:hidden}
+.ps::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(94,234,212,0.08),transparent);opacity:0;transition:opacity .35s}
+.ps.act{border-color:var(--accent)}.ps.act::before{opacity:1}
+.ps.done{border-color:rgba(52,211,153,0.25)}.ps.done::before{opacity:1;background:linear-gradient(135deg,rgba(52,211,153,0.06),transparent)}
+.ps-ic{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--t3);display:flex;align-items:center;justify-content:center;transition:all .35s;position:relative;z-index:1}
+.ps.act .ps-ic{border-color:var(--accent-l);box-shadow:0 0 10px var(--accent-g)}
+.ps.done .ps-ic{border-color:var(--green);color:var(--green)}
+.ps-lb{font:400 8px/1.2 var(--fm);color:var(--t3);text-align:center;letter-spacing:.02em;transition:color .35s;position:relative;z-index:1}
+.ps.act .ps-lb{color:var(--accent-l)}.ps.done .ps-lb{color:var(--green)}
+.spk{display:flex;gap:8px;flex-shrink:0;padding:2px 0;align-items:center}
+.wave{display:none;align-items:center;justify-content:center;gap:2px;height:28px;padding:0 10px}
+.wave.vis{display:flex}
+.wave-bar{width:3px;border-radius:2px;background:var(--accent-l);animation:waveAnim .6s ease-in-out infinite alternate}
+.wave-bar:nth-child(2){animation-delay:.1s}.wave-bar:nth-child(3){animation-delay:.2s}
+.wave-bar:nth-child(4){animation-delay:.3s}.wave-bar:nth-child(5){animation-delay:.15s}
+.wave-bar:nth-child(6){animation-delay:.25s}.wave-bar:nth-child(7){animation-delay:.05s}
+@keyframes waveAnim{from{height:4px;opacity:.4}to{height:22px;opacity:1}}
+.btn-spk{flex:1;font:600 13px/1 var(--f);padding:11px;border-radius:var(--r);background:linear-gradient(135deg,var(--accent),#0d9b86);color:#fff;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;box-shadow:0 4px 16px rgba(14,124,107,0.3)}
+.btn-spk:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 24px rgba(14,124,107,0.4)}
+.btn-spk:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.btn-spk svg{width:16px;height:16px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr"><div class="hdr-l"><div class="dot" id="dot"></div><span class="brand">Signlytic AI</span></div><button class="btn-ghost" id="btnClear">Clear</button></div>
+  <div class="sent"><span class="sent-txt empty" id="sTxt">Waiting for BSL input...</span></div>
+  <div class="gbar" id="gBar"><span class="gbar-lbl">GLOSS</span><span class="gbar-idle">waiting for signs...</span></div>
+  <div class="cam" id="camWrap">
+    <video id="vid" autoplay playsinline muted></video><canvas id="lmCanvas"></canvas>
+    <div class="cam-ph" id="ph"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#5eead4" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span>BSL to Speech</span><button class="btn-cam" id="btnCam">Start Camera</button></div>
+    <span class="idle" id="idle">waiting for signs...</span>
+    <div class="cur-g" id="curG"><div class="cur-word" id="curW"></div><div class="conf-row" id="cRow"><div class="conf-bg"><div class="conf-fill hi" id="cFill"></div></div><span class="conf-txt" id="cTxt"></span></div></div>
+    <div class="emo" id="emo"><div class="emo-t">Emotion</div>
+      <div class="emo-i"><div class="emo-d" style="color:#34d399;background:#34d399"></div><span class="emo-n" data-e="happy">Happy</span></div>
+      <div class="emo-i"><div class="emo-d" style="color:#60a5fa;background:#60a5fa"></div><span class="emo-n" data-e="sad">Sad</span></div>
+      <div class="emo-i"><div class="emo-d on" style="color:#94a3b8;background:#94a3b8"></div><span class="emo-n on" data-e="neutral">Neutral</span></div>
+      <div class="emo-i"><div class="emo-d" style="color:#f87171;background:#f87171"></div><span class="emo-n" data-e="angry">Angry</span></div>
+      <div class="emo-i"><div class="emo-d" style="color:#fbbf24;background:#fbbf24"></div><span class="emo-n" data-e="question">Questioning</span></div>
+    </div>
+  </div>
+  <div class="pipe">
+    <div class="ps" id="p-hand"><div class="ps-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0v5M14 10V4a2 2 0 00-4 0v6M10 10.5V6a2 2 0 00-4 0v8M18 8a2 2 0 114 0v6a8 8 0 01-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 012.83-2.82L7 15"/></svg></div><span class="ps-lb">Hand<br>Tracking</span></div>
+    <div class="ps" id="p-emo"><div class="ps-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div><span class="ps-lb">Emotion</span></div>
+    <div class="ps" id="p-llm"><div class="ps-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><span class="ps-lb">LLM</span></div>
+    <div class="ps" id="p-voice"><div class="ps-ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></div><span class="ps-lb">Voice</span></div>
+  </div>
+  <div class="spk"><div class="wave" id="wave"><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div></div><button class="btn-spk" id="btnSpk" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>Speak Sentence</button></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.min.js"></script>
+<script>
+const vid=document.getElementById('vid'),lm=document.getElementById('lmCanvas'),ctx=lm.getContext('2d'),
+ph=document.getElementById('ph'),dot=document.getElementById('dot'),gBar=document.getElementById('gBar'),
+sTxt=document.getElementById('sTxt'),curW=document.getElementById('curW'),cRow=document.getElementById('cRow'),
+cFill=document.getElementById('cFill'),cTxt=document.getElementById('cTxt'),idle=document.getElementById('idle'),
+emo=document.getElementById('emo'),wave=document.getElementById('wave'),btnSpk=document.getElementById('btnSpk');
+let glosses=[],sentence='',camOn=false,handsOn=false,lastHand=0,confTimer=null,lastSign='',signCD=0;
+const SIGNS=['HELLO','THANK-YOU','PLEASE','SORRY','GOOD','BAD','YES','NO','HELP','UNDERSTAND','NAME','WANT','NEED','LIKE','LOVE','HOUSE','WORK','SCHOOL','FRIEND','FAMILY','EAT','DRINK','MORNING','AFTERNOON','NIGHT','HAPPY','SAD','DEAF','HEARING','SIGN','TEACHER','LEARN','QUESTION','WHERE','WHEN','WHO','HOW','FINISH','AGAIN','SLOW','FAST','WAIT','STOP','GO','COME'];
+const EMOTIONS=['happy','sad','neutral','angry','question'];
+function setPipe(s){['hand','emo','llm','voice'].forEach((k,i)=>{const el=document.getElementById('p-'+k);el.classList.remove('act','done');const si=['hand','emo','llm','voice'].indexOf(s);if(k===s)el.classList.add('act');else if(i<si)el.classList.add('done')})}
+function setEmo(e){document.querySelectorAll('.emo-n').forEach(n=>{const d=n.previousElementSibling;if(n.dataset.e===e){d.classList.add('on');n.classList.add('on')}else{d.classList.remove('on');n.classList.remove('on')}})}
+function addGloss(w){glosses.push(w);renderGloss();btnSpk.disabled=false}
+function renderGloss(){gBar.innerHTML='<span class="gbar-lbl">GLOSS</span>';if(!glosses.length){gBar.innerHTML+='<span class="gbar-idle">waiting for signs...</span>';return}glosses.forEach((g,i)=>{const s=document.createElement('span');s.className='gpill'+(i===glosses.length-1?' act':'');s.textContent=g;gBar.appendChild(s)});gBar.scrollLeft=gBar.scrollWidth}
+function clearAll(){glosses=[];sentence='';renderGloss();sTxt.textContent='Waiting for BSL input...';sTxt.classList.add('empty');curW.classList.remove('vis');cRow.classList.remove('vis');btnSpk.disabled=true;setPipe('');wave.classList.remove('vis');speechSynthesis.cancel()}
+function assembleSent(){if(!glosses.length)return;setPipe('llm');sentence=glosses.join(' ').toLowerCase();sentence=sentence.charAt(0).toUpperCase()+sentence.slice(1)+'.';sTxt.textContent=sentence;sTxt.classList.remove('empty');setTimeout(()=>setPipe('voice'),400)}
+function speak(){if(!sentence){assembleSent();setTimeout(speak,600);return}setPipe('voice');wave.classList.add('vis');const u=new SpeechSynthesisUtterance(sentence);u.lang='en-GB';u.rate=.9;u.onend=()=>{wave.classList.remove('vis');setTimeout(()=>setPipe('hand'),800)};speechSynthesis.speak(u)}
+function showConf(w,c){curW.textContent=w;curW.classList.add('vis');cRow.classList.add('vis');idle.style.display='none';cFill.style.width=c+'%';cFill.className='conf-fill '+(c>=80?'hi':c>=50?'md':'lo');cTxt.textContent=c+'% \u2014 '+(c>=80?'locking in...':c>=50?'hold steadier':'detecting...')}
+function hideConf(){curW.classList.remove('vis');cRow.classList.remove('vis');if(camOn)idle.style.display=''}
+function mockSign(lms){if(Date.now()<signCD)return null;const w=lms[0],m=lms[12],th=lms[4];const sp=Math.abs(lms[8].x-th.x)+Math.abs(m.y-w.y);const i=Math.floor(Math.abs(w.x*10+sp*20)%SIGNS.length);const s=SIGNS[i];if(s===lastSign)return null;lastSign=s;signCD=Date.now()+2200;return s}
+function onResults(r){lm.width=vid.videoWidth||640;lm.height=vid.videoHeight||480;ctx.clearRect(0,0,lm.width,lm.height);
+if(r.multiHandLandmarks&&r.multiHandLandmarks.length){handsOn=true;lastHand=Date.now();setPipe('hand');dot.classList.add('on');emo.style.display='';
+for(const h of r.multiHandLandmarks){drawConnectors(ctx,h,HAND_CONNECTIONS,{color:'rgba(94,234,212,0.35)',lineWidth:1.5});
+for(const p of h){const x=p.x*lm.width,y=p.y*lm.height;ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fillStyle='rgba(94,234,212,0.12)';ctx.fill();ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fillStyle='#5eead4';ctx.fill()}
+const sign=mockSign(h);if(sign){let c=45;clearInterval(confTimer);confTimer=setInterval(()=>{c=Math.min(c+Math.random()*18,96);showConf(sign,Math.round(c));if(c>=88){clearInterval(confTimer);setTimeout(()=>{addGloss(sign);assembleSent();hideConf()},350)}},130)}}
+if(Math.random()<.015){setEmo(EMOTIONS[Math.floor(Math.random()*EMOTIONS.length)])}}
+else{handsOn=false;if(Date.now()-lastHand>2500){hideConf();if(camOn)idle.style.display='';dot.classList.remove('on')}}}
+let mpH;async function startCam(){try{const s=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});vid.srcObject=s;await vid.play();ph.style.display='none';idle.style.display='';camOn=true;
+mpH=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`});mpH.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.5});mpH.onResults(onResults);
+async function loop(){if(!camOn)return;if(vid.readyState>=2)await mpH.send({image:vid});requestAnimationFrame(loop)}loop()}catch(e){console.error(e);alert('Camera access denied.')}}
+document.getElementById('btnCam').onclick=startCam;document.getElementById('btnClear').onclick=clearAll;btnSpk.onclick=speak;
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!btnSpk.disabled){e.preventDefault();speak()}});
+</script>
+</body>
+</html>

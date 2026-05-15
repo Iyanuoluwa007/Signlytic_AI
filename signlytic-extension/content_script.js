@@ -396,11 +396,22 @@ function startMic() {
   };
   speechRecognition.onerror = (e) => {
     console.warn('[Signlytic] Speech recognition error:', e.error);
-    if (e.error === 'not-allowed') {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      speechRecognition._fatalError = true;
       postToOverlay({ type: 'STATUS', status: 'error', message: 'Microphone permission denied' });
+    } else if (e.error === 'no-speech' || e.error === 'audio-capture') {
+      // Transient errors -- allow restart
+    } else if (e.error === 'network') {
+      speechRecognition._fatalError = true;
+      postToOverlay({ type: 'STATUS', status: 'error', message: 'Speech recognition network error' });
     }
   };
   speechRecognition.onend = () => {
+    // Do not restart after fatal errors (prevents infinite loop)
+    if (speechRecognition && speechRecognition._fatalError) {
+      console.warn('[Signlytic] Speech recognition stopped due to fatal error');
+      return;
+    }
     try {
       // Only auto-restart if user explicitly set captionSource to 'mic'
       if (overlayFrame && settings.enabled && (settings.captionSource === 'mic' || (settings.captionSource === 'auto' && activeSource === 'mic'))) {
