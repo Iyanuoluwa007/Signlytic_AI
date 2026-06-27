@@ -1,31 +1,29 @@
-name: Keep Upstash Redis Alive
-
-on:
-  schedule:
-    - cron: '0 8 */5 * *'
-  workflow_dispatch:
-
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping Upstash Redis
+- name: Ping Upstash Redis
         env:
           UPSTASH_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
         run: |
-          # Strip trailing slash if present
-          BASE_URL="${UPSTASH_URL%/}"
-          echo "Pinging: ${BASE_URL}/PING"
-          
-          RESPONSE=$(curl -sf "${BASE_URL}/PING" \
-            -H "Authorization: Bearer ${UPSTASH_TOKEN}" \
-            2>&1) || {
-            echo "::error::Curl failed. Response: $RESPONSE"
-            echo "Check UPSTASH_REDIS_REST_URL format: https://xxx.upstash.io"
-            echo "Check UPSTASH_REDIS_REST_TOKEN is the REST token not Redis password"
+          if [ -z "${UPSTASH_URL}" ]; then
+            echo "::error::UPSTASH_REDIS_REST_URL secret is empty or not set"
             exit 1
-          }
-          
-          echo "Response: $RESPONSE"
+          fi
+          if [ -z "${UPSTASH_TOKEN}" ]; then
+            echo "::error::UPSTASH_REDIS_REST_TOKEN secret is empty or not set"
+            exit 1
+          fi
+
+          BASE_URL="${UPSTASH_URL%/}"
+
+          HTTP_CODE=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
+            "${BASE_URL}/PING" \
+            -H "Authorization: Bearer ${UPSTASH_TOKEN}")
+
+          echo "HTTP status: ${HTTP_CODE}"
+          echo "Body: $(cat /tmp/resp.txt)"
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "::error::Ping failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
           echo "Redis kept alive successfully"
