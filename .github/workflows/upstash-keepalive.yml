@@ -21,10 +21,18 @@ jobs:
             exit 1
           fi
 
-          BASE_URL="${UPSTASH_URL%/}"
+          BASE_URL=$(echo -n "${UPSTASH_URL}" | tr -d '[:space:]')
+          BASE_URL="${BASE_URL%/}"
+
+          echo "URL length: ${#BASE_URL}"
+          case "${BASE_URL}" in
+            https://*.upstash.io) echo "URL format looks correct (https + upstash.io)";;
+            https://*) echo "::warning::https but host is not *.upstash.io";;
+            *) echo "::error::URL does not start with https:// — check the secret";;
+          esac
 
           HTTP_CODE=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
-            "${BASE_URL}/PING" \
+            "${BASE_URL}/ping" \
             -H "Authorization: Bearer ${UPSTASH_TOKEN}")
 
           echo "HTTP status: ${HTTP_CODE}"
