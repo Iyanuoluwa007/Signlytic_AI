@@ -92,6 +92,7 @@ export async function GET(
       "Content-Type": "application/json",
       "Cache-Control": "public, max-age=86400, s-maxage=604800",
       "X-Cache": "MISS",
+      "Access-Control-Allow-Origin": "*",
     },
   });
 }
