@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, type ChangeEvent } from "react";
+import Signable from "@/components/Signable";
+import BslSignPanel from "@/components/BslSignPanel";
 
 /* =========================================
    LOCAL FALLBACK DICTIONARIES
@@ -216,7 +218,12 @@ export default function DemoPage() {
             {tab === 0 && (
               <div>
                 <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">Understand BSL Signs</h2>
-                <p className="text-[13px] text-white/35 mb-6">Type BSL glosses to see the English meaning. Video and camera recognition require local GPU.</p>
+                <p className="text-[13px] text-white/35 mb-6">
+                  <Signable text="Type BSL glosses to see the English meaning.">
+                    Type BSL glosses to see the English meaning.
+                  </Signable>{" "}
+                  Video and camera recognition require local GPU.
+                </p>
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
@@ -478,6 +485,8 @@ export default function DemoPage() {
         .font-mono { font-family: "JetBrains Mono", monospace; }
         ::selection { background: rgba(14,124,107,0.3); color: #fff; }
       `}</style>
+
+      <BslSignPanel />
     </div>
   );
 }

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "sync-bsl": "node scripts/sync-bsl-vendor.js",
     "start": "next start",
     "lint": "next lint"
   },
