@@ -163,7 +163,7 @@ export default function ExtensionPage() {
         <div className="max-w-[680px] mx-auto px-6">
           <div className="text-center mb-10">
             <div className="text-[10px] font-bold text-[#0e7c6b] uppercase tracking-[0.14em] mb-3">Rendering</div>
-            <h2 className="text-[1.4rem] font-bold text-white tracking-[-0.02em]">Two signing modes</h2>
+            <h2 className="text-[1.4rem] font-bold text-white tracking-[-0.02em]"><Signable text="Two signing modes">Two signing modes</Signable></h2>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6">
@@ -171,14 +171,14 @@ export default function ExtensionPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/25"><circle cx="12" cy="5" r="2"/><path d="M12 7v6"/><path d="M8 11l4 2 4-2"/><path d="M8 21l4-6 4 6"/></svg>
               </div>
               <h3 className="text-[14px] font-semibold text-white/80 mb-1">2D Skeleton</h3>
-              <p className="text-[12px] text-white/30 leading-relaxed">Lightweight stick-figure animation using MediaPipe pose landmarks. Runs in browser Canvas with minimal resources.</p>
+              <p className="text-[12px] text-white/30 leading-relaxed"><Signable text="Lightweight stick-figure animation using MediaPipe pose landmarks.">Lightweight stick-figure animation using MediaPipe pose landmarks.</Signable> Runs in browser Canvas with minimal resources.</p>
             </div>
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6">
               <div className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-4">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/25"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
               </div>
               <h3 className="text-[14px] font-semibold text-white/80 mb-1">3D Avatar</h3>
-              <p className="text-[12px] text-white/30 leading-relaxed">Full 3D Mixamo avatar driven by pose landmarks via Three.js. More expressive with finger-level detail.</p>
+              <p className="text-[12px] text-white/30 leading-relaxed"><Signable text="Full 3D Mixamo avatar driven by pose landmarks.">Full 3D Mixamo avatar driven by pose landmarks via Three.js.</Signable> More expressive with finger-level detail.</p>
             </div>
           </div>
         </div>

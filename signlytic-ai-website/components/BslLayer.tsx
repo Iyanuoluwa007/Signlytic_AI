@@ -11,12 +11,12 @@ import {
 } from "./Signable";
 
 function BslToggle() {
+  // Starts on so the control is in the server-rendered HTML and the first
+  // client render matches; the effect corrects it for anyone who opted out.
   const [enabled, setEnabled] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setEnabled(readBslEnabled());
-    setMounted(true);
   }, []);
 
   const toggle = () => {
@@ -31,9 +31,6 @@ function BslToggle() {
       new CustomEvent(BSL_TOGGLE_EVENT, { detail: { enabled: next } })
     );
   };
-
-  // Render nothing until mounted so the server and client markup match
-  if (!mounted) return null;
 
   return (
     <button
