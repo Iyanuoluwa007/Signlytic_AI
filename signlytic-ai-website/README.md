@@ -67,6 +67,3 @@ Independent Robotics & AI Systems Engineer
 - [GitHub](https://github.com/Iyanuoluwa007)
 - [LinkedIn](https://linkedin.com/in/oke-iyanuoluwa-enoch)
 
----
-
-*Part of Global Talent Visa portfolio*

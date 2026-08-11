@@ -210,11 +210,13 @@ export default function Home() {
 
           <Reveal delay={60}>
             <h1 className="text-[clamp(2.8rem,7vw,5.5rem)] font-bold text-white leading-[1.02] tracking-[-0.04em] max-w-[800px] mb-7">
-              Translate between
-              <br />
-              <span className="bg-gradient-to-r from-[#5eead4] via-[#0e7c6b] to-[#065f4e] bg-clip-text text-transparent">
-                BSL and English
-              </span>
+              <Signable text="Translate between BSL and English">
+                Translate between
+                <br />
+                <span className="bg-gradient-to-r from-[#5eead4] via-[#0e7c6b] to-[#065f4e] bg-clip-text text-transparent">
+                  BSL and English
+                </span>
+              </Signable>
             </h1>
           </Reveal>
 
@@ -282,9 +284,11 @@ export default function Home() {
           <Reveal>
             <span className={labelCls}>How it works</span>
             <h2 className={h2Cls}>
-              Bidirectional BSL translation
-              <br className="hidden md:block" />
-              in one system
+              <Signable text="Bidirectional BSL translation in one system">
+                Bidirectional BSL translation
+                <br className="hidden md:block" />
+                in one system
+              </Signable>
             </h2>
             <p className={subCls}>
               <Signable text="Vision, language, speech, and animation unified into a single pipeline.">
@@ -348,7 +352,7 @@ export default function Home() {
         <div className={containerCls}>
           <Reveal>
             <span className={labelCls}>Interactive</span>
-            <h2 className={h2Cls}>Try it live</h2>
+            <h2 className={h2Cls}><Signable text="Try it live">Try it live</Signable></h2>
             <p className={subCls}>
               <Signable text="Translate between BSL glosses and English instantly.">
                 Translate between BSL glosses and English instantly.
@@ -475,7 +479,7 @@ export default function Home() {
         <div className={containerCls}>
           <Reveal>
             <span className={labelCls}>Benchmarks</span>
-            <h2 className={h2Cls}>Performance</h2>
+            <h2 className={h2Cls}><Signable text="Performance">Performance</Signable></h2>
             <p className={subCls}>
               <Signable text="Benchmark results across recognition models and translation components.">
                 Benchmark results across recognition models and translation
@@ -567,7 +571,7 @@ export default function Home() {
         <div className={containerCls}>
           <Reveal>
             <span className={labelCls}>System</span>
-            <h2 className={h2Cls}>Technical Architecture</h2>
+            <h2 className={h2Cls}><Signable text="Technical Architecture">Technical Architecture</Signable></h2>
             <p className={subCls}>
               <Signable text="End-to-end pipeline unifying vision, language, speech, and animation.">
                 End-to-end pipeline unifying vision, language, speech, and
@@ -674,7 +678,7 @@ export default function Home() {
         <div className={containerCls}>
           <Reveal>
             <span className={labelCls}>Research</span>
-            <h2 className={h2Cls}>Key Insights</h2>
+            <h2 className={h2Cls}><Signable text="Key Insights">Key Insights</Signable></h2>
           </Reveal>
 
           <div className="grid md:grid-cols-3 gap-px bg-white/[0.04] rounded-2xl overflow-hidden border border-white/[0.04] mt-16">
@@ -721,15 +725,16 @@ export default function Home() {
                 Oke Iyanuoluwa Enoch
               </h2>
               <p className="text-white/30 text-[15px] mb-3">
-                Independent Robotics &amp; AI Systems Engineer
+                <Signable text="Independent Robotics and AI Systems Engineer">
+                  Independent Robotics &amp; AI Systems Engineer
+                </Signable>
               </p>
               <p className="text-white/20 text-[13px] leading-relaxed mb-10 max-w-md mx-auto">
                 <Signable text="Signlytic AI is part of a portfolio of production AI systems spanning algorithmic trading, multi-agent frameworks, and accessibility technology.">
                   Signlytic AI is part of a portfolio of production AI systems
                   spanning algorithmic trading, multi-agent frameworks, and
                   accessibility technology.
-                </Signable>{" "}
-                Built as evidence for a UK Global Talent Visa application.
+                </Signable>
               </p>
               <div className="flex justify-center gap-2.5">
                 {[

@@ -43,9 +43,11 @@ export default function ExtensionPage() {
           </div>
 
           <h1 className="text-[clamp(1.8rem,4.5vw,2.8rem)] font-bold text-white leading-[1.1] tracking-[-0.03em] mb-5">
-            BSL signing from
-            <br />
-            <span className="text-[#5eead4]">any screen caption</span>
+            <Signable text="BSL signing from any screen caption">
+              BSL signing from
+              <br />
+              <span className="text-[#5eead4]">any screen caption</span>
+            </Signable>
           </h1>
 
           <p className="text-white/35 text-[16px] leading-relaxed max-w-lg mx-auto mb-10">
@@ -187,8 +189,8 @@ export default function ExtensionPage() {
       {/* Feedback CTA */}
       <section className="border-t border-white/[0.04] py-16">
         <div className="max-w-[480px] mx-auto px-6 text-center">
-          <h2 className="text-[1.2rem] font-bold text-white/85 mb-3 tracking-[-0.01em]">Tried it? Share your feedback</h2>
-          <p className="text-[13px] text-white/30 mb-6">This is an early beta - your feedback shapes what gets built next.</p>
+          <h2 className="text-[1.2rem] font-bold text-white/85 mb-3 tracking-[-0.01em]"><Signable text="Tried it? Share your feedback">Tried it? Share your feedback</Signable></h2>
+          <p className="text-[13px] text-white/30 mb-6"><Signable text="This is an early beta. Your feedback shapes what gets built next.">This is an early beta - your feedback shapes what gets built next.</Signable></p>
           <a
             href="https://forms.gle/oTy7Bi414fuThFc1A"
             target="_blank"
