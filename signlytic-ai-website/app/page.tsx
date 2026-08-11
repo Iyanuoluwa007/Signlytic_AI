@@ -330,10 +330,10 @@ export default function Home() {
                     {String(i + 1).padStart(2, "0")}
                   </div>
                   <h3 className="text-[15px] font-semibold text-white/90 mb-2.5 tracking-[-0.01em]">
-                    {card.title}
+                    <Signable text={card.title}>{card.title}</Signable>
                   </h3>
                   <p className="text-[13px] text-white/35 leading-[1.7]">
-                    {card.desc}
+                    <Signable text={card.desc}>{card.desc}</Signable>
                   </p>
                 </div>
               </Reveal>
@@ -350,9 +350,13 @@ export default function Home() {
             <span className={labelCls}>Interactive</span>
             <h2 className={h2Cls}>Try it live</h2>
             <p className={subCls}>
-              Translate between BSL glosses and English instantly. For the full
-              system with video recognition, speech, and signing animation —
-              explore the full demo.
+              <Signable text="Translate between BSL glosses and English instantly.">
+                Translate between BSL glosses and English instantly.
+              </Signable>{" "}
+              <Signable text="For the full system with video recognition, speech, and signing animation, explore the full demo.">
+                For the full system with video recognition, speech, and signing
+                animation &mdash; explore the full demo.
+              </Signable>
             </p>
           </Reveal>
 
@@ -473,8 +477,10 @@ export default function Home() {
             <span className={labelCls}>Benchmarks</span>
             <h2 className={h2Cls}>Performance</h2>
             <p className={subCls}>
-              Benchmark results across recognition models and translation
-              components.
+              <Signable text="Benchmark results across recognition models and translation components.">
+                Benchmark results across recognition models and translation
+                components.
+              </Signable>
             </p>
           </Reveal>
 
@@ -563,8 +569,10 @@ export default function Home() {
             <span className={labelCls}>System</span>
             <h2 className={h2Cls}>Technical Architecture</h2>
             <p className={subCls}>
-              End-to-end pipeline unifying vision, language, speech, and
-              animation.
+              <Signable text="End-to-end pipeline unifying vision, language, speech, and animation.">
+                End-to-end pipeline unifying vision, language, speech, and
+                animation.
+              </Signable>
             </p>
           </Reveal>
 
@@ -690,10 +698,10 @@ export default function Home() {
                     {String(i + 1).padStart(2, "0")}
                   </div>
                   <h3 className="text-[15px] font-semibold text-white/90 mb-2.5 tracking-[-0.01em]">
-                    {item.title}
+                    <Signable text={item.title}>{item.title}</Signable>
                   </h3>
                   <p className="text-[13px] text-white/35 leading-[1.7]">
-                    {item.desc}
+                    <Signable text={item.desc}>{item.desc}</Signable>
                   </p>
                 </div>
               </Reveal>

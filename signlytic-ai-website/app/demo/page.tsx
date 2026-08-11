@@ -216,7 +216,7 @@ export default function DemoPage() {
             {/* === TAB 1: BSL to English === */}
             {tab === 0 && (
               <div>
-                <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">Understand BSL Signs</h2>
+                <h2 className="text-[1.1rem] font-bold text-white/90 mb-1"><Signable text="Understand BSL Signs">Understand BSL Signs</Signable></h2>
                 <p className="text-[13px] text-white/35 mb-6">
                   <Signable text="Type BSL glosses to see the English meaning.">
                     Type BSL glosses to see the English meaning.
@@ -315,8 +315,8 @@ export default function DemoPage() {
             {/* === TAB 2: English to BSL === */}
             {tab === 1 && (
               <div>
-                <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">Show Me in BSL</h2>
-                <p className="text-[13px] text-white/35 mb-6">Type in English to see the BSL gloss sequence. Audio input requires local GPU.</p>
+                <h2 className="text-[1.1rem] font-bold text-white/90 mb-1"><Signable text="Show Me in BSL">Show Me in BSL</Signable></h2>
+                <p className="text-[13px] text-white/35 mb-6"><Signable text="Type in English to see the BSL gloss sequence.">Type in English to see the BSL gloss sequence.</Signable> Audio input requires local GPU.</p>
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
@@ -403,8 +403,8 @@ export default function DemoPage() {
             {/* === TAB 3: Help === */}
             {tab === 2 && (
               <div>
-                <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">How to Use This App</h2>
-                <p className="text-[13px] text-white/35 mb-6">Simple guides for BSL users and hearing users.</p>
+                <h2 className="text-[1.1rem] font-bold text-white/90 mb-1"><Signable text="How to Use This App">How to Use This App</Signable></h2>
+                <p className="text-[13px] text-white/35 mb-6"><Signable text="Simple guides for BSL users and hearing users.">Simple guides for BSL users and hearing users.</Signable></p>
                 <div className="space-y-3">
                   {[
                     { title: "BSL to English (Live)", body: "Go to the BSL to English tab. Type BSL glosses like TOMORROW MEETING WHAT TIME and click Translate. The system uses Llama 3.3 70B to produce natural English. Video and camera recognition require a local GPU." },
@@ -425,8 +425,8 @@ export default function DemoPage() {
             {/* === TAB 4: About === */}
             {tab === 3 && (
               <div className="max-w-[760px] mx-auto">
-                <h2 className="text-[1.1rem] font-bold text-white/90 mb-1">System Overview</h2>
-                <p className="text-[13px] text-white/35 mb-6">Architecture, models, and performance.</p>
+                <h2 className="text-[1.1rem] font-bold text-white/90 mb-1"><Signable text="System Overview">System Overview</Signable></h2>
+                <p className="text-[13px] text-white/35 mb-6"><Signable text="Architecture, models, and performance.">Architecture, models, and performance.</Signable></p>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
                   {[{ val: "100%", label: "Top-1 Accuracy" }, { val: "5,203", label: "BSL Signs" }, { val: "11,573+", label: "Glosses" }, { val: "92%", label: "ROUGE-L" }].map(m => (
