@@ -368,6 +368,7 @@ function startMic() {
   };
   let interimTimer = null;
   speechRecognition.onresult = (event) => {
+    speechRecognition._abortedCount = 0; // recognition is genuinely working again
     let finalText = '';
     let interimText = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -404,6 +405,11 @@ function startMic() {
     } else if (e.error === 'network') {
       speechRecognition._fatalError = true;
       postToOverlay({ type: 'STATUS', status: 'error', message: 'Speech recognition network error' });
+    } else if (e.error === 'aborted') {
+      // Fires when recognition is stopped/restarted programmatically in quick
+      // succession. Not fatal, but an instant restart in onend produces a
+      // tight abort/restart cycle, so onend debounces and eventually gives up.
+      speechRecognition._abortedCount = (speechRecognition._abortedCount || 0) + 1;
     }
   };
   speechRecognition.onend = () => {
@@ -412,12 +418,28 @@ function startMic() {
       console.warn('[Signlytic] Speech recognition stopped due to fatal error');
       return;
     }
-    try {
-      // Only auto-restart if user explicitly set captionSource to 'mic'
-      if (overlayFrame && settings.enabled && (settings.captionSource === 'mic' || (settings.captionSource === 'auto' && activeSource === 'mic'))) {
-        speechRecognition.start();
-      }
-    } catch (_) {}
+    const rec = speechRecognition;
+    const restart = () => {
+      try {
+        // Only auto-restart if user explicitly set captionSource to 'mic',
+        // and only if this recognition instance is still the active one
+        if (rec === speechRecognition && overlayFrame && settings.enabled && (settings.captionSource === 'mic' || (settings.captionSource === 'auto' && activeSource === 'mic'))) {
+          speechRecognition.start();
+        }
+      } catch (_) {}
+    };
+    // 'aborted' restart limiting: back off, and give up after 5 in a row
+    const aborted = (rec && rec._abortedCount) || 0;
+    if (aborted >= 5) {
+      console.warn('[Signlytic] Speech recognition aborted ' + aborted + ' times in a row, giving up');
+      postToOverlay({ type: 'STATUS', status: 'error', message: 'Speech recognition keeps aborting' });
+      return;
+    }
+    if (aborted > 0) {
+      setTimeout(restart, 500 * aborted);
+      return;
+    }
+    restart();
   };
   speechRecognition.start();
 }
