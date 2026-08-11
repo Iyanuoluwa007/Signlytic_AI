@@ -775,48 +775,68 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-4">
             {/* Feedback */}
             <Reveal>
-              <a
-                href="https://forms.gle/oTy7Bi414fuThFc1A"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-[#0e7c6b]/30 transition-all group h-full flex flex-col"
-              >
+              {/* The link is stretched over the whole card via after:inset-0
+                  rather than wrapping it, so the sentences inside can be
+                  their own controls. Signable text sits above that overlay
+                  on z-10 and takes its own clicks. */}
+              <div className="relative bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-[#0e7c6b]/30 transition-all group h-full flex flex-col">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-[#0e7c6b]/10 border border-[#0e7c6b]/20 flex items-center justify-center">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5eead4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   </div>
                   <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.14em]">Community</div>
                 </div>
-                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5 group-hover:text-white transition-colors">Share your feedback</h3>
+                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5 group-hover:text-white transition-colors">
+                  <span className="relative z-10">
+                    <Signable text="Share your feedback">Share your feedback</Signable>
+                  </span>
+                </h3>
                 <p className="text-[13px] text-white/30 leading-relaxed">
-                  Researchers, engineers, BSL interpreters, and deaf community members — your insights help shape the next version.
+                  <span className="relative z-10">
+                    <Signable text="Researchers, engineers, BSL interpreters, and deaf community members, your insights help shape the next version.">
+                      Researchers, engineers, BSL interpreters, and deaf community members &mdash; your insights help shape the next version.
+                    </Signable>
+                  </span>
                 </p>
-                <div className="mt-4 text-[12px] text-[#0e7c6b]/60 font-medium group-hover:text-[#0e7c6b] transition-colors">
+                <a
+                  href="https://forms.gle/oTy7Bi414fuThFc1A"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 text-[12px] text-[#0e7c6b]/60 font-medium group-hover:text-[#0e7c6b] transition-colors after:absolute after:inset-0 after:content-[''] after:rounded-2xl"
+                >
                   Open feedback form &#8599;
-                </div>
-              </a>
+                </a>
+              </div>
             </Reveal>
 
             {/* Extension */}
             <Reveal delay={60}>
-              <a
-                href="/extension"
-                className="block bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-white/[0.1] transition-all group h-full flex flex-col"
-              >
+              <div className="relative bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-white/[0.1] transition-all group h-full flex flex-col">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                   </div>
                   <div className="text-[10px] font-bold text-[#0e7c6b] uppercase tracking-[0.14em]">Beta Available</div>
                 </div>
-                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5 group-hover:text-white transition-colors">Browser Extension</h3>
+                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5 group-hover:text-white transition-colors">
+                  <span className="relative z-10">
+                    <Signable text="Browser Extension">Browser Extension</Signable>
+                  </span>
+                </h3>
                 <p className="text-[13px] text-white/30 leading-relaxed">
-                  Real-time BSL signing overlay for YouTube, BBC iPlayer, Netflix and more. Free to download.
+                  <span className="relative z-10">
+                    <Signable text="Real-time BSL signing overlay for YouTube, BBC iPlayer, Netflix and more. Free to download.">
+                      Real-time BSL signing overlay for YouTube, BBC iPlayer, Netflix and more. Free to download.
+                    </Signable>
+                  </span>
                 </p>
-                <div className="mt-4 text-[12px] text-white/25 font-medium group-hover:text-white/50 transition-colors">
+                <a
+                  href="/extension"
+                  className="mt-4 text-[12px] text-white/25 font-medium group-hover:text-white/50 transition-colors after:absolute after:inset-0 after:content-[''] after:rounded-2xl"
+                >
                   Download Beta &#8594;
-                </div>
-              </a>
+                </a>
+              </div>
             </Reveal>
 
             {/* Windows App */}
@@ -828,9 +848,13 @@ export default function Home() {
                   </div>
                   <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.14em]">Coming Soon</div>
                 </div>
-                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5">Windows App</h3>
+                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5">
+                  <Signable text="Windows App">Windows App</Signable>
+                </h3>
                 <p className="text-[13px] text-white/30 leading-relaxed">
-                  System-wide BSL signing overlay for any app — VLC, Teams desktop, Zoom and more. Built on Electron.
+                  <Signable text="System-wide BSL signing overlay for any app, including VLC, Teams desktop and Zoom. Built on Electron.">
+                    System-wide BSL signing overlay for any app &mdash; VLC, Teams desktop, Zoom and more. Built on Electron.
+                  </Signable>
                 </p>
                 <div className="mt-auto pt-4 text-[12px] text-white/15 font-medium">
                   In development &#8594;
