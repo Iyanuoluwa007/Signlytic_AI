@@ -191,8 +191,8 @@ export default function DemoPage() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5eead4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
             </div>
             <div>
-              <h1 className="text-[1.15rem] font-bold text-white tracking-[-0.02em]">Signlytic AI</h1>
-              <p className="text-[12px] text-white/30">BSL Translation System &middot; Interactive Demo</p>
+              <h1 className="text-[1.15rem] font-bold text-white tracking-[-0.02em]"><Signable text="Signlytic AI">Signlytic AI</Signable></h1>
+              <p className="text-[12px] text-white/30"><Signable text="BSL Translation System. Interactive Demo.">BSL Translation System &middot; Interactive Demo</Signable></p>
             </div>
           </div>
         </div>
@@ -414,8 +414,12 @@ export default function DemoPage() {
                     { title: "Accessibility", body: "All outputs include visible text. Nothing relies on audio. The interface supports keyboard navigation. Press Enter to submit in any text field." },
                   ].map(h => (
                     <div key={h.title} className="bg-white/[0.02] border border-white/[0.06] border-l-2 border-l-[#0e7c6b] rounded-xl p-5">
-                      <h4 className="text-[14px] font-semibold text-white/80 mb-1">{h.title}</h4>
-                      <p className="text-[13px] text-white/35 leading-relaxed">{h.body}</p>
+                      <h4 className="text-[14px] font-semibold text-white/80 mb-1">
+                        <Signable text={h.title}>{h.title}</Signable>
+                      </h4>
+                      <p className="text-[13px] text-white/35 leading-relaxed">
+                        <Signable text={h.body}>{h.body}</Signable>
+                      </p>
                     </div>
                   ))}
                 </div>
