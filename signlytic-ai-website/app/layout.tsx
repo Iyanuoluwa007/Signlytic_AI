@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
+import BslLayer from "@/components/BslLayer";
 
 export const metadata: Metadata = {
   title: "Signlytic AI — British Sign Language Translation",
@@ -53,7 +54,11 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        {/* Site-wide BSL toggle plus the single shared translation panel */}
+        <BslLayer />
+      </body>
     </html>
   );
 }

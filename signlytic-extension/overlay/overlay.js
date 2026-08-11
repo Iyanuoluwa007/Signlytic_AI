@@ -36,14 +36,8 @@ let isMinimised    = false;
 // 3D renderer instance
 let avatarRenderer = null;
 let avatarLoaded   = false;
-// Smoothing state (EMA for body extremities + hands)
-let prevLH = null;
-let prevRH = null;
-let prevBody = null;
-const HAND_SMOOTH = 0.4;   // 0 = no smoothing, 1 = frozen
-const BODY_EXT_SMOOTH = 0.6;   // smoothing for body landmarks 15-22 (wrists/fingers)
-const BODY_EXT_START = 15;     // first extremity landmark index
-const BODY_EXT_END = 22;       // last extremity landmark index
+// Smoothing state and its tuning constants now live with PoseNormaliser
+// in avatar3d.js (POSE_NORM).
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 function applySettings(s) {
@@ -226,133 +220,13 @@ const HAND_CONNECTIONS = [
 ];
 
 // ─── Skeleton normalisation ──────────────────────────────────────────────────
-// Normalise body landmarks so the torso is always the same size/position
-// Uses shoulder midpoint as anchor and shoulder width as scale reference
+// Normalisation now lives in avatar3d.js (PoseNormaliser) so the 2D renderer
+// and the 3D avatar repair frames through one implementation. Created lazily
+// so this does not depend on script load order.
+let _poseNormaliser = null;
 function normaliseFrame(frame) {
-  if (!frame?.body) return frame;
-  const body = frame.body;
-
-  const lShoulder = body[11];
-  const rShoulder = body[12];
-  if (!lShoulder || !rShoulder) return frame;
-
-  // Anchor: midpoint between shoulders
-  const anchorX = (lShoulder[0] + rShoulder[0]) / 2;
-  const anchorY = (lShoulder[1] + rShoulder[1]) / 2;
-
-  // Scale: shoulder width normalised to a fixed reference width (0.25 of frame)
-  const shoulderW = Math.abs(lShoulder[0] - rShoulder[0]);
-  if (shoulderW < 0.01) return frame;
-  const targetW = 0.18;
-  const scale = targetW / shoulderW;
-
-  // Target anchor position in canvas (upper-centre)
-  const targetX = 0.5;
-  const targetY = 0.35;
-
-  function normLms(lms) {
-    if (!lms) return null;
-    return lms.map(lm => {
-      if (!lm) return lm;
-      return [
-        targetX + (lm[0] - anchorX) * scale,
-        targetY + (lm[1] - anchorY) * scale,
-        lm[2] || 0,
-      ];
-    });
-  }
-
-  // Clamp outlier hand landmarks (points too far from hand centroid)
-  function clampHand(lms) {
-    if (!lms || lms.length < 5) return lms;
-    // Centroid of wrist + MCP joints (indices 0,5,9,13,17)
-    const anchors = [0,5,9,13,17].map(i => lms[i]).filter(Boolean);
-    if (anchors.length < 3) return lms;
-    const cx = anchors.reduce((s,p) => s+p[0], 0) / anchors.length;
-    const cy = anchors.reduce((s,p) => s+p[1], 0) / anchors.length;
-    // Max radius = 2.5x avg distance of anchors from centroid
-    const avgR = anchors.reduce((s,p) => s + Math.hypot(p[0]-cx, p[1]-cy), 0) / anchors.length;
-    const maxR = Math.max(avgR * 2.5, 0.02);
-    return lms.map(lm => {
-      if (!lm) return lm;
-      const d = Math.hypot(lm[0]-cx, lm[1]-cy);
-      if (d > maxR) {
-        // Pull back toward centroid
-        const ratio = maxR / d;
-        return [cx + (lm[0]-cx)*ratio, cy + (lm[1]-cy)*ratio, lm[2]||0];
-      }
-      return lm;
-    });
-  }
-
-  // EMA smooth hand landmarks across frames
-  function smoothHand(cur, prev) {
-    if (!cur) return cur;
-    if (!prev || prev.length !== cur.length) return cur;
-    const a = HAND_SMOOTH;
-    return cur.map((lm, i) => {
-      if (!lm || !prev[i]) return lm;
-      return [
-        lm[0] * (1-a) + prev[i][0] * a,
-        lm[1] * (1-a) + prev[i][1] * a,
-        lm[2] || 0,
-      ];
-    });
-  }
-
-  let normBody = normLms(frame.body);
-  let normLH = clampHand(normLms(frame.lh));
-  let normRH = clampHand(normLms(frame.rh));
-  normLH = smoothHand(normLH, prevLH);
-  normRH = smoothHand(normRH, prevRH);
-  prevLH = normLH;
-  prevRH = normRH;
-
-  // Fill null extremity points from previous frame (prevents disappearing hands)
-  if (normBody && prevBody) {
-    for (let i = BODY_EXT_START; i <= BODY_EXT_END && i < normBody.length; i++) {
-      if (!normBody[i] && prevBody[i]) normBody[i] = prevBody[i].slice();
-    }
-  }
-  // Also fill null hand landmarks from previous
-  if (normLH && prevLH) {
-    normLH = normLH.map((lm, i) => (!lm && prevLH[i]) ? prevLH[i].slice() : lm);
-  }
-  if (normRH && prevRH) {
-    normRH = normRH.map((lm, i) => (!lm && prevRH[i]) ? prevRH[i].slice() : lm);
-  }
-  // Clamp body extremity landmarks to reasonable range around torso
-  if (normBody) {
-    const shoulderMidX = (normBody[11]?.[0] + normBody[12]?.[0]) / 2 || 0.5;
-    const shoulderMidY = (normBody[11]?.[1] + normBody[12]?.[1]) / 2 || 0.3;
-    for (let i = BODY_EXT_START; i <= BODY_EXT_END && i < normBody.length; i++) {
-      if (!normBody[i]) continue;
-      const dx = normBody[i][0] - shoulderMidX;
-      const dy = normBody[i][1] - shoulderMidY;
-      const d = Math.hypot(dx, dy);
-      const maxD = 0.35;  // max distance from shoulder midpoint
-      if (d > maxD) {
-        const ratio = maxD / d;
-        normBody[i] = [shoulderMidX + dx * ratio, shoulderMidY + dy * ratio, normBody[i][2] || 0];
-      }
-    }
-  }
-  // Smooth body extremity landmarks (15-22: wrists, thumbs, index, pinky)
-  if (normBody && prevBody && prevBody.length === normBody.length) {
-    const a = BODY_EXT_SMOOTH;
-    for (let i = BODY_EXT_START; i <= BODY_EXT_END && i < normBody.length; i++) {
-      if (normBody[i] && prevBody[i]) {
-        normBody[i] = [
-          normBody[i][0] * (1-a) + prevBody[i][0] * a,
-          normBody[i][1] * (1-a) + prevBody[i][1] * a,
-          normBody[i][2] || 0,
-        ];
-      }
-    }
-  }
-  prevBody = normBody;
-
-  return { body: normBody, lh: normLH, rh: normRH };
+  if (!_poseNormaliser) _poseNormaliser = new PoseNormaliser();
+  return _poseNormaliser.normalise(frame);
 }
 
 function drawFingerspell(gloss) {
@@ -468,7 +342,7 @@ function stop2dAnimation() {
   anim2dTimer = null;
   current2dSign = 0; current2dFrame = 0;
   signQueue2d = [];
-  prevLH = null; prevRH = null; prevBody = null;
+  if (_poseNormaliser) _poseNormaliser.reset();
   stopGlossCleanup();
   ctx2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
   placeholder.style.display = 'flex';

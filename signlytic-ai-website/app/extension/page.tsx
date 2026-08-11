@@ -1,5 +1,7 @@
 "use client";
 
+import Signable from "@/components/Signable";
+
 const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.5/signlytic-extension.zip";
 
 export default function ExtensionPage() {
@@ -47,7 +49,9 @@ export default function ExtensionPage() {
           </h1>
 
           <p className="text-white/35 text-[16px] leading-relaxed max-w-lg mx-auto mb-10">
-            A Chrome extension that detects live captions on YouTube, BBC iPlayer, Netflix and more - and translates them into BSL signing in real time.
+            <Signable text="A Chrome extension that detects live captions on YouTube, BBC iPlayer, Netflix and more, and translates them into BSL signing in real time.">
+              A Chrome extension that detects live captions on YouTube, BBC iPlayer, Netflix and more - and translates them into BSL signing in real time.
+            </Signable>
           </p>
 
           {/* How it works */}

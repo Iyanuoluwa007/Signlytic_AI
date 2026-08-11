@@ -2,7 +2,6 @@
 
 import { useState, useRef, type ChangeEvent } from "react";
 import Signable from "@/components/Signable";
-import BslSignPanel from "@/components/BslSignPanel";
 
 /* =========================================
    LOCAL FALLBACK DICTIONARIES
@@ -485,8 +484,6 @@ export default function DemoPage() {
         .font-mono { font-family: "JetBrains Mono", monospace; }
         ::selection { background: rgba(14,124,107,0.3); color: #fff; }
       `}</style>
-
-      <BslSignPanel />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 # Conda / Python
-BSL/
+/BSL/
 __pycache__/
 *.pyc
 .vscode/
@@ -216,7 +216,7 @@ scripts/patch_*.py
 app.py.bak_*
 scripts/patch_*.py
 
-BSL/
+/BSL/
 
 outputs/
 

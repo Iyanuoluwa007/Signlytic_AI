@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
+import Signable from "@/components/Signable";
 
 /* ═══════════════════════════════════════
    SCROLL ANIMATION SYSTEM
@@ -219,9 +220,13 @@ export default function Home() {
 
           <Reveal delay={120}>
             <p className="text-lg text-white/40 leading-[1.7] max-w-[480px] mb-12">
-              Upload a BSL video for English text. Speak or type English for BSL
-              signing. Built for Deaf communities, researchers, and
-              accessibility.
+              <Signable text="Upload a BSL video for English text. Speak or type English for BSL signing.">
+                Upload a BSL video for English text. Speak or type English for BSL
+                signing.
+              </Signable>{" "}
+              <Signable text="Built for Deaf communities, researchers, and accessibility.">
+                Built for Deaf communities, researchers, and accessibility.
+              </Signable>
             </p>
           </Reveal>
 
@@ -282,9 +287,13 @@ export default function Home() {
               in one system
             </h2>
             <p className={subCls}>
-              Vision, language, speech, and animation unified into a single
-              pipeline. Every output is shown as text&mdash;nothing relies on
-              audio.
+              <Signable text="Vision, language, speech, and animation unified into a single pipeline.">
+                Vision, language, speech, and animation unified into a single
+                pipeline.
+              </Signable>{" "}
+              <Signable text="Every output is shown as text. Nothing relies on audio.">
+                Every output is shown as text&mdash;nothing relies on audio.
+              </Signable>
             </p>
           </Reveal>
 
@@ -707,10 +716,12 @@ export default function Home() {
                 Independent Robotics &amp; AI Systems Engineer
               </p>
               <p className="text-white/20 text-[13px] leading-relaxed mb-10 max-w-md mx-auto">
-                Signlytic AI is part of a portfolio of production AI systems
-                spanning algorithmic trading, multi-agent frameworks, and
-                accessibility technology. Built as evidence for a UK Global
-                Talent Visa application.
+                <Signable text="Signlytic AI is part of a portfolio of production AI systems spanning algorithmic trading, multi-agent frameworks, and accessibility technology.">
+                  Signlytic AI is part of a portfolio of production AI systems
+                  spanning algorithmic trading, multi-agent frameworks, and
+                  accessibility technology.
+                </Signable>{" "}
+                Built as evidence for a UK Global Talent Visa application.
               </p>
               <div className="flex justify-center gap-2.5">
                 {[
