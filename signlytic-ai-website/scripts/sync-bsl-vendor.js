@@ -8,7 +8,10 @@ const path = require("path");
 const SRC = path.join(__dirname, "..", "..", "signlytic-extension", "overlay");
 const DST = path.join(__dirname, "..", "public", "bsl");
 
-const FILES = ["three.min.js", "GLTFLoader.js", "avatar3d.js"];
+// avatar3d.js also carries PoseNormaliser, which skeleton2d.js depends on,
+// so avatar3d.js must load first. three.min.js and GLTFLoader.js are only
+// needed for 3D mode and are loaded on demand, not up front.
+const FILES = ["three.min.js", "GLTFLoader.js", "avatar3d.js", "skeleton2d.js"];
 
 fs.mkdirSync(DST, { recursive: true });
 for (const f of FILES) {
