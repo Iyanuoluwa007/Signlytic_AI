@@ -1,0 +1,37 @@
+{
+  "name": "signlytic-desktop",
+  "version": "0.2.0",
+  "description": "Signlytic AI desktop app - BSL signing avatar for Windows and macOS",
+  "author": "Independent Robotics & AI Systems Engineer",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main/main.js",
+  "scripts": {
+    "sync-vendor": "node scripts/sync-vendor.js",
+    "start": "npm run sync-vendor && electron .",
+    "dist": "npm run sync-vendor && electron-builder"
+  },
+  "build": {
+    "appId": "ai.signlytic.desktop",
+    "productName": "Signlytic AI",
+    "files": [
+      "main/**/*",
+      "renderer/**/*",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.utilities"
+    }
+  },
+  "devDependencies": {
+    "electron": "^43.0.0"
+  }
+}
