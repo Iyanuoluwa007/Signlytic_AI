@@ -8,13 +8,17 @@ export const runtime = "edge";
 // asset hosts send no CORS header. This route attaches the token, adds CORS,
 // and streams the model back.
 //
-// The token is reused from the signs pipeline, so no new Vercel secret is
-// needed. Owner/repo/branch fall back to the known values, so the route works
-// without any additional configuration.
-const GH_OWNER  = process.env.AVATAR_GITHUB_OWNER  || "Iyanuoluwa007";
-const GH_REPO   = process.env.AVATAR_GITHUB_REPO   || "signlytic-avatar-assets";
-const GH_BRANCH = process.env.AVATAR_GITHUB_BRANCH || "main";
+// The models live alongside the sign data rather than in their own repo,
+// because the deployed token is scoped to the signs repo: pointing elsewhere
+// returns 404 (GitHub hides private repos a token cannot see rather than
+// returning 403). Owner/repo/branch and the token all default to the signs
+// pipeline's values, so this needs no extra Vercel configuration.
+const GH_OWNER  = process.env.AVATAR_GITHUB_OWNER  || process.env.SIGNS_GITHUB_OWNER  || "Iyanuoluwa007";
+const GH_REPO   = process.env.AVATAR_GITHUB_REPO   || process.env.SIGNS_GITHUB_REPO   || "signlytic-signs-data";
+const GH_BRANCH = process.env.AVATAR_GITHUB_BRANCH || process.env.SIGNS_GITHUB_BRANCH || "main";
 const GH_PAT    = process.env.AVATAR_GITHUB_PAT    || process.env.SIGNS_GITHUB_PAT;
+// Sign JSON sits at the repo root, so the models are kept in a subfolder.
+const GH_DIR    = process.env.AVATAR_GITHUB_DIR    || "avatars";
 
 // Allowlist: the path segment never reaches GitHub unvalidated.
 const MODELS: Record<string, string> = {
@@ -48,7 +52,7 @@ export async function GET(
     );
   }
 
-  const url = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/models/${file}`;
+  const url = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${GH_DIR}/${file}`;
 
   try {
     const upstream = await fetch(url, {
