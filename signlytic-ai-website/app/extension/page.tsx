@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Signable from "@/components/Signable";
 
 const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.6/signlytic-extension.zip";
@@ -9,6 +10,33 @@ const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/release
 const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.2.0/Signlytic.AI.Setup.0.2.0.exe";
 
 export default function ExtensionPage() {
+  // Arriving from another page with a hash (the home page links here as
+  // /extension#desktop) does not scroll on its own: the App Router resets
+  // scroll position on route change and the target is only in the DOM after
+  // this page renders. Do it here once layout has settled.
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Not scrollIntoView: the page sets scroll-behavior:smooth globally, which
+    // would animate a jump of a couple of thousand pixels. Landing directly is
+    // what someone following a link expects. NAV_OFFSET keeps the heading
+    // clear of the sticky nav.
+    const jump = () => {
+      const NAV_OFFSET = 80;
+      const top = el.getBoundingClientRect().top + window.scrollY - NAV_OFFSET;
+      window.scrollTo({ top: Math.max(0, top), behavior: "instant" as ScrollBehavior });
+    };
+    // Timers rather than requestAnimationFrame: rAF does not fire while the
+    // tab is not producing frames (backgrounded, or restored into a hidden
+    // window), and the jump would silently never happen. The second pass
+    // corrects the position once late layout, fonts and images have settled.
+    const t1 = setTimeout(jump, 0);
+    const t2 = setTimeout(jump, 250);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#08090d] antialiased selection:bg-[#0e7c6b]/30 selection:text-white">
       {/* Nav */}
@@ -190,8 +218,10 @@ export default function ExtensionPage() {
         </div>
       </section>
 
-      {/* Desktop app - given the same weight as the extension hero above */}
-      <section className="border-t border-white/[0.04] py-20 md:py-28">
+      {/* Desktop app - given the same weight as the extension hero above.
+          scroll-mt keeps the heading clear of the sticky nav when linked to
+          from the home page as /extension#desktop. */}
+      <section id="desktop" className="border-t border-white/[0.04] py-20 md:py-28 scroll-mt-20">
         <div className="max-w-[820px] mx-auto px-6 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0e7c6b]/10 border border-[#0e7c6b]/20 mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-[#5eead4] shadow-[0_0_6px_rgba(94,234,212,0.7)] animate-pulse" />
