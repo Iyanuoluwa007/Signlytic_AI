@@ -134,6 +134,21 @@
     -webkit-app-region: no-drag;
     user-select: text;
   }
+  /* Sits with the playback controls rather than in the title bar: at the
+     snapped width of 420px the title bar already has no room to spare. */
+  #speed {
+    background: rgba(255, 255, 255, 0.05);
+    color: #d7e2ea;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 4px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  #speed option { background: #0d1219; color: #d7e2ea; }
+
   #captions-toggle {
     background: #0e7c6b;
     color: #eafffa;
@@ -180,6 +195,13 @@
 
   <div id="controls">
     <button id="captions-toggle">Start Live Captions</button>
+    <select id="speed" title="Signing speed" aria-label="Signing speed">
+      <option value="1">1x</option>
+      <option value="1.25">1.25x</option>
+      <option value="1.5">1.5x</option>
+      <option value="1.75">1.75x</option>
+      <option value="2">2x</option>
+    </select>
     <input id="manual-input" type="text" placeholder="or type text to sign">
   </div>
 </div>

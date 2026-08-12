@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld("signlytic", {
     onPosition: (cb) => ipcRenderer.on("window-position", (_e, payload) => cb(payload)),
   },
 
+  // Signing speed, remembered between runs.
+  speed: {
+    get: () => ipcRenderer.invoke("speed-get"),
+    set: (value) => ipcRenderer.invoke("speed-set", value),
+  },
+
   // Windows Live Captions
   captions: {
     capabilities: () => ipcRenderer.invoke("captions-capabilities"),

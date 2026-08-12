@@ -30,6 +30,19 @@ function activeEngine() {
   return mode === "3d" ? engine3d : engine2d;
 }
 
+// ── Signing speed ───────────────────────────────────────────────────────────
+// Both engines recompute their frame interval from .speed on every frame, so
+// assigning it takes effect on the next frame rather than only on the next
+// sentence. Held here as well because the 3D engine is built lazily and must
+// pick up the current setting when it appears.
+let speed = 1;
+
+function applySpeed(value) {
+  speed = value;
+  if (engine2d) engine2d.speed = value;
+  if (engine3d) engine3d.speed = value;
+}
+
 // Both canvases are stretched to the stage by CSS, so their drawing buffers
 // have to match the stage box or the picture comes out stretched. Called
 // whenever the stage can have changed size.
@@ -42,7 +55,7 @@ function fitEngines() {
 }
 
 function ensure2d() {
-  if (!engine2d) engine2d = new SkeletonRenderer2D(canvas2d, { transparent: true });
+  if (!engine2d) engine2d = new SkeletonRenderer2D(canvas2d, { transparent: true, speed });
   return engine2d;
 }
 
@@ -51,7 +64,7 @@ async function ensure3d() {
   avatarLoading = true;
   try {
     setStatus("Loading 3D avatar model...");
-    const a = new ThreeAvatarRenderer(canvas3d, { gender: "male", transparent: true });
+    const a = new ThreeAvatarRenderer(canvas3d, { gender: "male", transparent: true, speed });
     a.initScene();
     await a.load();
     if (!a.ready) throw new Error("avatar failed to load");
@@ -112,6 +125,19 @@ for (const [name, id] of Object.entries(POS_BUTTONS)) {
 }
 
 window.signlytic.window.onPosition((p) => markPosition(p.mode));
+
+// ── Speed control ───────────────────────────────────────────────────────────
+const speedEl = document.getElementById("speed");
+
+speedEl.addEventListener("change", async () => {
+  const res = await window.signlytic.speed.set(speedEl.value);
+  // Main clamps to the allowed set and returns what it kept, so the menu can
+  // never drift from what is actually being applied.
+  const next = (res && res.speed) || 1;
+  applySpeed(next);
+  speedEl.value = String(next);
+  setStatus("Signing speed " + next + "x");
+});
 
 document.getElementById("win-min").addEventListener("click", () => window.signlytic.window.minimise());
 document.getElementById("win-close").addEventListener("click", () => window.signlytic.window.close());
@@ -255,6 +281,16 @@ function reportLayout(tag) {
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────────
+// Restore the saved speed. This resolves after ensure2d() below has already
+// built the 2D engine, which is why applySpeed writes to live engines as well
+// as to the held value.
+window.signlytic.speed.get().then((s) => {
+  const saved = (s && s.speed) || 1;
+  applySpeed(saved);
+  speedEl.value = String(saved);
+  console.log("[desktop] signing speed " + saved + "x");
+});
+
 ensure2d();
 if (window.signlytic.startMode === "3d") setMode("3d");
 if (window.signlytic.layoutDebug) {

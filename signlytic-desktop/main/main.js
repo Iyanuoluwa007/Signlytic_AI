@@ -182,6 +182,26 @@ ipcMain.handle("window-set-position", (_e, mode) => {
 
 ipcMain.handle("window-get-position", () => ({ mode: readPrefs().position || "float" }));
 
+// Playback speed, remembered between runs alongside the window placement.
+// Clamped here rather than trusted from the renderer, so a bad value cannot be
+// written to the prefs file and stall or race the signing on the next launch.
+const SPEEDS = [1, 1.25, 1.5, 1.75, 2];
+
+function normaliseSpeed(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return SPEEDS.includes(n) ? n : null;
+}
+
+ipcMain.handle("speed-get", () => ({ speed: normaliseSpeed(readPrefs().speed) || 1 }));
+
+ipcMain.handle("speed-set", (_e, value) => {
+  const speed = normaliseSpeed(value);
+  if (!speed) return { ok: false, speed: normaliseSpeed(readPrefs().speed) || 1 };
+  writePrefs({ speed });
+  return { ok: true, speed };
+});
+
 ipcMain.handle("window-minimise", () => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
   return { ok: true };
