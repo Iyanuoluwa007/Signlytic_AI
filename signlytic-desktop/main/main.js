@@ -2,7 +2,7 @@
 //
 // Session 2 will add: system tray, always-on-top overlay window mode, and
 // the Windows UI Automation caption sidecar (see main/captions/README.md).
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, screen } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { CaptionStream } = require("./captions/caption-stream");
@@ -10,12 +10,90 @@ const { CaptionStream } = require("./captions/caption-stream");
 let mainWindow = null;
 let captionStream = null;
 
+// ── Window placement ─────────────────────────────────────────────────────────
+// Corners rather than full-width strips: a signing avatar needs a roughly
+// portrait area to read properly, and stretching it across the screen leaves
+// it small and lost. Each corner snaps a compact panel against two edges,
+// with float left free for anywhere else.
+const SNAP_SIZE = { width: 420, height: 440 };
+const SNAP_MARGIN = 12;
+const FLOAT_SIZE = { width: 520, height: 460 };
+const CORNERS = ["top-left", "top-right", "bottom-right", "bottom-left"];
+const POSITIONS = [...CORNERS, "float"];
+
+// Remembered between runs so the app reopens where it was left.
+const PREFS_FILE = () => path.join(app.getPath("userData"), "window-prefs.json");
+
+function readPrefs() {
+  try {
+    // Strip a byte order mark before parsing. Anything that rewrites this file
+    // with a Windows text editor or PowerShell can leave one, and JSON.parse
+    // throws on it, which would silently reset the user's placement.
+    const raw = fs.readFileSync(PREFS_FILE(), "utf8").replace(/^﻿/, "");
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePrefs(patch) {
+  try {
+    fs.writeFileSync(PREFS_FILE(), JSON.stringify({ ...readPrefs(), ...patch }, null, 2));
+  } catch {
+    // A read-only profile should not stop the app working
+  }
+}
+
+function applyPosition(mode) {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  if (!POSITIONS.includes(mode)) mode = "float";
+
+  // Use the display the window is on, not always the primary one, so this
+  // behaves on multi-monitor setups.
+  const display = screen.getDisplayMatching(mainWindow.getBounds());
+  const area = display.workArea;
+
+  if (CORNERS.includes(mode)) {
+    // Never let the panel exceed the display, so this still behaves on small
+    // or scaled screens.
+    const w = Math.min(SNAP_SIZE.width, area.width - SNAP_MARGIN * 2);
+    const h = Math.min(SNAP_SIZE.height, area.height - SNAP_MARGIN * 2);
+    const left = area.x + SNAP_MARGIN;
+    const right = area.x + area.width - w - SNAP_MARGIN;
+    const top = area.y + SNAP_MARGIN;
+    const bottom = area.y + area.height - h - SNAP_MARGIN;
+    const x = mode.endsWith("left") ? left : right;
+    const y = mode.startsWith("top") ? top : bottom;
+    mainWindow.setBounds({ x, y, width: w, height: h });
+  } else {
+    const saved = readPrefs().floatBounds;
+    const w = (saved && saved.width) || FLOAT_SIZE.width;
+    const h = (saved && saved.height) || FLOAT_SIZE.height;
+    const x = saved && Number.isInteger(saved.x) ? saved.x : Math.round(area.x + (area.width - w) / 2);
+    const y = saved && Number.isInteger(saved.y) ? saved.y : Math.round(area.y + (area.height - h) * 0.66);
+    mainWindow.setBounds({ x, y, width: w, height: h });
+  }
+
+  writePrefs({ position: mode });
+  return mode;
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 960,
-    height: 720,
+    width: FLOAT_SIZE.width,
+    height: FLOAT_SIZE.height,
     title: "Signlytic AI Desktop",
-    backgroundColor: "#06080f",
+    // Transparent and frameless so it overlays the desktop the way Live
+    // Captions does. The panel chrome is drawn in the renderer instead, which
+    // is also what makes the rounded translucent look possible.
+    transparent: true,
+    frame: false,
+    backgroundColor: "#00000000",
+    hasShadow: false,
+    alwaysOnTop: true,
+    // Not skipTaskbar: the window has no frame, so the taskbar entry is the
+    // only way back to it if it ends up behind something.
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -30,8 +108,26 @@ function createWindow() {
     console.log("[renderer] " + message);
   });
 
+  // Float mode is the only movable/resizable one, so remember where the user
+  // put it. Docked modes are derived from the display and need no memory.
+  const rememberFloat = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (readPrefs().position !== "float") return;
+    writePrefs({ floatBounds: mainWindow.getBounds() });
+  };
+  mainWindow.on("moved", rememberFloat);
+  mainWindow.on("resized", rememberFloat);
+
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+
+  // Restore the last placement once the page is up, so the renderer's own
+  // controls can show the right mode as selected.
+  mainWindow.webContents.on("did-finish-load", () => {
+    const mode = readPrefs().position || "float";
+    applyPosition(mode);
+    mainWindow.webContents.send("window-position", { mode });
   });
 }
 
@@ -73,6 +169,24 @@ function ensureCaptionStream() {
   });
   return captionStream;
 }
+
+// ── Window controls (the frame is gone, so the renderer drives these) ────────
+ipcMain.handle("window-set-position", (_e, mode) => {
+  const applied = applyPosition(String(mode || ""));
+  return { ok: !!applied, mode: applied };
+});
+
+ipcMain.handle("window-get-position", () => ({ mode: readPrefs().position || "float" }));
+
+ipcMain.handle("window-minimise", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+  return { ok: true };
+});
+
+ipcMain.handle("window-close", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+  return { ok: true };
+});
 
 ipcMain.handle("captions-capabilities", () => CaptionStream.capabilities());
 

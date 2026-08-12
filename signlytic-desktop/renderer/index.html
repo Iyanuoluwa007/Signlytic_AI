@@ -6,53 +6,85 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: data: https://signlytic-ai-website.vercel.app https://github.com https://*.githubusercontent.com; img-src 'self' data: blob:">
 <title>Signlytic AI Desktop</title>
 <style>
-  body {
+  /* The window itself is transparent; everything visible is the panel below,
+     which is what gives the Live Captions look. */
+  html, body {
     margin: 0;
-    background: #06080f;
+    height: 100%;
+    background: transparent;
     color: #d7e2ea;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  #panel {
+    height: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    height: 100vh;
-  }
-  h1 { font-size: 16px; font-weight: 600; margin: 14px 0 6px; }
-  #avatar-wrap {
-    position: relative;
-    width: 480px;
-    height: 400px;
-    border: 1px solid #17313f;
-    border-radius: 8px;
+    background: rgba(8, 11, 18, 0.82);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
     overflow: hidden;
-    background: #06080f;
   }
-  #avatar-wrap canvas { width: 100%; height: 100%; display: block; }
-  canvas.hidden { display: none; }
-  #mode-row {
+
+  /* Frameless: this strip is what the user grabs to move the window. */
+  #titlebar {
+    -webkit-app-region: drag;
     display: flex;
-    gap: 6px;
-    width: 480px;
-    margin: 8px 0 4px;
     align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    flex: 0 0 auto;
   }
-  .mode-btn {
-    background: #0b1420;
-    color: #6fa3b8;
-    border: 1px solid #17313f;
+  #title { font-size: 11px; font-weight: 600; color: #5eead4; letter-spacing: 0.02em; }
+  #titlebar .spacer { flex: 1; }
+  button, select { -webkit-app-region: no-drag; }
+
+  .seg {
+    display: flex;
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.04);
     border-radius: 6px;
-    padding: 4px 12px;
-    font-size: 11px;
+    padding: 2px;
+  }
+  .seg button {
+    background: transparent;
+    color: #6fa3b8;
+    border: 0;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 10px;
     font-weight: 600;
     cursor: pointer;
   }
-  .mode-btn.active { background: #0e7c6b; color: #eafffa; border-color: #0e7c6b; }
-  #gloss-strip {
+  .seg button.active { background: #0e7c6b; color: #eafffa; }
+
+  .winbtn {
+    background: transparent;
+    color: rgba(255,255,255,0.35);
+    border: 0;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 7px;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .winbtn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .winbtn.danger:hover { background: #7c1d1d; color: #fff; }
+
+  #stage { flex: 1 1 auto; position: relative; min-height: 0; }
+  #stage canvas { width: 100%; height: 100%; display: block; }
+  canvas.hidden { display: none; }
+
+  #glosses {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    width: 480px;
-    min-height: 18px;
-    margin-bottom: 4px;
+    gap: 3px;
+    padding: 0 8px 4px;
+    flex: 0 0 auto;
   }
   .gloss {
     font-size: 9px;
@@ -60,98 +92,80 @@
     letter-spacing: 0.04em;
     padding: 1px 5px;
     border-radius: 3px;
-    background: rgba(255,255,255,0.05);
-    color: #6fa3b8;
+    background: rgba(255, 255, 255, 0.06);
+    color: #7fb0c4;
   }
   .gloss.active { background: #0e7c6b; color: #fff; }
-  #status { font-size: 12px; color: #6fa3b8; margin: 6px 0; min-height: 16px; }
-  #captions-row {
+
+  #controls {
     display: flex;
-    gap: 8px;
-    width: 480px;
     align-items: center;
-    margin-bottom: 8px;
+    gap: 6px;
+    padding: 6px 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    flex: 0 0 auto;
+  }
+  #manual-input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.05);
+    color: #d7e2ea;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    -webkit-app-region: no-drag;
+    user-select: text;
   }
   #captions-toggle {
     background: #0e7c6b;
     color: #eafffa;
     border: 0;
     border-radius: 6px;
-    padding: 8px 14px;
-    font-size: 13px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
   }
   #captions-toggle.on { background: #7c1d1d; }
   #captions-toggle:disabled { opacity: 0.4; cursor: default; }
-  button.secondary {
-    background: #0b1420;
-    color: #8fb3c4;
-    border: 1px solid #17313f;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  #captions-state { font-size: 11px; color: #6fa3b8; margin-left: auto; }
-  #manual-row { display: flex; gap: 8px; width: 480px; }
-  #manual-input {
-    flex: 1;
-    background: #0b1420;
-    color: #d7e2ea;
-    border: 1px solid #17313f;
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 13px;
-  }
-  #manual-send {
-    background: #0e7c6b;
-    color: #eafffa;
-    border: 0;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  #caption-log {
-    width: 480px;
-    margin-top: 10px;
-    font-size: 12px;
-    color: #8fb3c4;
-    overflow-y: auto;
-    flex: 1;
-  }
-  footer { font-size: 10px; color: #43606f; padding: 8px; }
+  #status { font-size: 10px; color: #6fa3b8; padding: 0 8px 6px; min-height: 12px; flex: 0 0 auto; }
 </style>
 </head>
 <body>
-<h1>Signlytic AI Desktop</h1>
+<div id="panel">
+  <div id="titlebar">
+    <span id="title">Signlytic AI</span>
+    <div class="seg" id="mode-seg" title="Renderer">
+      <button id="mode-2d" class="active">2D</button>
+      <button id="mode-3d">3D</button>
+    </div>
+    <div class="seg" id="pos-seg" title="Where the window sits">
+      <button id="pos-top-left">Top L</button>
+      <button id="pos-top-right">Top R</button>
+      <button id="pos-bottom-left">Bot L</button>
+      <button id="pos-bottom-right">Bot R</button>
+      <button id="pos-float" class="active">Float</button>
+    </div>
+    <span class="spacer"></span>
+    <button class="winbtn" id="win-min" title="Minimise">&#8211;</button>
+    <button class="winbtn danger" id="win-close" title="Close">&#215;</button>
+  </div>
 
-<div id="avatar-wrap">
-  <canvas id="canvas-2d"></canvas>
-  <canvas id="canvas-3d" class="hidden"></canvas>
+  <div id="stage">
+    <canvas id="canvas-2d"></canvas>
+    <canvas id="canvas-3d" class="hidden"></canvas>
+  </div>
+
+  <div id="glosses"></div>
+  <div id="status">Starting...</div>
+
+  <div id="controls">
+    <button id="captions-toggle">Start Live Captions</button>
+    <input id="manual-input" type="text" placeholder="or type text to sign">
+  </div>
 </div>
-
-<div id="mode-row">
-  <button id="mode-2d" class="mode-btn active">2D Skeleton</button>
-  <button id="mode-3d" class="mode-btn">3D Avatar</button>
-  <span id="status">Starting...</span>
-</div>
-
-<div id="gloss-strip"></div>
-
-<div id="captions-row">
-  <button id="captions-toggle">Start Live Captions</button>
-  <button id="captions-launch" class="secondary">Open Live Captions</button>
-  <span id="captions-state">captions off</span>
-</div>
-
-<div id="manual-row">
-  <input id="manual-input" type="text" placeholder="Type text to sign (works on every platform)">
-  <button id="manual-send">Send</button>
-</div>
-
-<div id="caption-log"></div>
-<footer>Signlytic AI - Independent Robotics &amp; AI Systems Engineer</footer>
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/GLTFLoader.js"></script>

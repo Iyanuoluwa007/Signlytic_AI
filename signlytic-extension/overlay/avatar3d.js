@@ -266,6 +266,9 @@ class ThreeAvatarRenderer {
     // Optional override for hosts that must serve the GLB same-origin
     // (browser pages cannot fetch GitHub release assets cross-origin)
     this.modelUrl = options.modelUrl || null;
+    // Draw on a clear background so the host can sit over other windows.
+    // The desktop overlay needs this; the in-page panel does not.
+    this.transparent = options.transparent === true;
 
     // Repairs raw capture data before it drives the skeleton. Per-instance
     // because it carries frame-to-frame state. Pass normalise:false only if
@@ -309,12 +312,15 @@ class ThreeAvatarRenderer {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = false;
     this.renderer.outputEncoding = THREE.sRGBEncoding;
-    this.renderer.setClearColor(0x06080f, 1);
+    this.renderer.setClearColor(0x06080f, this.transparent ? 0 : 1);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x06080f);
-    // Subtle fog for depth
-    this.scene.fog = new THREE.Fog(0x06080f, 8, 20);
+    if (!this.transparent) {
+      this.scene.background = new THREE.Color(0x06080f);
+      // Subtle fog for depth. Skipped when transparent: fog blends toward a
+      // background colour that is not being drawn, which greys out the avatar.
+      this.scene.fog = new THREE.Fog(0x06080f, 8, 20);
+    }
 
     // Camera ÔÇö orthographic-ish perspective, framed on upper body
     this.camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
