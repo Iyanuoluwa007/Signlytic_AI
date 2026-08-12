@@ -2,6 +2,10 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("signlytic", {
+  // Dev switch: set SIGNLYTIC_LAYOUT_DEBUG=1 to have the renderer report
+  // where its blocks sit, which is how the layout order gets verified.
+  layoutDebug: process.env.SIGNLYTIC_LAYOUT_DEBUG === "1",
+
   // Manual caption fallback: renderer -> main -> back via caption-text
   sendManualText: (text) => ipcRenderer.send("manual-text", text),
   // Subscribe to caption text from any source (manual or Windows Live Captions)

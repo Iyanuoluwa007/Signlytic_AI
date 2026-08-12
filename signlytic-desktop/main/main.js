@@ -83,6 +83,10 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: FLOAT_SIZE.width,
     height: FLOAT_SIZE.height,
+    // Below this the signer has no usable room and the controls start
+    // crowding it, so do not allow the window to be dragged smaller.
+    minWidth: 320,
+    minHeight: 320,
     title: "Signlytic AI Desktop",
     // Transparent and frameless so it overlays the desktop the way Live
     // Captions does. The panel chrome is drawn in the renderer instead, which
@@ -190,12 +194,18 @@ ipcMain.handle("window-close", () => {
 
 ipcMain.handle("captions-capabilities", () => CaptionStream.capabilities());
 
-ipcMain.handle("captions-start", () => {
+ipcMain.handle("captions-start", async () => {
   const caps = CaptionStream.capabilities();
   if (!caps.supported) return { ok: false, reason: caps.reason };
+
+  // "Start Live Captions" should do exactly that. Previously it only attached
+  // the reader and then sat waiting for a window the user had to open
+  // themselves from a second button, which is not what the label promises.
+  const launched = await CaptionStream.ensureLiveCaptionsRunning();
+
   const stream = ensureCaptionStream();
   stream.start();
-  return { ok: true };
+  return { ok: true, launched };
 });
 
 ipcMain.handle("captions-stop", () => {
