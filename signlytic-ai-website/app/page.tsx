@@ -878,9 +878,9 @@ export default function Home() {
                     Download for Windows &#8594;
                   </a>
                   <span className="text-[11px] text-white/20">
-                    macOS build in progress &middot;{" "}
+                    Mac app upcoming &middot;{" "}
                     <span className="relative z-10 underline underline-offset-2 hover:text-white/40">
-                      <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank" rel="noopener noreferrer">run from source</a>
+                      <a href="/extension">see details</a>
                     </span>
                   </span>
                 </div>
