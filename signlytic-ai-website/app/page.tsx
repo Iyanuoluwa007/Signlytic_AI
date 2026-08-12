@@ -3,6 +3,11 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import Signable from "@/components/Signable";
 
+// Published on the public overlay repo: the main repo is private, so its
+// release assets are not publicly downloadable.
+const DESKTOP_WINDOWS_URL =
+  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.2.0/Signlytic.AI.Setup.0.2.0.exe";
+
 /* ═══════════════════════════════════════
    SCROLL ANIMATION SYSTEM
    ═══════════════════════════════════════ */
@@ -844,25 +849,40 @@ export default function Home() {
               </div>
             </Reveal>
 
-            {/* Windows App */}
+            {/* Desktop app */}
             <Reveal delay={120}>
-              <div className="block bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 opacity-60 h-full flex flex-col">
+              <div className="relative bg-white/[0.02] border border-white/[0.06] rounded-2xl p-7 hover:border-[#0e7c6b]/30 transition-all group h-full flex flex-col">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                  <div className="w-8 h-8 rounded-lg bg-[#0e7c6b]/10 border border-[#0e7c6b]/20 flex items-center justify-center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5eead4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
                   </div>
-                  <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.14em]">Coming Soon</div>
+                  <div className="text-[10px] font-bold text-[#0e7c6b] uppercase tracking-[0.14em]">Beta Available</div>
                 </div>
-                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5">
-                  <Signable text="Windows App">Windows App</Signable>
+                <h3 className="text-[15px] font-semibold text-white/85 mb-1.5 group-hover:text-white transition-colors">
+                  <span className="relative z-10">
+                    <Signable text="Desktop App">Desktop App</Signable>
+                  </span>
                 </h3>
                 <p className="text-[13px] text-white/30 leading-relaxed">
-                  <Signable text="System-wide BSL signing overlay for any app, including VLC, Teams desktop and Zoom. Built on Electron.">
-                    System-wide BSL signing overlay for any app &mdash; VLC, Teams desktop, Zoom and more. Built on Electron.
-                  </Signable>
+                  <span className="relative z-10">
+                    <Signable text="Signs what your computer is saying, in any app, using Windows Live Captions.">
+                      Signs what your computer is saying, in any app, using Windows Live Captions.
+                    </Signable>
+                  </span>
                 </p>
-                <div className="mt-auto pt-4 text-[12px] text-white/15 font-medium">
-                  In development &#8594;
+                <div className="mt-auto pt-4 flex flex-col gap-1.5">
+                  <a
+                    href={DESKTOP_WINDOWS_URL}
+                    className="text-[12px] text-[#0e7c6b]/70 font-medium group-hover:text-[#0e7c6b] transition-colors after:absolute after:inset-0 after:content-[''] after:rounded-2xl"
+                  >
+                    Download for Windows &#8594;
+                  </a>
+                  <span className="text-[11px] text-white/20">
+                    macOS build in progress &middot;{" "}
+                    <span className="relative z-10 underline underline-offset-2 hover:text-white/40">
+                      <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank" rel="noopener noreferrer">run from source</a>
+                    </span>
+                  </span>
                 </div>
               </div>
             </Reveal>
