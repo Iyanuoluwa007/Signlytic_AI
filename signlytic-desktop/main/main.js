@@ -225,6 +225,26 @@ ipcMain.handle("captions-start", async () => {
 
   const stream = ensureCaptionStream();
   stream.start();
+
+  // Live Captions resets "Include microphone audio" to off every time it
+  // starts, so it is switched on here rather than left to the user to find in
+  // its settings menu on each run.
+  //
+  // Deliberately not awaited. Driving another app's menus takes a couple of
+  // seconds, and holding the reply that long would leave the button looking
+  // stuck. Captions are already flowing by then, and the result arrives as a
+  // status message.
+  CaptionStream.enableMicrophoneAudio().then((res) => {
+    console.log("[captions] microphone: " + (res.ok ? "ok" : "failed") + " - " + res.detail);
+    if (!res.ok) {
+      sendCaptionStatus({
+        running: stream.running,
+        state: "notice",
+        detail: "Could not switch on microphone audio in Live Captions; turn it on under Settings, Preferences",
+      });
+    }
+  });
+
   return { ok: true, launched };
 });
 
@@ -267,6 +287,11 @@ app.whenReady().then(() => {
   if (process.env.SIGNLYTIC_CAPTIONS_AUTOSTART === "1") {
     console.log("[captions] autostart enabled");
     ensureCaptionStream().start();
+    // Same as pressing the button, so the headless run exercises the whole
+    // start path rather than a shortcut through it.
+    CaptionStream.enableMicrophoneAudio().then((res) => {
+      console.log("[captions] microphone: " + (res.ok ? "ok" : "failed") + " - " + res.detail);
+    });
   }
   // Dev-only: push a sentence through the same path a caption takes, so the
   // text -> glosses -> signs -> playback chain can be exercised headlessly.
