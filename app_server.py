@@ -1,10 +1,10 @@
-"""
+r"""
 app_server.py - Signlytic AI FastAPI Dashboard Server
 Runs on port 8000 alongside Gradio (port 7860).
 
 Usage:
     conda activate BSL
-    cd D:\\Signlytic_AI\code\bsl_translation_project
+    cd D:\Signlytic_AI\code\bsl_translation_project
     python app_server.py
 
 Then open: http://localhost:8000
@@ -19,11 +19,11 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 import uvicorn
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -109,6 +109,17 @@ def to_wav_16k_mono(input_path: str) -> str:
         print(f"[Server] ffmpeg error: {e}")
     return input_path
 
+
+
+# ── Startup warmup ──────────────────────────────────────────────────────────────
+@app.on_event("startup")
+async def _warmup():
+    """Pre-load the BSL recognizer on boot so /api/health reports recognizer_ready
+    before the camera starts (the readiness gate would otherwise deadlock)."""
+    try:
+        get_bsl_dict_recognizer()
+    except Exception as e:
+        print(f"[Server] warmup failed: {e}")
 
 
 # ── Favicon ────────────────────────────────────────────────────────────────────
@@ -251,11 +262,17 @@ async def health():
                     break
             except Exception:
                 pass
+    # Live readiness — recognizer and XTTS are lazy-loaded module-level singletons
+    # in app_server.py (set on first /api/live/frame and first /api/live/assemble).
+    recognizer_ready = globals().get("_bsl_dict_recognizer") is not None
+    tts_ready = globals().get("_xtts_model") is not None
     return {
         "status": "ok",
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU only",
         "vocab_size": vocab_size,
         "bsl_dict": (project_root / "models" / "bsl_dict_recognition" / "retrieval_model.pt").exists(),
+        "recognizer_ready": recognizer_ready,
+        "tts_ready": tts_ready,
         "avatars": {
             "male": (avatars_dir / "Male.glb").exists(),
             "female": (avatars_dir / "Female.glb").exists(),
@@ -423,7 +440,6 @@ async def live_frame(file: UploadFile = File(...)):
     try:
         with open(tmp, "wb") as f:
             f.write(await file.read())
-        # Try common method names for single-frame/video recognition
         # recognize() returns List[Tuple[str, float]]
         raw = recognizer.recognize(tmp, top_k=3)
         clean = []
@@ -432,19 +448,58 @@ async def live_frame(file: UploadFile = File(...)):
                 clean.append({"gloss": str(item[0]), "score": float(item[1])})
             elif isinstance(item, dict) and "gloss" in item:
                 clean.append(item)
-        # TTS — speak the top recognised gloss/word
-        audio_b64 = None
-        if clean:
-            try:
-                top_gloss = clean[0]["gloss"]
-                audio_b64 = _synthesize_xtts(top_gloss, project_root, is_live=True)
-            except Exception as _e:
-                print(f"[Server] TTS error in live_frame: {_e}")
-        return {"results": clean[:3], "audio_b64": audio_b64}
+        # Per-frame TTS disabled — sentence-level TTS only via /api/live/assemble.
+        return {"results": clean[:3], "audio_b64": None}
     finally:
         if Path(tmp).exists():
             os.unlink(tmp)
 
+
+# ── Live: assemble glosses into English sentence + XTTS ──────────────────────
+@app.post("/api/live/assemble")
+async def live_assemble(payload: dict = Body(...)):
+    """
+    Take the accumulated live gloss list, run it through GlossToText (Groq llama-3.3-70b),
+    then synthesise the English result with the cloned XTTS v2 voice.
+    Input:  {"glosses": ["HELLO", "MY", "NAME", "OKE"]}
+    Output: {"sentence": "...", "audio_b64": "<b64 wav>" | None, "error": str | None}
+    """
+    raw = payload.get("glosses") or []
+    # Filter empties + dedupe consecutive duplicates (live recognition often double-fires)
+    glosses: List[str] = []
+    for g in raw:
+        if not isinstance(g, str):
+            continue
+        g = g.strip()
+        if not g:
+            continue
+        if glosses and glosses[-1].lower() == g.lower():
+            continue
+        glosses.append(g.upper())
+
+    if not glosses:
+        return {"sentence": "", "audio_b64": None, "error": "no glosses"}
+
+    # Gloss -> English
+    try:
+        from src.inference.gloss_to_text import GlossToText
+        english = GlossToText(mode="groq").convert(glosses)
+    except Exception as e:
+        print(f"[Live] GlossToText error: {e}")
+        english = " ".join(g.lower() for g in glosses).capitalize() + "."
+
+    print(f"[Live] Assemble: {len(glosses)} glosses -> {english[:60]}...")
+
+    # English -> XTTS
+    audio_b64 = None
+    err: Optional[str] = None
+    try:
+        audio_b64 = _synthesize_xtts(english, project_root)
+    except Exception as e:
+        err = f"tts: {e}"
+        print(f"[Live] TTS error in assemble: {e}")
+
+    return {"sentence": english, "audio_b64": audio_b64, "error": err}
 
 
 # ── Graceful shutdown ──────────────────────────────────────────────────────────

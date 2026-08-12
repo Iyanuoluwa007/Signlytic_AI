@@ -11,7 +11,8 @@ BSL has different grammar from English:
 Modes:
 - simple: Basic concatenation (fast, lower quality)
 - llm: Local FLAN-T5 model
-- groq: Groq API with Llama 3.1 (best quality)
+- groq: Hosted LLM API (best quality). Tries Cerebras gpt-oss-120b first,
+  falls back to Groq llama-3.3-70b-versatile if Cerebras fails or times out.
 """
 
 import os
@@ -50,11 +51,15 @@ class GlossToText:
         Args:
             mode: Conversion mode ('simple', 'llm', 'groq')
             groq_api_key: API key for Groq (required if mode='groq')
-            groq_model: Groq model to use
+            groq_model: Groq model to use (fallback provider)
         """
         self.mode = mode
         self.groq_api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
         self.groq_model = groq_model
+        # Cerebras is the primary provider in 'groq' mode; Groq is the fallback.
+        self.cerebras_api_key = os.environ.get("CEREBRAS_API_KEY")
+        self.cerebras_model = "gpt-oss-120b"
+        self.cerebras_timeout = 10  # seconds; keep short so a hang falls back fast
         
         if mode == 'llm':
             self._init_local_llm()
@@ -205,14 +210,58 @@ Natural English sentence:"""
         
         return result if result else self._simple_convert(glosses)
     
+    @staticmethod
+    def _finalize_sentence(result: str) -> str:
+        """Strip wrapping quotes and ensure terminal punctuation."""
+        result = result.strip().strip('"\'')
+        if result and not result.endswith(('.', '!', '?')):
+            result += "."
+        return result
+
+    def _cerebras_convert(self, system_prompt: str, user_prompt: str) -> Optional[str]:
+        """
+        Call the Cerebras chat completions API (OpenAI-compatible).
+        Returns the sentence, or None if no key is configured or the
+        response has no content. Raises on HTTP errors and timeouts.
+        """
+        if not self.cerebras_api_key:
+            return None
+
+        import requests
+
+        response = requests.post(
+            "https://api.cerebras.ai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.cerebras_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self.cerebras_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.3,
+                "max_completion_tokens": 512,
+                "reasoning_effort": "low",
+            },
+            timeout=self.cerebras_timeout,
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"].get("content")
+        return content.strip() if content and content.strip() else None
+
     def _groq_convert(self, glosses: List[str]) -> str:
-        """Use Groq API for high-quality conversion."""
-        gloss_str = " ".join(g.upper() for g in glosses 
+        """
+        Hosted LLM conversion: Cerebras (gpt-oss-120b) primary,
+        Groq (llama-3.3-70b-versatile) fallback.
+        """
+        gloss_str = " ".join(g.upper() for g in glosses
                            if g.lower() not in ['<unk>', '<pad>', '<sos>', '<eos>'])
-        
+
         if not gloss_str.strip():
             return ""
-        
+
         system_prompt = """You are an expert translator from British Sign Language (BSL) glosses to natural English.
 
 BSL glosses are individual sign words written in CAPITALS. BSL grammar differs from English:
@@ -229,7 +278,19 @@ Your task: Convert the BSL glosses into a natural, grammatically correct English
 - Return ONLY the English sentence, nothing else."""
 
         user_prompt = f"BSL Glosses: {gloss_str}"
-        
+
+        # Primary: Cerebras
+        try:
+            result = self._cerebras_convert(system_prompt, user_prompt)
+            if result:
+                print("[LLM] served by: cerebras")
+                return self._finalize_sentence(result)
+            if self.cerebras_api_key:
+                print("[LLM] Cerebras returned empty content, falling back to Groq")
+        except Exception as e:
+            print(f"[LLM] Cerebras error ({type(e).__name__}): {e}, falling back to Groq")
+
+        # Fallback: Groq
         try:
             response = self.groq_client.chat.completions.create(
                 model=self.groq_model,
@@ -240,16 +301,11 @@ Your task: Convert the BSL glosses into a natural, grammatically correct English
                 temperature=0.3,
                 max_tokens=150
             )
-            
+
             result = response.choices[0].message.content.strip()
-            
-            # Clean up
-            result = result.strip('"\'')
-            if result and not result.endswith(('.', '!', '?')):
-                result += "."
-            
-            return result
-            
+            print("[LLM] served by: groq (fallback)")
+            return self._finalize_sentence(result)
+
         except Exception as e:
             print(f"Groq API error: {e}")
             return self._simple_convert(glosses)

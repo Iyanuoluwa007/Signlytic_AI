@@ -271,6 +271,58 @@ body::before{
   padding:.2rem .4rem;accent-color:var(--ac);
 }
 
+/* -- BSL-to-Speech Live UI -- */
+.lv-sent{background:rgba(10,15,26,0.65);backdrop-filter:blur(12px);border:1px solid var(--bd);border-radius:var(--r);padding:.55rem .9rem;margin-bottom:.4rem;min-height:36px;display:flex;align-items:center}
+.lv-sent-txt{font-size:.85rem;color:var(--t1);transition:opacity .3s;overflow-wrap:break-word;word-wrap:break-word;white-space:normal;max-height:6em;overflow-y:auto;line-height:1.4}
+.lv-sent-empty{color:var(--t3);font-style:italic;font-size:.78rem}
+.lv-gbar{display:flex;align-items:center;gap:5px;padding:2px 0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;max-width:100%;scrollbar-width:thin;margin-bottom:.4rem;flex-shrink:0}
+.lv-gbar::-webkit-scrollbar{display:none}
+.lv-gbar-lbl{font:500 .5rem/1 'JetBrains Mono',monospace;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0;padding:3px 6px;background:var(--s2);border-radius:4px}
+.lv-gpill{font:500 .62rem/1 'JetBrains Mono',monospace;padding:3px 9px;border-radius:14px;background:rgba(14,124,107,0.15);border:1px solid rgba(94,234,212,0.2);color:var(--ac2);text-transform:uppercase;white-space:nowrap;flex-shrink:0;animation:lvPillIn .25s cubic-bezier(.34,1.56,.64,1)}
+.lv-gpill.act{background:var(--ac);border-color:var(--ac);color:#fff;box-shadow:0 0 12px rgba(14,124,107,0.5)}
+@keyframes lvPillIn{from{opacity:0;transform:scale(.7) translateY(3px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.lv-gbar.lv-fading{opacity:0;transition:opacity 2s ease-out;}
+.lv-gbar.lv-warn{border:1px solid rgba(245,158,11,0.5);box-shadow:0 0 12px rgba(245,158,11,0.15);transition:border 0.3s,box-shadow 0.3s;}
+.lv-gbar-idle{font:.62rem/1 'JetBrains Mono',monospace;color:var(--t3);font-style:italic;animation:lvSoftP 2.5s ease-in-out infinite}
+@keyframes lvSoftP{0%,100%{opacity:1}50%{opacity:.35}}
+.lv-cur{position:absolute;bottom:3rem;left:50%;transform:translateX(-50%);text-align:center;z-index:10;pointer-events:none}
+.lv-cur-word{font:600 1.2rem/1 'JetBrains Mono',monospace;padding:6px 18px;border-radius:var(--r3);background:rgba(10,15,26,0.7);backdrop-filter:blur(12px);border:1px solid rgba(94,234,212,0.2);color:#fff;text-transform:uppercase;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.4)}
+.lv-cur-word.vis{display:inline-block;animation:lvWordPop .2s cubic-bezier(.34,1.56,.64,1)}
+@keyframes lvWordPop{from{transform:scale(.85);opacity:.5}to{transform:scale(1);opacity:1}}
+.lv-conf-row{margin-top:5px;display:none}
+.lv-conf-row.vis{display:flex;flex-direction:column;align-items:center;gap:2px}
+.lv-conf-bg{width:120px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden}
+.lv-conf-fill{height:100%;border-radius:2px;transition:width .2s,background .2s}
+.lv-conf-fill.hi{background:var(--gr)}.lv-conf-fill.md{background:var(--yw)}.lv-conf-fill.lo{background:var(--rd)}
+.lv-conf-txt{font:.55rem/1 'JetBrains Mono',monospace;color:var(--t2)}
+.lv-idle{position:absolute;bottom:3.5rem;left:50%;transform:translateX(-50%);font:.7rem/1 'JetBrains Mono',monospace;color:var(--t3);letter-spacing:.04em;animation:lvSoftP 2.5s ease-in-out infinite;z-index:5;display:none}
+.lv-emo{position:absolute;top:8px;right:8px;background:rgba(10,15,26,0.7);backdrop-filter:blur(12px);border:1px solid var(--bd);border-radius:var(--r3);padding:6px 8px;z-index:10;min-width:80px;display:none}
+.lv-emo-t{font:500 .4rem/1 'JetBrains Mono',monospace;color:var(--t3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
+.lv-emo-i{display:flex;align-items:center;gap:5px;padding:1.5px 0}
+.lv-emo-d{width:5px;height:5px;border-radius:50%;opacity:.3;transition:all .4s}
+.lv-emo-d.lv-emo-on{width:7px;height:7px;opacity:1;box-shadow:0 0 6px currentColor}
+.lv-emo-n{font:.55rem/1 'JetBrains Mono',monospace;color:var(--t3);transition:all .3s}
+.lv-emo-n.lv-emo-act{color:var(--t1);font-weight:500}
+.lv-pipe{display:flex;gap:3px}
+.lv-ps{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;border-radius:var(--r3);border:1px solid var(--bd);background:var(--s1);transition:all .35s;position:relative;overflow:hidden}
+.lv-ps::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(94,234,212,0.08),transparent);opacity:0;transition:opacity .35s}
+.lv-ps.act{border-color:var(--ac)}.lv-ps.act::before{opacity:1}
+.lv-ps.done{border-color:rgba(52,211,153,0.25)}.lv-ps.done::before{opacity:1;background:linear-gradient(135deg,rgba(52,211,153,0.06),transparent)}
+.lv-ps-ic{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--t3);display:flex;align-items:center;justify-content:center;transition:all .35s;position:relative;z-index:1;color:var(--t3)}
+.lv-ps.act .lv-ps-ic{border-color:var(--ac2);color:var(--ac2);box-shadow:0 0 8px rgba(94,234,212,0.12)}
+.lv-ps.done .lv-ps-ic{border-color:var(--gr);color:var(--gr)}
+.lv-ps-lb{font:.5rem/1.2 'JetBrains Mono',monospace;color:var(--t3);text-align:center;letter-spacing:.02em;transition:color .35s;position:relative;z-index:1}
+.lv-ps.act .lv-ps-lb{color:var(--ac2)}.lv-ps.done .lv-ps-lb{color:var(--gr)}
+.lv-spk-row{display:flex;align-items:center;gap:8px}
+.lv-btn-spk{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:.78rem}
+.lv-wave{display:none;align-items:center;justify-content:center;gap:2px;height:24px;padding:0 8px}
+.lv-wave.vis{display:flex}
+.lv-wb{width:3px;border-radius:2px;background:var(--ac2);animation:lvWave .6s ease-in-out infinite alternate}
+.lv-wb:nth-child(2){animation-delay:.1s}.lv-wb:nth-child(3){animation-delay:.2s}
+.lv-wb:nth-child(4){animation-delay:.3s}.lv-wb:nth-child(5){animation-delay:.15s}
+.lv-wb:nth-child(6){animation-delay:.25s}.lv-wb:nth-child(7){animation-delay:.05s}
+@keyframes lvWave{from{height:4px;opacity:.4}to{height:20px;opacity:1}}
+
 /* Live webcam */
 .wc-wrap{
   background:#040608;border-radius:var(--r3);overflow:hidden;
@@ -934,31 +986,58 @@ body::before{
 
       <!-- ══ PANEL: Live Recognition ══ -->
       <div class="panel" id="panel-live">
+        <!-- Sentence Assembly Bar -->
+        <div class="lv-sent" id="lv-sent">
+          <span class="lv-sent-txt lv-sent-empty" id="lv-sent-txt">Waiting for BSL input...</span>
+        </div>
+
+        <!-- Gloss History Pills -->
+        <div class="lv-gbar" id="lv-gbar">
+          <span class="lv-gbar-lbl">GLOSS</span>
+          <span class="lv-gbar-idle" id="lv-gbar-idle">waiting for signs...</span>
+        </div>
+
         <div class="g2">
           <div>
-            <div class="card card-pad">
-              <div class="sh">Live BSL Recognition</div>
-              <div class="sd">Point your camera at BSL signing. Frames are sent every 1.5 seconds to the GPU recogniser.</div>
-
+            <div class="card card-pad" style="padding-bottom:.5rem">
               <div class="wc-wrap" style="position:relative">
                 <video id="wc-video" autoplay muted playsinline></video>
-                <!-- capture canvas (hidden) -->
                 <canvas id="wc-canvas" style="display:none"></canvas>
-                <!-- skeleton overlay canvas -->
                 <canvas id="wc-skel" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
-                <div class="wc-overlay">
-                  <div class="wc-gloss" id="wc-gloss">—</div>
-                  <div class="wc-conf" id="wc-conf"></div>
+
+                <!-- Current Recognition Pill -->
+                <div class="lv-cur" id="lv-cur">
+                  <div class="lv-cur-word" id="lv-cur-word"></div>
+                  <div class="lv-conf-row" id="lv-conf-row">
+                    <div class="lv-conf-bg"><div class="lv-conf-fill" id="lv-conf-fill"></div></div>
+                    <span class="lv-conf-txt" id="lv-conf-txt"></span>
+                  </div>
                 </div>
+
+                <!-- Idle Text -->
+                <span class="lv-idle" id="lv-idle">waiting for signs...</span>
+
+                <!-- Emotion Panel -->
+                <div class="lv-emo" id="lv-emo">
+                  <div class="lv-emo-t">Emotion</div>
+                  <div class="lv-emo-i"><div class="lv-emo-d" style="color:#34d399;background:#34d399"></div><span class="lv-emo-n" data-e="happy">Happy</span></div>
+                  <div class="lv-emo-i"><div class="lv-emo-d" style="color:#60a5fa;background:#60a5fa"></div><span class="lv-emo-n" data-e="sad">Sad</span></div>
+                  <div class="lv-emo-i"><div class="lv-emo-d lv-emo-on" style="color:#94a3b8;background:#94a3b8"></div><span class="lv-emo-n lv-emo-act" data-e="neutral">Neutral</span></div>
+                  <div class="lv-emo-i"><div class="lv-emo-d" style="color:#f87171;background:#f87171"></div><span class="lv-emo-n" data-e="angry">Angry</span></div>
+                  <div class="lv-emo-i"><div class="lv-emo-d" style="color:#fbbf24;background:#fbbf24"></div><span class="lv-emo-n" data-e="question">Questioning</span></div>
+                </div>
+
+                <!-- Gradient overlay -->
+                <div class="wc-overlay" style="pointer-events:none"></div>
               </div>
 
-              <div class="btn-row" style="margin-top:.65rem">
-                <button class="btn btn-p" onclick="liveStart()" id="live-start">📷 Start camera</button>
-                <button class="btn btn-gh" onclick="liveStop()" id="live-stop" disabled>⏹ Stop</button>
+              <div class="btn-row" style="margin-top:.5rem">
+                <button class="btn btn-p" onclick="liveStart()" id="live-start" disabled>Loading models...</button>
+                <button class="btn btn-gh" onclick="liveStop()" id="live-stop" disabled>Stop</button>
                 <button class="btn btn-sm" onclick="liveReset()" id="live-reset"
                   style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:var(--rd);font-size:.72rem"
-                  disabled>↺ Reset</button>
-                <button class="btn btn-gh btn-sm" onclick="flipCamera()" id="live-flip" disabled title="Flip front/back">⇄ Flip</button>
+                  disabled>Reset</button>
+                <button class="btn btn-gh btn-sm" onclick="flipCamera()" id="live-flip" disabled title="Flip front/back">Flip</button>
               </div>
               <div id="cam-loading" style="display:none;margin-top:.4rem;align-items:center;gap:.5rem;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r3);padding:.45rem .75rem"><div style="width:11px;height:11px;border:2px solid var(--ac);border-top-color:transparent;border-radius:50%;animation:ldSpin 0.8s linear infinite;flex-shrink:0"></div><span id="cam-load-txt" style="font-size:.74rem;color:var(--t2)">Initialising camera...</span></div>
               <div class="prog-msg" id="live-msg" style="margin-top:.3rem"></div>
@@ -966,9 +1045,18 @@ body::before{
           </div>
 
           <div>
+            <!-- Pipeline Indicator -->
+            <div class="lv-pipe" style="margin-bottom:.65rem">
+              <div class="lv-ps" id="lv-p-hand"><div class="lv-ps-ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0v5M14 10V4a2 2 0 00-4 0v6M10 10.5V6a2 2 0 00-4 0v8M18 8a2 2 0 114 0v6a8 8 0 01-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 012.83-2.82L7 15"/></svg></div><span class="lv-ps-lb">Hand Tracking</span></div>
+              <div class="lv-ps" id="lv-p-emo"><div class="lv-ps-ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div><span class="lv-ps-lb">Emotion</span></div>
+              <div class="lv-ps" id="lv-p-llm"><div class="lv-ps-ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><span class="lv-ps-lb">LLM</span></div>
+              <div class="lv-ps" id="lv-p-voice"><div class="lv-ps-ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></div><span class="lv-ps-lb">Voice</span></div>
+            </div>
+
+            <!-- Recognition Log -->
             <div class="card card-pad" style="margin-bottom:.65rem">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
-                <div class="card-head-label">Recognition log</div>
+                <div class="card-head-label">Recognition Log</div>
                 <button class="btn btn-gh btn-xs" onclick="clearLog()">Clear</button>
               </div>
               <div class="log-wrap" id="live-log">
@@ -976,9 +1064,21 @@ body::before{
               </div>
             </div>
 
-            <div class="card card-pad">
-              <div class="card-head-label" style="margin-bottom:.6rem">Top 3 matches</div>
+            <!-- Top 3 Matches -->
+            <div class="card card-pad" style="margin-bottom:.65rem">
+              <div class="card-head-label" style="margin-bottom:.6rem">Top 3 Matches</div>
               <div id="live-top"><span style="font-size:.74rem;color:var(--t3);font-style:italic">Waiting...</span></div>
+            </div>
+
+            <!-- Speak Button + Waveform -->
+            <div class="card card-pad">
+              <div class="lv-spk-row">
+                <div class="lv-wave" id="lv-wave"><div class="lv-wb"></div><div class="lv-wb"></div><div class="lv-wb"></div><div class="lv-wb"></div><div class="lv-wb"></div><div class="lv-wb"></div><div class="lv-wb"></div></div>
+                <button class="btn btn-p lv-btn-spk" id="lv-btn-spk" onclick="lvSpeak()" disabled>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>
+                  Speak Sentence
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1605,6 +1705,42 @@ function flipCamera(){
   if(sk)sk.style.transform=isFlipped?"scaleX(-1)":"scaleX(1)";
 }
 
+// Poll /api/health until recognizer is ready, then enable Start Camera.
+// TTS readiness is not required to start camera — first /api/live/assemble call
+// will warm XTTS (~30s) on its own.
+async function _lvHealthPoll(){
+  const btn=document.getElementById('live-start');
+  if(!btn)return;
+  let attempts=0;
+  const maxAttempts=120; // 2 minutes at 1s interval
+  while(attempts<maxAttempts){
+    try{
+      const r=await fetch('/api/health');
+      if(r.ok){
+        const d=await r.json();
+        if(d.recognizer_ready){
+          btn.disabled=false;
+          btn.textContent='Start Camera';
+          if(d.tts_ready){
+            console.log('[Health] Recognizer + TTS ready');
+          }else{
+            console.log('[Health] Recognizer ready, TTS will warm on first assemble');
+          }
+          return;
+        }
+      }
+    }catch(e){/* server not up yet */}
+    attempts++;
+    await new Promise(res=>setTimeout(res,1000));
+  }
+  // After 2 min, give up and enable anyway with a warning label
+  btn.disabled=false;
+  btn.textContent='Start Camera (health check timeout)';
+  console.warn('[Health] poll timed out after 2min');
+}
+// Kick off polling on script load
+_lvHealthPoll();
+
 async function liveStart(){
   try{
     showCamLoading("Starting camera...");
@@ -1629,6 +1765,7 @@ async function liveStart(){
     liveAbort=new AbortController();
     lInt=setInterval(liveFrame,800);
       startSkelOverlay();
+      startEmotionDetection();
     },1200);
   }catch(e){
     const el=document.getElementById("live-msg");el.textContent="Camera denied: "+e.message;el.className="prog-msg err";
@@ -1642,6 +1779,7 @@ function liveReset(){
   if(lInt){clearInterval(lInt);lInt=null;}
   if(lStream){lStream.getTracks().forEach(t=>t.stop());lStream=null;}
   stopSkelOverlay();
+  stopEmotionDetection();
   hideCamLoading();
 
   // Reset all button states
@@ -1659,8 +1797,6 @@ function liveReset(){
   if(sk){const ctx=sk.getContext("2d");ctx.clearRect(0,0,sk.width,sk.height);}
 
   // Clear recognition display
-  document.getElementById("wc-gloss").textContent="—";
-  document.getElementById("wc-conf").textContent="";
 
   // Clear log
   document.getElementById("live-log").innerHTML='<span class="log-empty">Log cleared...</span>';
@@ -1670,6 +1806,7 @@ function liveReset(){
   const msg=document.getElementById("live-msg");
   if(msg){msg.textContent="";msg.className="prog-msg";}
 
+  lvResetUI();
   toast("Live recognition reset","ok");
 }
 
@@ -1685,10 +1822,9 @@ function liveStop(){
   document.getElementById("wc-video").srcObject=null;
   document.getElementById("live-msg").textContent="Camera stopped";
   if(skelInterval){clearInterval(skelInterval);skelInterval=null;}
-  document.getElementById("wc-gloss").textContent="—";
-  document.getElementById("wc-conf").textContent="";
   hideCamLoading();
   stopSkelOverlay();
+  stopEmotionDetection();
 }
 async function liveFrame(){
   if(!liveActive)return;
@@ -1723,14 +1859,13 @@ async function liveFrame(){
           _lmsg.className="prog-msg ok";
         }
         const top=results[0];
-        document.getElementById("wc-gloss").textContent=top.gloss||"—";
-        document.getElementById("wc-conf").textContent=((top.score||0)*100).toFixed(1)+"% confidence";
-        if(d.audio_b64){
-          try{
-            const ab=new Audio("data:audio/wav;base64,"+d.audio_b64);
-            ab.volume=0.8;ab.play().catch(()=>{});
-          }catch(e){}
-        }
+        // -- BSL-to-Speech UI updates --
+        lvSetPipe('hand');
+        lvShowConf(top.gloss, top.score||0);
+        lvAddGloss(top.gloss);
+        setTimeout(()=>lvHideConf(),1200);
+        const emoEl=document.getElementById('lv-emo');if(emoEl)emoEl.style.display='';
+        // Emotion detection handled by face-api.js (real-time)
         const log=document.getElementById("live-log");
         const e2=document.createElement("div");e2.className="log-entry fade-in";
         e2.innerHTML=`<span class="log-gloss">${top.gloss}</span><span class="log-score">${((top.score||0)*100).toFixed(1)}%</span>`;
@@ -1913,6 +2048,188 @@ function resetD2(){
   prog("d2",0,"");
   toast("English → BSL cleared","ok");
 }
+// -- BSL-to-Speech UI helpers --
+let lvGlosses=[];let lvSentence='';
+let lvAssembleTimer=null;let lvAssembleAbort=null;let lvAudioB64=null;
+let lvFadeTimer=null;let lvAudioEl=null;
+const LV_PAUSE_MS=2500;const LV_HARD_CAP=10;const LV_WARN_AT=8;const LV_FADE_MS=2000;
+function lvSetPipe(s){
+  // 'llm-done' = special state: hand, emo, llm all .done; voice not yet active.
+  const stages=['hand','emo','llm','voice'];
+  if(s==='llm-done'){
+    stages.forEach((k,i)=>{
+      const el=document.getElementById('lv-p-'+k);
+      if(!el)return;
+      el.classList.remove('act','done');
+      if(i<=2)el.classList.add('done');
+    });
+    return;
+  }
+  stages.forEach((k,i)=>{
+    const el=document.getElementById('lv-p-'+k);
+    if(!el)return;
+    el.classList.remove('act','done');
+    const si=stages.indexOf(s);
+    if(k===s)el.classList.add('act');
+    else if(i<si)el.classList.add('done');
+  });
+}
+function lvSetEmo(e){document.querySelectorAll('.lv-emo-n').forEach(n=>{const d=n.previousElementSibling;if(n.dataset.e===e){d.classList.add('lv-emo-on');n.classList.add('lv-emo-act');}else{d.classList.remove('lv-emo-on');n.classList.remove('lv-emo-act');}});}
+function lvAddGloss(w){
+  // A1: consecutive dedup
+  if(lvGlosses.length && lvGlosses[lvGlosses.length-1].toLowerCase()===w.toLowerCase())return;
+  // B2b: if we are in mid-fade, treat new gloss as new sentence
+  if(lvFadeTimer){clearTimeout(lvFadeTimer);lvFadeTimer=null;_lvCommitFade();}
+  lvGlosses.push(w);
+  const bar=document.getElementById('lv-gbar');
+  if(!bar)return;
+  bar.classList.remove('lv-fading');
+  bar.innerHTML='<span class="lv-gbar-lbl">GLOSS</span>';
+  lvGlosses.forEach((g,i)=>{
+    const s=document.createElement('span');
+    s.className='lv-gpill'+(i===lvGlosses.length-1?' act':'');
+    s.textContent=g;
+    bar.appendChild(s);
+  });
+  bar.scrollLeft=bar.scrollWidth;
+  const btn=document.getElementById('lv-btn-spk');
+  if(btn)btn.disabled=false;
+  // Fallback sentence (overwritten by lvAssemble on success)
+  lvSentence=lvGlosses.join(' ').toLowerCase();
+  lvSentence=lvSentence.charAt(0).toUpperCase()+lvSentence.slice(1)+'.';
+  const st=document.getElementById('lv-sent-txt');
+  if(st){st.textContent=lvSentence;st.classList.remove('lv-sent-empty');}
+  // C1+C3: amber warning at LV_WARN_AT, hard fire at LV_HARD_CAP
+  if(lvGlosses.length>=LV_WARN_AT)bar.classList.add('lv-warn');
+  else bar.classList.remove('lv-warn');
+  if(lvGlosses.length>=LV_HARD_CAP){
+    // Cap fired — commit current buffer immediately and reset state so the
+    // next frame starts a fresh array (prevents runaway accumulation).
+    clearTimeout(lvAssembleTimer);
+    lvAssembleTimer=null;
+    if(lvAssembleAbort){lvAssembleAbort.abort();lvAssembleAbort=null;}
+    const capSnapshot=lvGlosses.slice();
+    lvGlosses=[];
+    bar.classList.remove('lv-warn');
+    lvAssemble(capSnapshot);
+    return;
+  }
+  // C3: 2.5s pause debounce
+  clearTimeout(lvAssembleTimer);
+  if(lvAssembleAbort)lvAssembleAbort.abort();
+  lvAssembleTimer=setTimeout(lvAssemble,LV_PAUSE_MS);
+}
+function _lvCommitFade(){
+  // Called when fade completes OR is interrupted: clear gloss buffer and bar.
+  const bar=document.getElementById('lv-gbar');
+  if(bar){
+    bar.classList.remove('lv-fading','lv-warn');
+    bar.innerHTML='<span class="lv-gbar-lbl">GLOSS</span><span class="lv-gbar-idle">waiting for signs...</span>';
+  }
+  lvGlosses=[];
+}
+async function lvAssemble(snapshot){
+  // Cap path passes a pre-captured snapshot and pre-clears lvGlosses.
+  // Pause path passes nothing — we snapshot lvGlosses here.
+  const glossesSnapshot = snapshot || lvGlosses.slice();
+  if(!glossesSnapshot.length)return;
+  lvSetPipe('llm');
+  // For pause path, abort any prior in-flight
+  if(!snapshot && lvAssembleAbort)lvAssembleAbort.abort();
+  lvAssembleAbort=new AbortController();
+  try{
+    const r=await fetch('/api/live/assemble',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({glosses:glossesSnapshot}),
+      signal:lvAssembleAbort.signal,
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(data.sentence){
+      lvSentence=data.sentence;
+      const st=document.getElementById('lv-sent-txt');
+      if(st){st.textContent=lvSentence;st.classList.remove('lv-sent-empty');}
+    }
+    lvAudioB64=data.audio_b64||null;
+    const btn=document.getElementById('lv-btn-spk');
+    if(btn)btn.disabled=false;
+    // B2b: fade pills out (only for pause path; cap path already cleared)
+    if(!snapshot){
+      const bar=document.getElementById('lv-gbar');
+      if(bar){
+        bar.classList.add('lv-fading');
+        bar.classList.remove('lv-warn');
+      }
+      lvFadeTimer=setTimeout(()=>{lvFadeTimer=null;_lvCommitFade();},LV_FADE_MS);
+    }else{
+      // Cap path: pills already cleared by EDIT 2; just reset bar display
+      _lvCommitFade();
+    }
+    // Option X: leave llm as .done, voice next stage. Do NOT reset to hand.
+    lvSetPipe('llm-done');
+  }catch(e){
+    if(e.name==='AbortError')return;
+    console.warn('[lvAssemble] error, keeping fallback sentence:',e.message);
+    lvSetPipe('hand');
+  }
+}
+function lvShowConf(w,score){const cw=document.getElementById('lv-cur-word');const cr=document.getElementById('lv-conf-row');const cf=document.getElementById('lv-conf-fill');const ct=document.getElementById('lv-conf-txt');const idle=document.getElementById('lv-idle');if(!cw)return;const pct=Math.round(score*100);cw.textContent=w;cw.classList.add('vis');if(cr)cr.classList.add('vis');if(idle)idle.style.display='none';if(cf){cf.style.width=pct+'%';cf.className='lv-conf-fill '+(pct>=80?'hi':pct>=50?'md':'lo');}if(ct)ct.textContent=pct+'% \u2014 '+(pct>=80?'locking in...':pct>=50?'hold steadier':'detecting...');}
+function lvHideConf(){const cw=document.getElementById('lv-cur-word');const cr=document.getElementById('lv-conf-row');if(cw)cw.classList.remove('vis');if(cr)cr.classList.remove('vis');}
+function lvSpeak(){
+  // Build fallback sentence if assemble has not fired yet
+  if(!lvSentence&&lvGlosses.length){
+    lvSentence=lvGlosses.join(' ').toLowerCase();
+    lvSentence=lvSentence.charAt(0).toUpperCase()+lvSentence.slice(1)+'.';
+  }
+  if(!lvSentence)return;
+  // Stop any in-flight audio
+  if(lvAudioEl){try{lvAudioEl.pause();}catch(e){}lvAudioEl=null;}
+  speechSynthesis.cancel();
+  const wv=document.getElementById('lv-wave');
+  const finish=()=>{
+    if(wv)wv.classList.remove('vis');
+    // After playback, return to 'llm-done' state (sentence still available for replay)
+    // unless a new gloss has arrived in the meantime, in which case lvAddGloss handles state.
+    setTimeout(()=>{if(!lvAudioEl)lvSetPipe('llm-done');},800);
+    lvAudioEl=null;
+  };
+  // Prefer XTTS cloned voice
+  if(lvAudioB64){
+    try{
+      const a=new Audio('data:audio/wav;base64,'+lvAudioB64);
+      lvAudioEl=a;
+      a.onplay=()=>{lvSetPipe('voice');if(wv)wv.classList.add('vis');};
+      a.onended=finish;
+      a.onerror=()=>{console.warn('[lvSpeak] XTTS audio error, falling back to Web Speech');lvAudioEl=null;_lvSpeakWebSpeech(finish);};
+      a.play().catch(err=>{console.warn('[lvSpeak] XTTS play() blocked or failed, falling back:',err.message);lvAudioEl=null;_lvSpeakWebSpeech(finish);});
+      return;
+    }catch(e){
+      console.warn('[lvSpeak] XTTS init failed, falling back:',e.message);
+      lvAudioEl=null;
+    }
+  }
+  _lvSpeakWebSpeech(finish);
+}
+function _lvSpeakWebSpeech(finish){
+  const wv=document.getElementById('lv-wave');
+  lvSetPipe('voice');
+  if(wv)wv.classList.add('vis');
+  const u=new SpeechSynthesisUtterance(lvSentence);
+  u.lang='en-GB';
+  u.rate=0.9;
+  u.onend=finish;
+  speechSynthesis.speak(u);
+}
+function lvResetUI(){
+  lvGlosses=[];lvSentence='';
+  clearTimeout(lvAssembleTimer);lvAssembleTimer=null;
+  if(lvAssembleAbort){lvAssembleAbort.abort();lvAssembleAbort=null;}
+  lvAudioB64=null;
+  clearTimeout(lvFadeTimer);lvFadeTimer=null;
+  if(lvAudioEl){try{lvAudioEl.pause();}catch(e){}lvAudioEl=null;}
+  const bar=document.getElementById('lv-gbar');if(bar)bar.innerHTML='<span class="lv-gbar-lbl">GLOSS</span><span class="lv-gbar-idle">waiting for signs...</span>';const st=document.getElementById('lv-sent-txt');if(st){st.textContent='Waiting for BSL input...';st.classList.add('lv-sent-empty');}lvHideConf();const btn=document.getElementById('lv-btn-spk');if(btn)btn.disabled=true;lvSetPipe('');const wv=document.getElementById('lv-wave');if(wv)wv.classList.remove('vis');const emo=document.getElementById('lv-emo');if(emo)emo.style.display='none';const idle=document.getElementById('lv-idle');if(idle)idle.style.display='none';speechSynthesis.cancel();}
+
 function clearLog(){document.getElementById("live-log").innerHTML='<span class="log-empty">Log cleared...</span>'}
 </script>
 
@@ -1939,6 +2256,9 @@ function clearLog(){document.getElementById("live-log").innerHTML='<span class="
   </svg>
   Give Feedback
 </a>
+
+<!-- face-api.js for emotion detection -->
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
 <!-- MediaPipe Holistic for live skeleton overlay -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -1997,11 +2317,11 @@ function drawSkeleton(res){
   dc(res.poseLandmarks,PC2,"rgba(245,200,66,0.85)",2);
   dd(res.poseLandmarks,"rgba(245,200,66,0.85)",3);
   // Left hand
-  dc(res.leftHandLandmarks,HC2,"rgba(80,208,255,0.9)",1.5);
-  dd(res.leftHandLandmarks,"rgba(80,208,255,0.9)",2.5);
+  dc(res.leftHandLandmarks,HC2,"rgba(94,234,212,0.45)",1.5);
+  dd(res.leftHandLandmarks,"rgba(94,234,212,0.9)",3);if(res.leftHandLandmarks){ctx.fillStyle="rgba(94,234,212,0.12)";for(const lm of res.leftHandLandmarks){ctx.beginPath();ctx.arc(...pt(lm),7,0,Math.PI*2);ctx.fill();}}
   // Right hand
-  dc(res.rightHandLandmarks,HC2,"rgba(120,255,120,0.9)",1.5);
-  dd(res.rightHandLandmarks,"rgba(120,255,120,0.9)",2.5);
+  dc(res.rightHandLandmarks,HC2,"rgba(94,234,212,0.45)",1.5);
+  dd(res.rightHandLandmarks,"rgba(94,234,212,0.9)",3);if(res.rightHandLandmarks){ctx.fillStyle="rgba(94,234,212,0.12)";for(const lm of res.rightHandLandmarks){ctx.beginPath();ctx.arc(...pt(lm),7,0,Math.PI*2);ctx.fill();}}
 }
 
 // Send video frames to holistic when camera is active
@@ -2016,6 +2336,109 @@ function startSkelOverlay(){
     try{await holistic.send({image:v});}catch(e){}
   },100);
 }
+// -- Real Emotion Detection via face-api.js --
+let faceApiReady = false;
+let emotionInterval = null;
+
+async function initFaceApi() {
+  if (typeof faceapi === 'undefined') {
+    console.warn('[Emotion] face-api.js not loaded');
+    return;
+  }
+  try {
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+    ]);
+    faceApiReady = true;
+    console.log('[Emotion] face-api.js models loaded');
+  } catch (e) {
+    console.warn('[Emotion] Failed to load models:', e);
+    // Fallback: try alternate CDN
+    try {
+      const ALT_URL = 'https://raw.githubusercontent.com/nicolo-ribaudo/face-api.js-models/master/';
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(ALT_URL),
+        faceapi.nets.faceExpressionNet.loadFromUri(ALT_URL)
+      ]);
+      faceApiReady = true;
+      console.log('[Emotion] face-api.js models loaded (alt CDN)');
+    } catch (e2) {
+      console.warn('[Emotion] Alt CDN also failed:', e2);
+    }
+  }
+}
+
+// Map face-api emotions to our panel labels
+function mapEmotion(expressions) {
+  if (!expressions) return 'neutral';
+  // face-api: angry, disgusted, fearful, happy, neutral, sad, surprised
+  // Our panel: happy, sad, neutral, angry, question
+  const mapping = {
+    happy: 'happy',
+    sad: 'sad',
+    neutral: 'neutral',
+    angry: 'angry',
+    surprised: 'question',
+    fearful: 'sad',
+    disgusted: 'angry'
+  };
+  // Find the dominant emotion
+  let maxVal = 0;
+  let maxKey = 'neutral';
+  for (const [key, val] of Object.entries(expressions)) {
+    if (val > maxVal) {
+      maxVal = val;
+      maxKey = key;
+    }
+  }
+  return { emotion: mapping[maxKey] || 'neutral', confidence: maxVal };
+}
+
+async function detectEmotion() {
+  if (!faceApiReady || !liveActive) return;
+  const video = document.getElementById('wc-video');
+  if (!video || !video.videoWidth) return;
+
+  try {
+    const detection = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+      .withFaceExpressions();
+
+    if (detection) {
+      const { emotion, confidence } = mapEmotion(detection.expressions);
+      
+      // Only update if confidence is meaningful
+      if (confidence > 0.3) {
+        lvSetEmo(emotion);
+        lvSetPipe('emo');
+      }
+
+      // Show emotion panel
+      const emoPanel = document.getElementById('lv-emo');
+      if (emoPanel) emoPanel.style.display = '';
+    }
+  } catch (e) {
+    // Silently ignore detection errors
+  }
+}
+
+function startEmotionDetection() {
+  initFaceApi().then(() => {
+    if (emotionInterval) clearInterval(emotionInterval);
+    emotionInterval = setInterval(detectEmotion, 600);
+    console.log('[Emotion] Detection loop started (600ms)');
+  });
+}
+
+function stopEmotionDetection() {
+  if (emotionInterval) {
+    clearInterval(emotionInterval);
+    emotionInterval = null;
+  }
+}
+
 function stopSkelOverlay(){
   if(skelInterval){clearInterval(skelInterval);skelInterval=null;}
   const sk=document.getElementById("wc-skel");
