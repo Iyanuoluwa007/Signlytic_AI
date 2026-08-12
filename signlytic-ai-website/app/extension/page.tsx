@@ -7,7 +7,7 @@ const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/release
 
 // Windows desktop build. The main repo is private, so releases are published
 // on the public overlay repo.
-const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.3/Signlytic.AI.Setup.0.3.3.exe";
+const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.4/Signlytic.AI.Setup.0.3.4.exe";
 
 export default function ExtensionPage() {
   // Arriving from another page with a hash (the home page links here as
