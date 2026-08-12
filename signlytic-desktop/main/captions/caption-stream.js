@@ -5,7 +5,7 @@
 // already ships the UI Automation assemblies, so this needs no .NET SDK, no
 // Rust toolchain, no native addon and no build step.
 
-const { spawn } = require("child_process");
+const { spawn, execFile } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const { EventEmitter } = require("events");
@@ -69,6 +69,27 @@ class CaptionStream extends EventEmitter {
     if (!CaptionStream.isLiveCaptionsInstalled()) return false;
     spawn(LIVE_CAPTIONS_EXE, { detached: true, stdio: "ignore" }).unref();
     return true;
+  }
+
+  // True when LiveCaptions.exe already has a process.
+  static isLiveCaptionsRunning() {
+    if (process.platform !== "win32") return Promise.resolve(false);
+    return new Promise((resolve) => {
+      execFile(
+        "tasklist",
+        ["/FI", "IMAGENAME eq LiveCaptions.exe", "/NH"],
+        { windowsHide: true },
+        (err, stdout) => resolve(!err && /LiveCaptions\.exe/i.test(String(stdout)))
+      );
+    });
+  }
+
+  // Start Live Captions only if it is not already up. Launching it when it is
+  // already running would toggle or re-focus it, which is not what someone
+  // pressing "start" expects.
+  static async ensureLiveCaptionsRunning() {
+    if (await CaptionStream.isLiveCaptionsRunning()) return false;
+    return CaptionStream.launchLiveCaptions();
   }
 
   start() {

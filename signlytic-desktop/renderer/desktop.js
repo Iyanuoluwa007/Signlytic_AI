@@ -213,8 +213,33 @@ window.signlytic.captions.capabilities().then((c) => {
   }
 });
 
+// Dev-only: report where the main blocks actually sit, so the signer being
+// above the controls can be checked rather than assumed. The renderer console
+// is mirrored to the app's stdout.
+function reportLayout(tag) {
+  const rect = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { top: Math.round(r.top), bottom: Math.round(r.bottom), h: Math.round(r.height) };
+  };
+  const stage = rect("stage");
+  const controls = rect("controls");
+  const input = rect("manual-input");
+  console.log(
+    "[layout] " + tag +
+    " stage=" + JSON.stringify(stage) +
+    " controls=" + JSON.stringify(controls) +
+    " signerAboveInput=" + (stage && input ? stage.bottom <= input.top : "n/a")
+  );
+}
+
 // ── Boot ────────────────────────────────────────────────────────────────────
 ensure2d();
+if (window.signlytic.layoutDebug) {
+  setTimeout(() => reportLayout("boot"), 800);
+  window.addEventListener("resize", () => reportLayout("resize"));
+}
 window.addEventListener("resize", () => {
   if (engine2d && engine2d.resize) engine2d.resize();
   if (engine3d && engine3d.resize) {
