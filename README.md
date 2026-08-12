@@ -263,7 +263,28 @@ open an issue and it will be taken down.
 
 ---
 
-## License
+## Licence and attribution
 
-MIT covers the source code in this repository. Third-party assets are
-excluded, as described above.
+Signlytic AI is released under the MIT Licence. See [LICENSE](LICENSE) for the
+full text.
+
+Copyright (c) 2025 Oke Iyanuoluwa Enoch.
+
+You are free to use, modify and build on this work, commercially or otherwise.
+The licence asks one thing in return, and it is not optional: **keep the
+copyright notice and the licence text with any copy or substantial portion of
+the software.** That notice is how the work stays credited to its author.
+
+If you fork this project, publish something derived from it, or use it in a
+product, paper or demo, please also credit it visibly and link back here:
+
+> Built on [Signlytic AI](https://github.com/Iyanuoluwa007/Signlytic_AI) by
+> Oke Iyanuoluwa Enoch.
+
+Academic or written work can cite it as:
+
+> Oke, I. E. (2025). *Signlytic AI: real-time English to British Sign Language
+> translation*. https://github.com/Iyanuoluwa007/Signlytic_AI
+
+MIT covers the source code in this repository only. It does not extend to the
+third-party assets described above, which stay under their owners' terms.

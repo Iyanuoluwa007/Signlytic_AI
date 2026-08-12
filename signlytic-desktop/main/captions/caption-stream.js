@@ -11,7 +11,15 @@ const fs = require("fs");
 const { EventEmitter } = require("events");
 const { CaptionAssembler } = require("./caption-assembler");
 
-const SIDECAR = path.join(__dirname, "live-captions.ps1");
+// In a packaged build this file lives inside app.asar. Electron can read that
+// archive, but PowerShell cannot: it is not a real path on disk, so
+// `powershell -File ...\app.asar\main\captions\live-captions.ps1` fails with
+// an argument error and the reader dies immediately. The script is therefore
+// unpacked at build time (see asarUnpack in package.json) and we point at the
+// unpacked copy. Harmless in development, where no asar exists.
+const SIDECAR = path
+  .join(__dirname, "live-captions.ps1")
+  .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 const LIVE_CAPTIONS_EXE = path.join(
   process.env.SystemRoot || "C:\\Windows",
   "System32",

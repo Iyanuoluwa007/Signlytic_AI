@@ -1,6 +1,6 @@
 {
   "name": "signlytic-desktop",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Signlytic AI desktop app - BSL signing avatar for Windows and macOS",
   "author": "Independent Robotics & AI Systems Engineer",
   "license": "UNLICENSED",
@@ -18,6 +18,9 @@
       "main/**/*",
       "renderer/**/*",
       "!**/*.map"
+    ],
+    "asarUnpack": [
+      "main/captions/*.ps1"
     ],
     "win": {
       "target": [

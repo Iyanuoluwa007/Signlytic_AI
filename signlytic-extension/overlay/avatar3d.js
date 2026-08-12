@@ -10,9 +10,13 @@
 //   convert to bone-local quaternions ÔåÆ apply to skeleton bones
 
 // ÔöÇÔöÇÔöÇ CDN / GitHub paths ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// Served through the Signlytic API rather than as public release assets. The
+// avatar models are Mixamo characters and are not licensed for
+// redistribution, so they are not offered as standalone downloads; the API
+// keeps them in a private store and streams them to the app.
 const AVATAR_CDN = {
-  male:   'https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.6/Male.glb',
-  female: 'https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.6/Female.glb',
+  male:   'https://signlytic-ai-website.vercel.app/api/avatar/male',
+  female: 'https://signlytic-ai-website.vercel.app/api/avatar/female',
 };
 
 const BONE_PREFIX = { male: 'mixamorig', female: 'mixamorig' };

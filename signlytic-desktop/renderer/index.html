@@ -91,7 +91,10 @@
     width: 100% !important;
     height: 100% !important;
   }
-  canvas.hidden { display: none; }
+  /* Must out-specify the "#stage canvas" rule above, which sets display:block.
+     A plain ".hidden" loses to it, leaving the 3D canvas painted on top of
+     the 2D one after switching renderer. */
+  #stage canvas.hidden { display: none; }
 
   #glosses {
     display: flex;
