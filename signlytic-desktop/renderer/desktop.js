@@ -30,6 +30,17 @@ function activeEngine() {
   return mode === "3d" ? engine3d : engine2d;
 }
 
+// Both canvases are stretched to the stage by CSS, so their drawing buffers
+// have to match the stage box or the picture comes out stretched. Called
+// whenever the stage can have changed size.
+function fitEngines() {
+  const s = document.getElementById("stage").getBoundingClientRect();
+  const w = Math.max(1, Math.floor(s.width));
+  const h = Math.max(1, Math.floor(s.height));
+  if (engine2d && engine2d.resize) engine2d.resize();
+  if (engine3d && engine3d.resize) engine3d.resize(w, h);
+}
+
 function ensure2d() {
   if (!engine2d) engine2d = new SkeletonRenderer2D(canvas2d, { transparent: true });
   return engine2d;
@@ -45,6 +56,9 @@ async function ensure3d() {
     await a.load();
     if (!a.ready) throw new Error("avatar failed to load");
     engine3d = a;
+    // initScene measured the stage before the canvas was visible, so size it
+    // to the real box now that it is.
+    fitEngines();
     setStatus("3D avatar ready");
     window.signlytic.notifyAvatarReady();
     return a;
@@ -66,6 +80,7 @@ function setMode(next) {
   document.getElementById("mode-2d").classList.toggle("active", next === "2d");
   document.getElementById("mode-3d").classList.toggle("active", next === "3d");
   if (next === "3d") ensure3d(); else ensure2d();
+  setTimeout(fitEngines, 0);
 }
 
 document.getElementById("mode-2d").addEventListener("click", () => setMode("2d"));
@@ -85,14 +100,8 @@ function markPosition(modeName) {
     const el = document.getElementById(id);
     if (el) el.classList.toggle("active", name === modeName);
   }
-  // Canvases are sized from their CSS box, so re-measure after the reshape.
-  setTimeout(() => {
-    if (engine2d && engine2d.resize) engine2d.resize();
-    if (engine3d && engine3d.resize) {
-      const s = document.getElementById("stage").getBoundingClientRect();
-      engine3d.resize(Math.floor(s.width), Math.floor(s.height));
-    }
-  }, 60);
+  // The window changes shape, so re-measure once the new bounds have applied.
+  setTimeout(fitEngines, 60);
 }
 
 for (const [name, id] of Object.entries(POS_BUTTONS)) {
@@ -226,25 +235,32 @@ function reportLayout(tag) {
   const stage = rect("stage");
   const controls = rect("controls");
   const input = rect("manual-input");
+  // A canvas that escapes the stage sits on top of the controls and swallows
+  // their clicks, so check containment rather than only vertical order.
+  const canvases = ["canvas-2d", "canvas-3d"].map((id) => {
+    const el = document.getElementById(id);
+    if (!el) return id + "=missing";
+    const r = el.getBoundingClientRect();
+    const inside = stage ? Math.round(r.bottom) <= stage.bottom + 1 : false;
+    const overlapsControls = controls ? Math.round(r.bottom) > controls.top : false;
+    return id + "={h:" + Math.round(r.height) + ",insideStage:" + inside + ",coversControls:" + overlapsControls + "}";
+  });
   console.log(
     "[layout] " + tag +
     " stage=" + JSON.stringify(stage) +
     " controls=" + JSON.stringify(controls) +
-    " signerAboveInput=" + (stage && input ? stage.bottom <= input.top : "n/a")
+    " signerAboveInput=" + (stage && input ? stage.bottom <= input.top : "n/a") +
+    " " + canvases.join(" ")
   );
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 ensure2d();
+if (window.signlytic.startMode === "3d") setMode("3d");
 if (window.signlytic.layoutDebug) {
   setTimeout(() => reportLayout("boot"), 800);
+  setTimeout(() => reportLayout("after-load"), 12000);
   window.addEventListener("resize", () => reportLayout("resize"));
 }
-window.addEventListener("resize", () => {
-  if (engine2d && engine2d.resize) engine2d.resize();
-  if (engine3d && engine3d.resize) {
-    const s = document.getElementById("stage").getBoundingClientRect();
-    engine3d.resize(Math.floor(s.width), Math.floor(s.height));
-  }
-});
+window.addEventListener("resize", fitEngines);
 setStatus("Ready. Type something, or start Live Captions.");
