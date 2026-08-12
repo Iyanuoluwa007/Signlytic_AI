@@ -230,3 +230,9 @@ bobsl_structure_report.txt
 extension-data/
 
 extension-data/
+
+# Mixamo derived avatar rigs. Licensed for use in this project but not for
+# redistribution, so they are kept out of the repository. The apps load the
+# model at runtime through the site /api/avatar proxy.
+extension-data/avatars/
+*.glb
