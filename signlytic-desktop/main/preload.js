@@ -5,6 +5,9 @@ contextBridge.exposeInMainWorld("signlytic", {
   // Dev switch: set SIGNLYTIC_LAYOUT_DEBUG=1 to have the renderer report
   // where its blocks sit, which is how the layout order gets verified.
   layoutDebug: process.env.SIGNLYTIC_LAYOUT_DEBUG === "1",
+  // Dev switch: SIGNLYTIC_START_MODE=3d boots straight into the 3D renderer,
+  // so its sizing can be checked without driving the UI.
+  startMode: process.env.SIGNLYTIC_START_MODE || "",
 
   // Manual caption fallback: renderer -> main -> back via caption-text
   sendManualText: (text) => ipcRenderer.send("manual-text", text),

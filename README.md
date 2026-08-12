@@ -229,6 +229,41 @@ Independent Robotics & AI Systems Engineer
 
 ---
 
+## Third-party assets and licensing
+
+The MIT licence below covers the code in this repository. It does **not**
+cover third-party assets used while running or developing the project, which
+remain under their own terms.
+
+### 3D avatar models
+
+The 3D avatar models are Mixamo characters and are **not licensed for
+redistribution by this project**. They are used here for rendering and
+research only, and are not offered for download, resale, or redistribution as
+standalone assets. Anyone running this project should obtain their own models
+from Mixamo under an Adobe account and accept Adobe's terms directly:
+https://www.mixamo.com
+
+If a model file appears anywhere in this repository or its history, that is
+unintentional and not an offer to distribute it. Please open an issue and it
+will be removed.
+
+### Other third-party material
+
+The same applies to any other third-party asset that may be present without
+having been excluded: sign language video or pose data derived from
+third-party corpora, pretrained model weights, fonts, icons, and audio. Each
+remains the property of its owner and is subject to that owner's licence.
+Their presence here is incidental to development and is not a grant of any
+right to redistribute them.
+
+Nothing in this repository is intended to distribute third-party assets. If
+you believe something has been included that should not have been, please
+open an issue and it will be taken down.
+
+---
+
 ## License
 
-MIT
+MIT covers the source code in this repository. Third-party assets are
+excluded, as described above.

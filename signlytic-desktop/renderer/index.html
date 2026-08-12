@@ -78,8 +78,19 @@
   /* The signer is the point of the app, so it always sits directly under the
      title bar and above the controls, and never collapses to nothing when the
      window is short. Controls stay pinned below it. */
-  #stage { flex: 1 1 auto; position: relative; min-height: 140px; }
-  #stage canvas { width: 100%; height: 100%; display: block; }
+  #stage { flex: 1 1 auto; position: relative; min-height: 140px; overflow: hidden; }
+  /* Three.js setSize writes inline width/height on the canvas, and an inline
+     style beats a stylesheet rule. Left alone the canvas keeps its own pixel
+     size, spills out of the stage and covers the controls below, which then
+     cannot be clicked. Pinning it to the stage and forcing the size keeps it
+     inside no matter what the renderer writes. */
+  #stage canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
   canvas.hidden { display: none; }
 
   #glosses {
