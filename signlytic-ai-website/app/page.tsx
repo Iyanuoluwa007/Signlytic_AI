@@ -880,7 +880,7 @@ export default function Home() {
                   <span className="text-[11px] text-white/20">
                     Mac app upcoming &middot;{" "}
                     <span className="relative z-10 underline underline-offset-2 hover:text-white/40">
-                      <a href="/extension">see details</a>
+                      <a href="/extension#desktop">see details</a>
                     </span>
                   </span>
                 </div>
