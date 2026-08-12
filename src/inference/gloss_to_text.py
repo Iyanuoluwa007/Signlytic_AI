@@ -61,10 +61,15 @@ class GlossToText:
         self.cerebras_model = "gpt-oss-120b"
         self.cerebras_timeout = 10  # seconds; keep short so a hang falls back fast
         
+        # Built on first use rather than here. Cerebras is the primary provider
+        # and speaks plain HTTP, so it must not be gated behind the fallback's
+        # SDK being installed.
+        self.groq_client = None
+
         if mode == 'llm':
             self._init_local_llm()
         elif mode == 'groq':
-            self._init_groq()
+            self._init_hosted()
     
     def _init_local_llm(self):
         """Initialize local FLAN-T5 model."""
@@ -85,21 +90,62 @@ class GlossToText:
         self.llm_model.to(self.device)
         print(f"FLAN-T5 loaded on {self.device}")
     
-    def _init_groq(self):
-        """Initialize Groq API client."""
-        if not self.groq_api_key:
+    def _init_hosted(self):
+        """
+        Check that at least one hosted provider is usable, without demanding
+        both.
+
+        Cerebras is primary and needs only an API key and requests. Groq is the
+        fallback and needs its SDK installed as well. Requiring the Groq SDK up
+        front meant a machine without it could not use Cerebras at all, even
+        with a valid Cerebras key, because construction failed before the
+        primary was ever tried.
+
+        Only a setup with no usable provider is an error, and it says which
+        piece is missing rather than naming one provider.
+        """
+        cerebras_ok = bool(self.cerebras_api_key)
+        groq_ok = self._init_groq_client()
+
+        if cerebras_ok:
+            print(f"Cerebras ready (model: {self.cerebras_model}, primary)")
+        if groq_ok:
+            print(f"Groq ready (model: {self.groq_model}, fallback)")
+
+        if not cerebras_ok and not groq_ok:
             raise ValueError(
-                "Groq API key required. Set GROQ_API_KEY environment variable "
-                "or pass groq_api_key parameter."
+                "No hosted provider is usable. Set CEREBRAS_API_KEY for the "
+                "primary provider, or set GROQ_API_KEY and install the Groq "
+                "SDK (pip install groq) for the fallback."
             )
-        
+
+        if not cerebras_ok:
+            print("[LLM] No Cerebras key; the Groq fallback will serve every request")
+        if not groq_ok:
+            print("[LLM] Groq fallback unavailable; a Cerebras failure will fall "
+                  "through to rule-based output")
+
+    def _init_groq_client(self) -> bool:
+        """
+        Build the Groq client if it can be built. Returns whether it is usable.
+
+        Never raises: a missing key or a missing SDK simply means no fallback,
+        which is reported by the caller rather than being fatal.
+        """
+        if self.groq_client is not None:
+            return True
+        if not self.groq_api_key:
+            return False
         try:
             from groq import Groq
         except ImportError:
-            raise ImportError("Groq required. Install with: pip install groq")
-        
-        self.groq_client = Groq(api_key=self.groq_api_key)
-        print(f"Groq client initialized (model: {self.groq_model})")
+            return False
+        try:
+            self.groq_client = Groq(api_key=self.groq_api_key)
+        except Exception:
+            self.groq_client = None
+            return False
+        return True
     
     def _simple_convert(self, glosses: List[str]) -> str:
         """
@@ -290,7 +336,12 @@ Your task: Convert the BSL glosses into a natural, grammatically correct English
         except Exception as e:
             print(f"[LLM] Cerebras error ({type(e).__name__}): {e}, falling back to Groq")
 
-        # Fallback: Groq
+        # Fallback: Groq. Built on demand, so a run whose Cerebras calls all
+        # succeed never needs the SDK present at all.
+        if not self._init_groq_client():
+            print("[LLM] No Groq fallback available, using rule-based output")
+            return self._simple_convert(glosses)
+
         try:
             response = self.groq_client.chat.completions.create(
                 model=self.groq_model,
@@ -307,7 +358,9 @@ Your task: Convert the BSL glosses into a natural, grammatically correct English
             return self._finalize_sentence(result)
 
         except Exception as e:
-            print(f"Groq API error: {e}")
+            # Both hosted providers are gone, so the sentence quality drops
+            # sharply. Say so plainly rather than returning quietly.
+            print(f"[LLM] Groq error ({type(e).__name__}): {e}, using rule-based output")
             return self._simple_convert(glosses)
     
     def convert(self, glosses: List[str]) -> str:
