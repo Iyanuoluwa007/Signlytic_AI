@@ -139,6 +139,46 @@ speedEl.addEventListener("change", async () => {
   setStatus("Signing speed " + next + "x");
 });
 
+// ── Settings panel ──────────────────────────────────────────────────────────
+// Renderer and position used to sit in the title bar, which left it crowded
+// and unreadable at the snapped width of 420px. They live behind the gear now,
+// so the title bar carries the title and the window buttons and nothing else.
+const settingsBtn = document.getElementById("settings-btn");
+const settingsPanel = document.getElementById("settings");
+
+function setSettingsOpen(open) {
+  settingsPanel.classList.toggle("open", open);
+  settingsBtn.classList.toggle("open", open);
+  settingsBtn.setAttribute("aria-expanded", String(open));
+}
+
+settingsBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setSettingsOpen(!settingsPanel.classList.contains("open"));
+});
+
+// Clicking anywhere else closes it, the way a menu is expected to behave.
+// Clicks inside the panel must not, or choosing a setting would shut it.
+settingsPanel.addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", () => setSettingsOpen(false));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") setSettingsOpen(false);
+});
+
+// ── Microphone audio option ─────────────────────────────────────────────────
+const micCheck = document.getElementById("mic-audio");
+
+micCheck.addEventListener("change", async () => {
+  const res = await window.signlytic.captions.setMicAudio(micCheck.checked);
+  const on = res ? res.enabled : micCheck.checked;
+  micCheck.checked = on;
+  setStatus(
+    on
+      ? "Microphone audio will be switched on with captions"
+      : "Microphone audio left as Live Captions has it"
+  );
+});
+
 document.getElementById("win-min").addEventListener("click", () => window.signlytic.window.minimise());
 document.getElementById("win-close").addEventListener("click", () => window.signlytic.window.close());
 
@@ -245,7 +285,16 @@ window.signlytic.captions.capabilities().then((c) => {
   if (!c.supported) {
     capBtn.disabled = true;
     capBtn.title = c.reason || "System captions not available";
+    // The microphone option only means anything through Live Captions, so on a
+    // platform without it the control is shown greyed rather than offered.
+    micCheck.disabled = true;
+    micCheck.closest(".set-check").classList.add("disabled");
+    micCheck.closest(".set-check").title = c.reason || "System captions not available";
   }
+});
+
+window.signlytic.captions.getMicAudio().then((m) => {
+  micCheck.checked = m ? m.enabled !== false : true;
 });
 
 // Dev-only: report where the main blocks actually sit, so the signer being
@@ -293,6 +342,7 @@ window.signlytic.speed.get().then((s) => {
 
 ensure2d();
 if (window.signlytic.startMode === "3d") setMode("3d");
+if (window.signlytic.openSettings) setSettingsOpen(true);
 if (window.signlytic.layoutDebug) {
   setTimeout(() => reportLayout("boot"), 800);
   setTimeout(() => reportLayout("after-load"), 12000);

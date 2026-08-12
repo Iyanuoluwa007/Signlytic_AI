@@ -202,6 +202,23 @@ ipcMain.handle("speed-set", (_e, value) => {
   return { ok: true, speed };
 });
 
+// Whether to switch on "Include microphone audio" in Live Captions when
+// captions start. On by default, because that is what makes speech from a call
+// or from the room get signed, but it also means the user's own microphone is
+// captioned, so it has to be refusable.
+function micAudioEnabled() {
+  const v = readPrefs().micAudio;
+  return v === undefined ? true : !!v;
+}
+
+ipcMain.handle("mic-audio-get", () => ({ enabled: micAudioEnabled() }));
+
+ipcMain.handle("mic-audio-set", (_e, value) => {
+  const enabled = !!value;
+  writePrefs({ micAudio: enabled });
+  return { ok: true, enabled };
+});
+
 ipcMain.handle("window-minimise", () => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
   return { ok: true };
@@ -228,22 +245,27 @@ ipcMain.handle("captions-start", async () => {
 
   // Live Captions resets "Include microphone audio" to off every time it
   // starts, so it is switched on here rather than left to the user to find in
-  // its settings menu on each run.
+  // its settings menu on each run. Off in settings means leave it alone
+  // entirely: the option is never touched, in either direction.
   //
   // Deliberately not awaited. Driving another app's menus takes a couple of
   // seconds, and holding the reply that long would leave the button looking
   // stuck. Captions are already flowing by then, and the result arrives as a
   // status message.
-  CaptionStream.enableMicrophoneAudio().then((res) => {
-    console.log("[captions] microphone: " + (res.ok ? "ok" : "failed") + " - " + res.detail);
-    if (!res.ok) {
-      sendCaptionStatus({
-        running: stream.running,
-        state: "notice",
-        detail: "Could not switch on microphone audio in Live Captions; turn it on under Settings, Preferences",
-      });
-    }
-  });
+  if (micAudioEnabled()) {
+    CaptionStream.enableMicrophoneAudio().then((res) => {
+      console.log("[captions] microphone: " + (res.ok ? "ok" : "failed") + " - " + res.detail);
+      if (!res.ok) {
+        sendCaptionStatus({
+          running: stream.running,
+          state: "notice",
+          detail: "Could not switch on microphone audio in Live Captions; turn it on under Settings, Preferences",
+        });
+      }
+    });
+  } else {
+    console.log("[captions] microphone: skipped, turned off in settings");
+  }
 
   return { ok: true, launched };
 });
@@ -289,9 +311,13 @@ app.whenReady().then(() => {
     ensureCaptionStream().start();
     // Same as pressing the button, so the headless run exercises the whole
     // start path rather than a shortcut through it.
-    CaptionStream.enableMicrophoneAudio().then((res) => {
-      console.log("[captions] microphone: " + (res.ok ? "ok" : "failed") + " - " + res.detail);
-    });
+    if (micAudioEnabled()) {
+      CaptionStream.enableMicrophoneAudio().then((res) => {
+        console.log("[captions] microphone: " + (res.ok ? "ok" : "failed") + " - " + res.detail);
+      });
+    } else {
+      console.log("[captions] microphone: skipped, turned off in settings");
+    }
   }
   // Dev-only: push a sentence through the same path a caption takes, so the
   // text -> glosses -> signs -> playback chain can be exercised headlessly.
