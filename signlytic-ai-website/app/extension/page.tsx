@@ -2,7 +2,11 @@
 
 import Signable from "@/components/Signable";
 
-const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.5/signlytic-extension.zip";
+const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.6/signlytic-extension.zip";
+
+// Windows desktop build. The main repo is private, so releases are published
+// on the public overlay repo.
+const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.2.0/Signlytic.AI.Setup.0.2.0.exe";
 
 export default function ExtensionPage() {
   return (
@@ -72,7 +76,7 @@ export default function ExtensionPage() {
               className="inline-flex items-center gap-2.5 bg-[#0e7c6b] hover:bg-[#0e7c6b]/90 text-white font-semibold px-7 py-3 rounded-xl text-[14px] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(14,124,107,0.35)]"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Beta - v0.3.5
+              Download Beta - v0.3.6
             </a>
             <a
               href="https://github.com/Iyanuoluwa007/Signlytic-Overlay"
@@ -181,6 +185,57 @@ export default function ExtensionPage() {
               </div>
               <h3 className="text-[14px] font-semibold text-white/80 mb-1">3D Avatar</h3>
               <p className="text-[12px] text-white/30 leading-relaxed"><Signable text="Full 3D Mixamo avatar driven by pose landmarks.">Full 3D Mixamo avatar driven by pose landmarks via Three.js.</Signable> More expressive with finger-level detail.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Desktop app */}
+      <section className="border-t border-white/[0.04] py-16">
+        <div className="max-w-[680px] mx-auto px-6">
+          <div className="text-center mb-8">
+            <div className="text-[10px] font-bold text-[#0e7c6b] uppercase tracking-[0.14em] mb-3">Desktop</div>
+            <h2 className="text-[1.4rem] font-bold text-white tracking-[-0.02em] mb-3">
+              <Signable text="Beyond the browser">Beyond the browser</Signable>
+            </h2>
+            <p className="text-[13px] text-white/30 leading-relaxed max-w-md mx-auto">
+              <Signable text="The desktop app signs what your whole computer is saying, not just your browser tabs.">
+                The desktop app signs what your whole computer is saying, not just your browser tabs.
+              </Signable>{" "}
+              <Signable text="It reads Windows Live Captions, so it works with video calls and desktop apps.">
+                It reads Windows Live Captions, so it works with video calls and desktop apps.
+              </Signable>
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <a
+              href={DESKTOP_WINDOWS_URL}
+              className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 hover:border-[#0e7c6b]/30 transition-all group flex flex-col"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="text-[10px] font-bold text-[#0e7c6b] uppercase tracking-[0.14em]">Beta Available</div>
+              </div>
+              <h3 className="text-[14px] font-semibold text-white/85 mb-1 group-hover:text-white transition-colors">Windows</h3>
+              <p className="text-[12px] text-white/30 leading-relaxed mb-4">
+                Windows 11 with Live Captions. Installer is unsigned, so choose More info then Run anyway.
+              </p>
+              <span className="mt-auto text-[12px] text-[#0e7c6b]/70 font-medium group-hover:text-[#0e7c6b] transition-colors">
+                Download for Windows &#8594;
+              </span>
+            </a>
+
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 opacity-60 flex flex-col">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.14em]">Upcoming</div>
+              </div>
+              <h3 className="text-[14px] font-semibold text-white/85 mb-1">macOS</h3>
+              <p className="text-[12px] text-white/30 leading-relaxed mb-4">
+                The Mac app is upcoming. Caption capture on macOS uses a different system interface and is still being built.
+              </p>
+              <span className="mt-auto text-[12px] text-white/15 font-medium">
+                In development &#8594;
+              </span>
             </div>
           </div>
         </div>
