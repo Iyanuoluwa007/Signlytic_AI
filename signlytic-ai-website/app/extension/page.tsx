@@ -190,54 +190,66 @@ export default function ExtensionPage() {
         </div>
       </section>
 
-      {/* Desktop app */}
-      <section className="border-t border-white/[0.04] py-16">
-        <div className="max-w-[680px] mx-auto px-6">
-          <div className="text-center mb-8">
-            <div className="text-[10px] font-bold text-[#0e7c6b] uppercase tracking-[0.14em] mb-3">Desktop</div>
-            <h2 className="text-[1.4rem] font-bold text-white tracking-[-0.02em] mb-3">
-              <Signable text="Beyond the browser">Beyond the browser</Signable>
-            </h2>
-            <p className="text-[13px] text-white/30 leading-relaxed max-w-md mx-auto">
-              <Signable text="The desktop app signs what your whole computer is saying, not just your browser tabs.">
-                The desktop app signs what your whole computer is saying, not just your browser tabs.
-              </Signable>{" "}
-              <Signable text="It reads Windows Live Captions, so it works with video calls and desktop apps.">
-                It reads Windows Live Captions, so it works with video calls and desktop apps.
-              </Signable>
-            </p>
+      {/* Desktop app - given the same weight as the extension hero above */}
+      <section className="border-t border-white/[0.04] py-20 md:py-28">
+        <div className="max-w-[820px] mx-auto px-6 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0e7c6b]/10 border border-[#0e7c6b]/20 mb-8">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#5eead4] shadow-[0_0_6px_rgba(94,234,212,0.7)] animate-pulse" />
+            <span className="text-[11px] font-semibold text-[#5eead4] tracking-wide uppercase">Desktop Beta</span>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          {/* Icon */}
+          <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-8">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5eead4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <path d="M8 21h8"/>
+              <path d="M12 17v4"/>
+            </svg>
+          </div>
+
+          <h2 className="text-[clamp(1.8rem,4.5vw,2.8rem)] font-bold text-white leading-[1.1] tracking-[-0.03em] mb-5">
+            <Signable text="BSL signing beyond the browser">
+              BSL signing
+              <br />
+              <span className="text-[#5eead4]">beyond the browser</span>
+            </Signable>
+          </h2>
+
+          <p className="text-white/35 text-[16px] leading-relaxed max-w-lg mx-auto mb-10">
+            <Signable text="The desktop app signs what your whole computer is saying, not just your browser tabs.">
+              The desktop app signs what your whole computer is saying, not just your browser tabs.
+            </Signable>{" "}
+            <Signable text="It reads Windows Live Captions, so it works with video calls and desktop apps.">
+              It reads Windows Live Captions, so it works with video calls and desktop apps.
+            </Signable>
+          </p>
+
+          {/* How it works */}
+          <div className="flex items-center justify-center gap-2 mb-12 text-[12px] text-white/20 flex-wrap">
+            <span className="px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-lg">Any app audio</span>
+            <span>&#8594;</span>
+            <span className="px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-lg">Windows Live Captions</span>
+            <span>&#8594;</span>
+            <span className="px-3 py-1.5 bg-[#0e7c6b]/10 border border-[#0e7c6b]/20 rounded-lg text-[#5eead4]">BSL signing avatar</span>
+          </div>
+
+          {/* Download CTA */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
             <a
               href={DESKTOP_WINDOWS_URL}
-              className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 hover:border-[#0e7c6b]/30 transition-all group flex flex-col"
+              className="inline-flex items-center gap-2.5 bg-[#0e7c6b] hover:bg-[#0e7c6b]/90 text-white font-semibold px-7 py-3 rounded-xl text-[14px] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(14,124,107,0.35)]"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="text-[10px] font-bold text-[#0e7c6b] uppercase tracking-[0.14em]">Beta Available</div>
-              </div>
-              <h3 className="text-[14px] font-semibold text-white/85 mb-1 group-hover:text-white transition-colors">Windows</h3>
-              <p className="text-[12px] text-white/30 leading-relaxed mb-4">
-                Windows 11 with Live Captions. Installer is unsigned, so choose More info then Run anyway.
-              </p>
-              <span className="mt-auto text-[12px] text-[#0e7c6b]/70 font-medium group-hover:text-[#0e7c6b] transition-colors">
-                Download for Windows &#8594;
-              </span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download for Windows
             </a>
-
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 opacity-60 flex flex-col">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="text-[10px] font-bold text-white/20 uppercase tracking-[0.14em]">Upcoming</div>
-              </div>
-              <h3 className="text-[14px] font-semibold text-white/85 mb-1">macOS</h3>
-              <p className="text-[12px] text-white/30 leading-relaxed mb-4">
-                The Mac app is upcoming. Caption capture on macOS uses a different system interface and is still being built.
-              </p>
-              <span className="mt-auto text-[12px] text-white/15 font-medium">
-                In development &#8594;
-              </span>
-            </div>
+            <span className="inline-flex items-center gap-2 border border-white/[0.08] text-white/25 font-medium px-5 py-3 rounded-xl text-[13px]">
+              Mac app upcoming
+            </span>
           </div>
+
+          <p className="text-[11px] text-white/20">
+            Windows 11 with Live Captions &middot; Unsigned installer, choose More info then Run anyway &middot; Free
+          </p>
         </div>
       </section>
 
