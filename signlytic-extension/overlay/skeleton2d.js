@@ -40,6 +40,8 @@ class SkeletonRenderer2D {
     this.ctx    = canvas.getContext('2d');
     this.speed  = options.speed || 1.0;
     this._sizeProvider = options.sizeProvider || null;
+    // Draw on a clear background so the host can sit over other windows.
+    this.transparent = options.transparent === true;
     this._normaliser = (options.normalise === false || !window.PoseNormaliser)
       ? null
       : new window.PoseNormaliser();
@@ -74,6 +76,7 @@ class SkeletonRenderer2D {
   clear() {
     const { W, H } = this._syncSize();
     this.ctx.clearRect(0, 0, W, H);
+    if (this.transparent) return;
     this.ctx.fillStyle = SK2D.BG;
     this.ctx.fillRect(0, 0, W, H);
   }
@@ -83,8 +86,10 @@ class SkeletonRenderer2D {
     const ctx = this.ctx;
     const { W, H } = this._syncSize();
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = SK2D.BG;
-    ctx.fillRect(0, 0, W, H);
+    if (!this.transparent) {
+      ctx.fillStyle = SK2D.BG;
+      ctx.fillRect(0, 0, W, H);
+    }
     if (!gloss) return;
 
     const letters = String(gloss).toUpperCase().split('');
@@ -125,8 +130,10 @@ class SkeletonRenderer2D {
     const ctx = this.ctx;
     const { W, H } = this._syncSize();
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = SK2D.BG;
-    ctx.fillRect(0, 0, W, H);
+    if (!this.transparent) {
+      ctx.fillStyle = SK2D.BG;
+      ctx.fillRect(0, 0, W, H);
+    }
     if (!frame) { this.drawFingerspell(currentGloss); return; }
 
     const pt = (lms, i) => (lms && lms[i]) ? { x: lms[i][0] * W, y: lms[i][1] * H } : null;
