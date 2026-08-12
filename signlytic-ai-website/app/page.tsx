@@ -6,7 +6,7 @@ import Signable from "@/components/Signable";
 // Published on the public overlay repo: the main repo is private, so its
 // release assets are not publicly downloadable.
 const DESKTOP_WINDOWS_URL =
-  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.4/Signlytic.AI.Setup.0.3.4.exe";
+  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.5/Signlytic.AI.Setup.0.3.5.exe";
 
 /* ═══════════════════════════════════════
    SCROLL ANIMATION SYSTEM
