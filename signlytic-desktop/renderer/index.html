@@ -20,6 +20,8 @@
 
   #panel {
     height: 100%;
+    /* Containing block for the settings overlay below. */
+    position: relative;
     display: flex;
     flex-direction: column;
     background: rgba(8, 11, 18, 0.82);
@@ -74,6 +76,76 @@
   }
   .winbtn:hover { background: rgba(255,255,255,0.08); color: #fff; }
   .winbtn.danger:hover { background: #7c1d1d; color: #fff; }
+  /* The gear is an inline SVG so it inherits the button colour and stays crisp
+     at any scaling, and so the title bar carries no text label for it. */
+  #settings-btn { display: inline-flex; align-items: center; padding: 3px 6px; }
+  #settings-btn.open { background: rgba(255,255,255,0.10); color: #5eead4; }
+
+  /* Settings overlay. Anchored under the title bar and floated above the
+     stage, so opening it never resizes the signer. */
+  #settings {
+    display: none;
+    position: absolute;
+    top: 32px;
+    right: 6px;
+    left: 6px;
+    z-index: 20;
+    -webkit-app-region: no-drag;
+    background: rgba(12, 17, 25, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+    padding: 8px;
+    max-height: calc(100% - 44px);
+    overflow-y: auto;
+  }
+  #settings.open { display: block; }
+
+  /* Label above its control, in every row. The five position buttons cannot
+     sit beside a label at the snapped width of 420px, and mixing the two
+     arrangements left the panel looking misaligned. */
+  .set-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+    padding: 4px 2px 6px;
+  }
+  .set-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6fa3b8;
+  }
+  /* flex-basis 0 rather than auto, so the buttons come out equal width instead
+     of being sized by their labels ("Bot L" against "Float"). */
+  .set-row .seg button { flex: 1 1 0; padding: 5px 6px; }
+
+  .set-sep {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 8px 2px 6px;
+  }
+
+  .set-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px;
+    font-size: 12px;
+    color: #d7e2ea;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+  }
+  .set-check input { accent-color: #0e7c6b; width: 14px; height: 14px; cursor: pointer; }
+  .set-note {
+    margin: 4px 2px 2px;
+    font-size: 10px;
+    line-height: 1.45;
+    color: #6b8798;
+  }
+  .set-check.disabled, .set-check.disabled + .set-note { opacity: 0.45; cursor: default; }
 
   /* The signer is the point of the app, so it always sits directly under the
      title bar and above the controls, and never collapses to nothing when the
@@ -169,20 +241,51 @@
 <div id="panel">
   <div id="titlebar">
     <span id="title">Signlytic AI</span>
-    <div class="seg" id="mode-seg" title="Renderer">
-      <button id="mode-2d" class="active">2D</button>
-      <button id="mode-3d">3D</button>
-    </div>
-    <div class="seg" id="pos-seg" title="Where the window sits">
-      <button id="pos-top-left">Top L</button>
-      <button id="pos-top-right">Top R</button>
-      <button id="pos-bottom-left">Bot L</button>
-      <button id="pos-bottom-right">Bot R</button>
-      <button id="pos-float" class="active">Float</button>
-    </div>
     <span class="spacer"></span>
+    <button class="winbtn" id="settings-btn" title="Settings"
+            aria-label="Settings" aria-haspopup="dialog" aria-expanded="false">
+      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M8 5.4a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2zm0 4.1a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+        <path fill="currentColor" d="M14 8c0-.36-.03-.71-.09-1.05l1.32-.98-1.4-2.42-1.53.6a5.9 5.9 0 0 0-1.82-1.05L10.24 1.5H7.44l-.24 1.6a5.9 5.9 0 0 0-1.82 1.05l-1.53-.6-1.4 2.42 1.32.98a6.1 6.1 0 0 0 0 2.1l-1.32.98 1.4 2.42 1.53-.6c.54.45 1.16.81 1.82 1.05l.24 1.6h2.8l.24-1.6a5.9 5.9 0 0 0 1.82-1.05l1.53.6 1.4-2.42-1.32-.98c.06-.34.09-.69.09-1.05zm-1.63 1.5.24.62 1 .74-.4.7-1.16-.46-.5.44c-.44.38-.95.68-1.5.87l-.63.22-.18 1.21h-.8l-.18-1.21-.63-.22a4.8 4.8 0 0 1-1.5-.87l-.5-.44-1.16.46-.4-.7 1-.74.24-.62a5 5 0 0 1 0-1.72l-.24-.62-1-.74.4-.7 1.16.46.5-.44c.44-.38.95-.68 1.5-.87l.63-.22.18-1.21h.8l.18 1.21.63.22c.55.19 1.06.49 1.5.87l.5.44 1.16-.46.4.7-1 .74-.24.62a5 5 0 0 1 0 1.72z"/>
+      </svg>
+    </button>
     <button class="winbtn" id="win-min" title="Minimise">&#8211;</button>
     <button class="winbtn danger" id="win-close" title="Close">&#215;</button>
+  </div>
+
+  <!-- Opened from the gear. Overlays the stage rather than pushing the layout
+       around, so the signer never jumps when settings are opened. -->
+  <div id="settings" role="dialog" aria-label="Settings" aria-modal="false">
+    <div class="set-row">
+      <span class="set-label">Renderer</span>
+      <div class="seg" id="mode-seg">
+        <button id="mode-2d" class="active">2D</button>
+        <button id="mode-3d">3D</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <span class="set-label">Position</span>
+      <div class="seg" id="pos-seg">
+        <button id="pos-top-left">Top L</button>
+        <button id="pos-top-right">Top R</button>
+        <button id="pos-bottom-left">Bot L</button>
+        <button id="pos-bottom-right">Bot R</button>
+        <button id="pos-float" class="active">Float</button>
+      </div>
+    </div>
+
+    <div class="set-sep"></div>
+
+    <label class="set-check" for="mic-audio">
+      <input type="checkbox" id="mic-audio" checked>
+      <span>Include microphone audio</span>
+    </label>
+    <p class="set-note" id="mic-note">
+      Live Captions forgets this option every time it starts, so the app sets it
+      for you. It adds your own microphone as a caption source, so your side of
+      a conversation is signed too. Turn it off to leave the option untouched.
+    </p>
   </div>
 
   <div id="stage">

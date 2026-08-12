@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld("signlytic", {
   // Dev switch: SIGNLYTIC_START_MODE=3d boots straight into the 3D renderer,
   // so its sizing can be checked without driving the UI.
   startMode: process.env.SIGNLYTIC_START_MODE || "",
+  // Dev switch: SIGNLYTIC_OPEN_SETTINGS=1 opens the settings panel at boot, so
+  // its layout can be captured and checked at each window size.
+  openSettings: process.env.SIGNLYTIC_OPEN_SETTINGS === "1",
 
   // Manual caption fallback: renderer -> main -> back via caption-text
   sendManualText: (text) => ipcRenderer.send("manual-text", text),
@@ -34,6 +37,10 @@ contextBridge.exposeInMainWorld("signlytic", {
 
   // Windows Live Captions
   captions: {
+    // Whether starting captions should also switch on "Include microphone
+    // audio" in Live Captions.
+    getMicAudio: () => ipcRenderer.invoke("mic-audio-get"),
+    setMicAudio: (value) => ipcRenderer.invoke("mic-audio-set", value),
     capabilities: () => ipcRenderer.invoke("captions-capabilities"),
     start: () => ipcRenderer.invoke("captions-start"),
     stop: () => ipcRenderer.invoke("captions-stop"),
