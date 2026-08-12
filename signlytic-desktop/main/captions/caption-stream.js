@@ -17,9 +17,13 @@ const { CaptionAssembler } = require("./caption-assembler");
 // an argument error and the reader dies immediately. The script is therefore
 // unpacked at build time (see asarUnpack in package.json) and we point at the
 // unpacked copy. Harmless in development, where no asar exists.
-const SIDECAR = path
-  .join(__dirname, "live-captions.ps1")
-  .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+const unpacked = (name) =>
+  path
+    .join(__dirname, name)
+    .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+
+const SIDECAR = unpacked("live-captions.ps1");
+const MIC_SCRIPT = unpacked("enable-microphone.ps1");
 const LIVE_CAPTIONS_EXE = path.join(
   process.env.SystemRoot || "C:\\Windows",
   "System32",
@@ -98,6 +102,63 @@ class CaptionStream extends EventEmitter {
   static async ensureLiveCaptionsRunning() {
     if (await CaptionStream.isLiveCaptionsRunning()) return false;
     return CaptionStream.launchLiveCaptions();
+  }
+
+  // Switch on "Include microphone audio" in Live Captions.
+  //
+  // Best effort on purpose. Live Captions keeps this preference to itself, with
+  // no documented API or registry key, so the only way in is UI Automation
+  // against its settings menu. A future Windows build could rename or move the
+  // item, so this must never be allowed to block or break the reader: it runs
+  // as its own short-lived process, is capped by a timeout, and every failure
+  // resolves rather than throws.
+  static enableMicrophoneAudio(timeoutMs = 12000) {
+    if (process.platform !== "win32") {
+      return Promise.resolve({ ok: false, detail: "not Windows" });
+    }
+    return new Promise((resolve) => {
+      let settled = false;
+      const done = (result) => {
+        if (settled) return;
+        settled = true;
+        resolve(result);
+      };
+
+      const proc = spawn(
+        "powershell.exe",
+        [
+          "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+          "-File", MIC_SCRIPT,
+        ],
+        { windowsHide: true }
+      );
+
+      // The script drives another app's menus, so a hang is conceivable. Cap it
+      // and move on rather than leaving the user's click unanswered.
+      const timer = setTimeout(() => {
+        try { proc.kill(); } catch { }
+        done({ ok: false, detail: "timed out" });
+      }, timeoutMs);
+
+      let out = "";
+      proc.stdout.setEncoding("utf8");
+      proc.stdout.on("data", (d) => { out += d; });
+      proc.on("error", () => {
+        clearTimeout(timer);
+        done({ ok: false, detail: "could not run the helper" });
+      });
+      proc.on("exit", () => {
+        clearTimeout(timer);
+        let rec = null;
+        for (const line of out.split("\n")) {
+          const t = line.trim();
+          if (!t) continue;
+          try { rec = JSON.parse(t); } catch { }
+        }
+        if (rec && rec.status === "ok") done({ ok: true, detail: rec.detail });
+        else done({ ok: false, detail: (rec && rec.detail) || "could not set the option" });
+      });
+    });
   }
 
   start() {
