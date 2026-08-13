@@ -19,11 +19,14 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
+
+import hmac
+import threading
 
 import numpy as np
 import uvicorn
-from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -36,6 +39,80 @@ sys.path.insert(0, str(project_root / "scripts"))
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(title="Signlytic AI", version="2.0")
+
+
+# ── Access control ────────────────────────────────────────────────────────────
+# This server was written to run on localhost, where anything reaching it is
+# already you. Exposing it to a network changes that completely, so two things
+# are guarded here:
+#
+#   Destructive endpoints (shutdown) require an admin token, always.
+#   Expensive endpoints (video, audio, live frames) are rate limited per client,
+#   because they occupy the GPU and spend LLM quota.
+#
+# Deliberately dependency free: no slowapi, no auth library. A demo box on a
+# free tier should not need a package install to be safe.
+
+ADMIN_TOKEN = os.environ.get("SIGNLYTIC_ADMIN_TOKEN", "").strip()
+
+# Requests per window, per client IP, for the endpoints that cost real compute.
+RATE_LIMIT_REQUESTS = int(os.environ.get("SIGNLYTIC_RATE_LIMIT", "20"))
+RATE_LIMIT_WINDOW_SECONDS = 60.0
+
+_rate_state: Dict[str, list] = {}
+_rate_lock = threading.Lock()
+
+
+def _client_key(request: Request) -> str:
+    # Behind a tunnel or reverse proxy every request arrives from the proxy, so
+    # the forwarded header is the only thing that distinguishes callers. It is
+    # client controlled and therefore spoofable: this is throttling to keep one
+    # careless user from monopolising the box, not a security boundary.
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def rate_limit(request: Request) -> None:
+    """Allow RATE_LIMIT_REQUESTS per client per minute, or return 429."""
+    if RATE_LIMIT_REQUESTS <= 0:
+        return
+    key = _client_key(request)
+    now = time.time()
+    cutoff = now - RATE_LIMIT_WINDOW_SECONDS
+    with _rate_lock:
+        hits = [t for t in _rate_state.get(key, []) if t > cutoff]
+        if len(hits) >= RATE_LIMIT_REQUESTS:
+            retry = int(hits[0] + RATE_LIMIT_WINDOW_SECONDS - now) + 1
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many requests. Try again in {retry}s.",
+                headers={"Retry-After": str(retry)},
+            )
+        hits.append(now)
+        _rate_state[key] = hits
+        # Drop idle clients so a long-running server does not accumulate keys.
+        if len(_rate_state) > 4096:
+            for k in [k for k, v in _rate_state.items() if not [t for t in v if t > cutoff]]:
+                _rate_state.pop(k, None)
+
+
+def require_admin(request: Request) -> None:
+    """Gate destructive endpoints behind a shared token."""
+    if not ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=403,
+            detail="Disabled. Set SIGNLYTIC_ADMIN_TOKEN to enable admin endpoints.",
+        )
+    supplied = (
+        request.headers.get("x-admin-token")
+        or request.query_params.get("token")
+        or ""
+    )
+    # Constant time, so a wrong token cannot be found one character at a time.
+    if not hmac.compare_digest(supplied.strip(), ADMIN_TOKEN):
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 # ── Lazy-loaded ML singletons ─────────────────────────────────────────────────
 _speech_to_bsl = None
@@ -281,7 +358,7 @@ async def health():
 
 
 # ── Direction 1: BSL Video → English ─────────────────────────────────────────
-@app.post("/api/d1/video")
+@app.post("/api/d1/video", dependencies=[Depends(rate_limit)])
 async def d1_video(
     file: UploadFile = File(...),
     mode: str = Form("groq"),
@@ -325,7 +402,7 @@ async def d1_video(
             os.unlink(tmp)
 
 
-@app.post("/api/d1/glosses")
+@app.post("/api/d1/glosses", dependencies=[Depends(rate_limit)])
 async def d1_glosses(
     glosses: str = Form(...),
     mode: str = Form("groq"),
@@ -370,7 +447,7 @@ def _collect_pose_frames(glosses: list, speed: float = 1.0) -> list:
     return frames
 
 
-@app.post("/api/d2/text")
+@app.post("/api/d2/text", dependencies=[Depends(rate_limit)])
 async def d2_text(
     text: str = Form(...),
     speed: float = Form(1.0),
@@ -395,7 +472,7 @@ async def d2_text(
     }
 
 
-@app.post("/api/d2/audio")
+@app.post("/api/d2/audio", dependencies=[Depends(rate_limit)])
 async def d2_audio(
     file: UploadFile = File(...),
     speed: float = Form(1.0),
@@ -431,7 +508,7 @@ async def d2_audio(
 
 
 # ── Live: single webcam frame → gloss ────────────────────────────────────────
-@app.post("/api/live/frame")
+@app.post("/api/live/frame", dependencies=[Depends(rate_limit)])
 async def live_frame(file: UploadFile = File(...)):
     recognizer = get_bsl_dict_recognizer()
     if recognizer is None:
@@ -456,7 +533,7 @@ async def live_frame(file: UploadFile = File(...)):
 
 
 # ── Live: assemble glosses into English sentence + XTTS ──────────────────────
-@app.post("/api/live/assemble")
+@app.post("/api/live/assemble", dependencies=[Depends(rate_limit)])
 async def live_assemble(payload: dict = Body(...)):
     """
     Take the accumulated live gloss list, run it through GlossToText (Groq llama-3.3-70b),
@@ -503,9 +580,15 @@ async def live_assemble(payload: dict = Body(...)):
 
 
 # ── Graceful shutdown ──────────────────────────────────────────────────────────
-@app.post("/api/shutdown")
+@app.post("/api/shutdown", dependencies=[Depends(require_admin)])
 async def shutdown():
-    """Shut down the FastAPI server."""
+    """
+    Shut down the FastAPI server.
+
+    Admin token required. Unprotected, this is a single unauthenticated POST
+    that kills the process, which is fine on localhost and unacceptable the
+    moment the server is reachable from anywhere else.
+    """
     import threading, time
     def _stop():
         time.sleep(0.3)
@@ -557,9 +640,36 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()
+
+    # Binding to anything other than loopback puts this on a network. Refuse to
+    # do that without an admin token: the alternative is a server where anyone
+    # who can reach it can stop it, and that mistake is silent until it is
+    # exploited. Explicit override for someone who genuinely wants it open.
+    loopback = args.host in ("localhost", "127.0.0.1", "::1")
+    if not loopback and not ADMIN_TOKEN:
+        if os.environ.get("SIGNLYTIC_ALLOW_INSECURE") == "1":
+            print("[Server] WARNING: exposed on %s with no admin token "
+                  "(SIGNLYTIC_ALLOW_INSECURE=1)" % args.host)
+        else:
+            print(
+                "\nRefusing to start.\n"
+                f"  Binding to {args.host} exposes this server beyond this machine,\n"
+                "  and admin endpoints such as /api/shutdown would be unprotected.\n\n"
+                "  Set an admin token first:\n"
+                "    SIGNLYTIC_ADMIN_TOKEN=<a long random string>\n\n"
+                "  Or, if you really intend an open server:\n"
+                "    SIGNLYTIC_ALLOW_INSECURE=1\n"
+            )
+            raise SystemExit(2)
+
     print(f"\n{'='*55}")
     print("  Signlytic AI — FastAPI Dashboard")
     print(f"  http://localhost:{args.port}")
+    print(f"  bind: {args.host}"
+          f"{'  (network exposed)' if not loopback else '  (this machine only)'}")
+    print(f"  admin token: {'set' if ADMIN_TOKEN else 'not set'}")
+    print(f"  rate limit: {RATE_LIMIT_REQUESTS}/min per client"
+          f"{'  (disabled)' if RATE_LIMIT_REQUESTS <= 0 else ''}")
     print(f"{'='*55}\n")
     uvicorn.run(
         "app_server:app",
