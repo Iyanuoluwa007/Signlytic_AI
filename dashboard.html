@@ -1203,7 +1203,11 @@ body::before{
 
 <script>
 "use strict";
-const API="http://localhost:8000";
+// The API lives on the same origin as this page, because app_server serves
+// both. Hardcoding localhost worked only on the machine running the server: on
+// any other device, a phone in particular, it pointed at that device's own
+// localhost, so the page loaded and every request failed silently.
+const API = window.location.origin;
 
 // ── Loading screen logic ──────────────────────────────────────────────────
 const CIRCUM = 2 * Math.PI * 35;
