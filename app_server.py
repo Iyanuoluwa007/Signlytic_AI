@@ -686,16 +686,30 @@ async def avatar_file(name: str):
 
 
 # Extension sign data endpoint
-# Serves pose frame JSON for the Chrome extension's lazy-load fallback
-# Only accessible from localhost -- not a public API
-EXTENSION_SIGNS_DIR = Path(r"D:\Signlytic_AI\code\bsl_translation_project\extension-data\signs")
+# Serves pose frame JSON for the Chrome extension's lazy-load fallback.
+#
+# Relative to the project, not an absolute path: this was pinned to a D: drive
+# on one Windows machine, so on any other machine, and on any Linux host, every
+# lookup here returned 404. Override with SIGNLYTIC_SIGNS_DIR if the data lives
+# outside the project, which it will on a server where 1.4 GB of sign JSON is
+# mounted separately.
+EXTENSION_SIGNS_DIR = Path(
+    os.environ.get("SIGNLYTIC_SIGNS_DIR")
+    or (project_root / "extension-data" / "signs")
+)
+
+# The localhost restriction below is right for a machine serving its own
+# extension, and wrong for a hosted demo where every request arrives through a
+# proxy. Set this when the server is meant to serve signs publicly.
+SIGNS_PUBLIC = os.environ.get("SIGNLYTIC_SIGNS_PUBLIC") == "1"
+
 
 @app.get("/api/signs/{gloss}")
 async def get_sign_frames(gloss: str, request: Request):
     # Only allow requests from localhost (extension content scripts)
     host = request.headers.get("host", "")
     origin = request.headers.get("origin", "")
-    if "localhost" not in host and "127.0.0.1" not in host:
+    if not SIGNS_PUBLIC and "localhost" not in host and "127.0.0.1" not in host:
         return JSONResponse({"error": "local only"}, status_code=403)
 
     sign_file = EXTENSION_SIGNS_DIR / f"{gloss.upper()}.json"
