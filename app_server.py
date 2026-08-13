@@ -191,7 +191,13 @@ def get_text_to_gloss():
     """
     global _text_to_gloss
     if _text_to_gloss is None:
-        from src.inference.speech_to_bsl import TextToGloss
+        # Imported as a bare module, not as src.inference.speech_to_bsl.
+        # The package __init__ imports recognizer.py, which imports torch, so
+        # the qualified form drags the whole ML stack in and fails outright on
+        # a CPU-only box that deliberately has no torch. src/inference is
+        # already on sys.path, and speech_to_bsl has no package-relative
+        # imports, so this loads the one class that is actually needed.
+        from speech_to_bsl import TextToGloss
         _text_to_gloss = TextToGloss(mode="simple")
         print("[Server] TextToGloss loaded")
     return _text_to_gloss
@@ -375,7 +381,13 @@ def _synthesize_xtts(text: str, proj_root, is_live: bool = False) -> "str | None
 
 @app.get("/api/health")
 async def health():
-    import torch
+    # Optional: a demo box has no torch by design, and health failing with a
+    # 500 there is worse than useless, because health is the first thing anyone
+    # checks when something looks wrong.
+    try:
+        import torch
+    except ImportError:
+        torch = None
     # Check multiple vocab file locations
     vocab_size = 0
     for vp in [
@@ -403,7 +415,8 @@ async def health():
     tts_ready = globals().get("_xtts_model") is not None
     return {
         "status": "ok",
-        "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU only",
+        "gpu": (torch.cuda.get_device_name(0) if torch and torch.cuda.is_available()
+                else ("CPU only" if torch else "no torch installed (demo box)")),
         "vocab_size": vocab_size,
         "bsl_dict": (project_root / "models" / "bsl_dict_recognition" / "retrieval_model.pt").exists(),
         "recognizer_ready": recognizer_ready,
