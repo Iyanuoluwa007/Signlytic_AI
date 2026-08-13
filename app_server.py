@@ -498,9 +498,90 @@ async def d1_glosses(
 
 
 # ── Direction 2: English → BSL ────────────────────────────────────────────────
+# Where to get sign frames from.
+#
+# Locally that is data/poses, read through PoseSignRenderer. A hosted box has no
+# such directory: the pose data is 2.6 GB and the sign JSON another 1.4 GB, none
+# of it in the repository. Setting SIGNLYTIC_SIGNS_API points the lookup at the
+# website's sign endpoint instead, which already serves exactly this data and
+# already caches it, so the box carries no data at all.
+SIGNS_API = os.environ.get("SIGNLYTIC_SIGNS_API", "").strip().rstrip("/")
+
+# Match PoseSignRenderer's defaults, so playback timing is identical whichever
+# source is in use.
+REMOTE_OUTPUT_FPS = 20
+REMOTE_GLOSS_DURATION = 0.9
+
+# Signs are immutable, and a sentence usually repeats common glosses, so one
+# fetch each is plenty. Bounded so a long-running box cannot grow without limit.
+_sign_frame_cache: Dict[str, Optional[list]] = {}
+_SIGN_CACHE_MAX = 512
+
+
+def _fetch_remote_sign(gloss: str) -> Optional[list]:
+    """Fetch one gloss from the sign API. None means no sign for this gloss."""
+    if gloss in _sign_frame_cache:
+        return _sign_frame_cache[gloss]
+    frames = None
+    try:
+        import requests
+        r = requests.get(f"{SIGNS_API}/{gloss}", timeout=8)
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, list) and data:
+                frames = data
+    except Exception as e:
+        # A sign that cannot be fetched is fingerspelled by the renderer, which
+        # is the same outcome as a sign that does not exist. Not fatal.
+        print(f"[Server] sign fetch failed for {gloss}: {e}")
+    if len(_sign_frame_cache) >= _SIGN_CACHE_MAX:
+        _sign_frame_cache.clear()
+    _sign_frame_cache[gloss] = frames
+    return frames
+
+
+def _resample(frames: list, target: int) -> list:
+    """Pick target frames evenly across the source, matching local behaviour."""
+    if not frames:
+        return []
+    if len(frames) == target:
+        return frames
+    idx = [min(len(frames) - 1, int(round(i * (len(frames) - 1) / max(1, target - 1))))
+           for i in range(target)] if target > 1 else [0]
+    return [frames[i] for i in idx]
+
+
+def _collect_pose_frames_remote(glosses: list, speed: float) -> list:
+    per_gloss_s = REMOTE_GLOSS_DURATION / speed
+    frames_per_gloss = max(1, int(round(per_gloss_s * REMOTE_OUTPUT_FPS)))
+    out = []
+    for gloss in glosses:
+        src = _fetch_remote_sign(gloss)
+        missing = src is None
+        if missing:
+            # No sign available. Emit an empty-handed frame run so the client
+            # keeps its timing and can fingerspell, exactly as the local
+            # renderer's neutral frames do.
+            for _ in range(frames_per_gloss):
+                out.append({"g": gloss, "m": True, "p": None, "l": None, "r": None})
+            continue
+        for frame in _resample(src, frames_per_gloss):
+            out.append({
+                "g": gloss,
+                "m": False,
+                "p": frame.get("body"),
+                "l": frame.get("lh"),
+                "r": frame.get("rh"),
+            })
+    return out
+
+
 def _collect_pose_frames(glosses: list, speed: float = 1.0) -> list:
-    renderer = get_pose_renderer()
     speed = float(np.clip(speed, 0.6, 1.6))
+    if SIGNS_API:
+        return _collect_pose_frames_remote(glosses, speed)
+
+    renderer = get_pose_renderer()
     per_gloss_s = renderer.base_gloss_duration / speed
     frames_per_gloss = max(1, int(round(per_gloss_s * renderer.output_fps)))
     frames = []
@@ -538,7 +619,7 @@ async def d2_text(
         "out_of_vocab": oov[:10],
         "frames": frames,
         "frame_count": len(frames),
-        "fps": get_pose_renderer().output_fps,
+        "fps": REMOTE_OUTPUT_FPS if SIGNS_API else get_pose_renderer().output_fps,
     }
 
 
@@ -568,7 +649,7 @@ async def d2_audio(
             "out_of_vocab": oov[:10],
             "frames": frames,
             "frame_count": len(frames),
-            "fps": get_pose_renderer().output_fps,
+            "fps": REMOTE_OUTPUT_FPS if SIGNS_API else get_pose_renderer().output_fps,
         }
     finally:
         for p in [tmp]:

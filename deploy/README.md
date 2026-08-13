@@ -19,6 +19,23 @@ release, rather than timing out and leaving the impression the project is
 broken. That behaviour is `SIGNLYTIC_DEMO_MODE=1`; unset it and everything runs,
 which is what you want on your own GPU machine.
 
+## The box carries no sign data
+
+Locally the server reads pose frames from `data/poses`, which is 2.6 GB, with
+another 1.4 GB of sign JSON beside it. None of that is in the repository, so a
+fresh clone has none of it and a naive deployment comes up serving empty
+animations.
+
+Rather than shipping several gigabytes to the box, `SIGNLYTIC_SIGNS_API` points
+sign lookups at the website endpoint that already serves this data and already
+caches it. Signs are immutable, so the box keeps the ones it has fetched in
+memory: in testing, a four gloss sentence took 12 seconds cold and 40 ms once
+warm. Playback timing is unchanged, because the remote path reuses the same
+20 fps and 0.9 second per gloss defaults as the local renderer.
+
+The consequence worth knowing: the demo box depends on the website being up. If
+Vercel is down, the box serves the UI but no signing.
+
 ## Suitable hosts
 
 Any small Linux box works. Oracle Cloud's Always Free tier is the strongest
