@@ -1,0 +1,53 @@
+# Caddy config for the Signlytic demo box.
+#
+#   sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Replace demo.example.com with your hostname. Caddy obtains and renews a
+# Let's Encrypt certificate on its own, which is the whole reason it is here:
+# the dashboard calls getUserMedia and MediaRecorder, and browsers refuse those
+# outside a secure context. Over plain http on an IP address, the microphone
+# and camera features silently do nothing.
+#
+# No domain? A free dynamic DNS hostname works with Let's Encrypt. Caddy also
+# supports internal certificates for testing, but browsers will not trust them,
+# so device features stay blocked.
+
+demo.example.com {
+	encode zstd gzip
+
+	# The app serves its UI and its API from one origin, so everything goes to
+	# the same upstream. That is also why no CORS configuration is needed.
+	reverse_proxy 127.0.0.1:8000 {
+		# app_server reads this to tell callers apart for rate limiting.
+		header_up X-Forwarded-For {remote_host}
+	}
+
+	# Sign data is immutable per gloss and the avatar models are large, so let
+	# browsers keep them rather than refetching on every visit.
+	@static path /api/signs/* /api/avatar/*
+	header @static Cache-Control "public, max-age=604800, immutable"
+
+	# The admin endpoint is for you, from your machine. Publishing it serves no
+	# one: the token is the real guard, this simply removes it from the attack
+	# surface entirely. Delete this block if you need remote administration.
+	@admin path /api/shutdown
+	respond @admin 404
+
+	header {
+		# The dashboard needs the camera and microphone on the local demo, so
+		# they are permitted for this origin only.
+		Permissions-Policy "camera=(self), microphone=(self), geolocation=()"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/signlytic.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

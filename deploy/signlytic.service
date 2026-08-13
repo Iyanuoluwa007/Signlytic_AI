@@ -1,0 +1,59 @@
+# Signlytic AI demo server.
+#
+#   sudo cp deploy/signlytic.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now signlytic
+#
+# Adjust User and WorkingDirectory if you did not follow deploy/README.md.
+
+[Unit]
+Description=Signlytic AI BSL translation server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=signlytic
+Group=signlytic
+WorkingDirectory=/opt/signlytic/app
+
+# Keys and settings live here, not in this unit file, so the unit can be
+# world readable while the secrets stay 600.
+EnvironmentFile=/etc/signlytic/signlytic.env
+
+# Bind to loopback only. Caddy terminates TLS and proxies to this, so the
+# server itself is never directly reachable from the internet. The admin token
+# is still required, because a misconfigured proxy should not be the only thing
+# standing between the internet and /api/shutdown.
+ExecStart=/opt/signlytic/venv/bin/python -u app_server.py --host 127.0.0.1 --port 8000
+
+Restart=on-failure
+RestartSec=5
+
+# Unbuffered above plus this gives readable output in journalctl -u signlytic.
+StandardOutput=journal
+StandardError=journal
+
+# ── Hardening ────────────────────────────────────────────────────────────────
+# The server writes only to temp files and reads the project directory, so it
+# needs very little. If you add a feature that writes elsewhere, relax the
+# specific setting rather than removing the block.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/signlytic/app
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+
+# A free tier box has limited memory. Rather than let the OOM killer choose,
+# cap the service and let systemd restart it.
+MemoryMax=3G
+
+[Install]
+WantedBy=multi-user.target

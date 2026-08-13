@@ -98,6 +98,39 @@ def rate_limit(request: Request) -> None:
                 _rate_state.pop(k, None)
 
 
+# On a hosted demo box there is no GPU, so video recognition, speech
+# transcription and voice synthesis would take tens of seconds and queue behind
+# each other. Rather than let a visitor sit through that and conclude the
+# project is broken, demo mode turns those three endpoints into a clear pointer
+# at the full download. The text and signing paths, which are what the demo is
+# for, stay fully live.
+DEMO_MODE = os.environ.get("SIGNLYTIC_DEMO_MODE") == "1"
+
+FULL_APP_URL = os.environ.get(
+    "SIGNLYTIC_FULL_APP_URL",
+    "https://github.com/Iyanuoluwa007/Signlytic_AI/releases/latest",
+)
+
+
+def require_full_install() -> None:
+    """Refuse GPU-bound features on a demo box, and say where to get them."""
+    if not DEMO_MODE:
+        return
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "error": "not_available_in_demo",
+            "message": (
+                "Video recognition and voice need a local GPU, so they are not "
+                "part of this online demo. Text and caption translation to BSL "
+                "signing work here in full. Download and run the project "
+                "locally for the complete system."
+            ),
+            "download": FULL_APP_URL,
+        },
+    )
+
+
 def require_admin(request: Request) -> None:
     """Gate destructive endpoints behind a shared token."""
     if not ADMIN_TOKEN:
@@ -116,6 +149,7 @@ def require_admin(request: Request) -> None:
 
 # ── Lazy-loaded ML singletons ─────────────────────────────────────────────────
 _speech_to_bsl = None
+_text_to_gloss = None
 _bsl_dict_recognizer = None
 _pose_renderer = None
 _avatar_3d = None
@@ -143,6 +177,24 @@ def get_bsl_dict_recognizer():
         except Exception as e:
             print(f"[Server] BSLDictRecognizer unavailable: {e}")
     return _bsl_dict_recognizer
+
+
+def get_text_to_gloss():
+    """
+    Just the English to gloss converter, without the rest of the pipeline.
+
+    /api/d2/text needs only this, but reaching it through SpeechToBSL builds the
+    whole pipeline, and that constructor loads Whisper eagerly. On a demo box
+    that meant the busiest endpoint pulled a speech model it never uses into
+    memory on the first request. Constructed with the same defaults the pipeline
+    would have used.
+    """
+    global _text_to_gloss
+    if _text_to_gloss is None:
+        from src.inference.speech_to_bsl import TextToGloss
+        _text_to_gloss = TextToGloss(mode="simple")
+        print("[Server] TextToGloss loaded")
+    return _text_to_gloss
 
 
 def get_pose_renderer():
@@ -193,6 +245,12 @@ def to_wav_16k_mono(input_path: str) -> str:
 async def _warmup():
     """Pre-load the BSL recognizer on boot so /api/health reports recognizer_ready
     before the camera starts (the readiness gate would otherwise deadlock)."""
+    if DEMO_MODE:
+        # The endpoints that need it are turned off, so loading torch and the
+        # model here would only cost a slow boot and a few hundred MB on a box
+        # that has neither to spare.
+        print("[Server] demo mode: skipping recognizer warmup")
+        return
     try:
         get_bsl_dict_recognizer()
     except Exception as e:
@@ -358,7 +416,7 @@ async def health():
 
 
 # ── Direction 1: BSL Video → English ─────────────────────────────────────────
-@app.post("/api/d1/video", dependencies=[Depends(rate_limit)])
+@app.post("/api/d1/video", dependencies=[Depends(rate_limit), Depends(require_full_install)])
 async def d1_video(
     file: UploadFile = File(...),
     mode: str = Form("groq"),
@@ -418,13 +476,25 @@ async def d1_glosses(
     except Exception as e:
         print(f"[Server] GlossToText error: {e}")
         english = " ".join(g.lower() for g in gloss_list)
-    # TTS — Coqui XTTS v2 with 22050Hz resampled speaker reference
+    # TTS — Coqui XTTS v2 with 22050Hz resampled speaker reference.
+    #
+    # Skipped in demo mode. The translation above is a hosted model call and
+    # costs the box nothing, but XTTS loads a large model and synthesises on
+    # the CPU, which would make this endpoint the slowest thing on a demo
+    # machine while the useful part, the sentence, is already done.
     audio_b64 = None
-    try:
-        audio_b64 = _synthesize_xtts(english, project_root)
-    except Exception as _tts_err:
-        print(f"[Server] TTS error: {_tts_err}")
-    return {"glosses": gloss_list, "english": english, "audio_b64": audio_b64}
+    if not DEMO_MODE:
+        try:
+            audio_b64 = _synthesize_xtts(english, project_root)
+        except Exception as _tts_err:
+            print(f"[Server] TTS error: {_tts_err}")
+    return {
+        "glosses": gloss_list,
+        "english": english,
+        "audio_b64": audio_b64,
+        "voice_available": not DEMO_MODE,
+        "download": None if not DEMO_MODE else FULL_APP_URL,
+    }
 
 
 # ── Direction 2: English → BSL ────────────────────────────────────────────────
@@ -455,9 +525,9 @@ async def d2_text(
 ):
     if not text.strip():
         raise HTTPException(status_code=400, detail="No text provided")
-    pipeline = get_speech_to_bsl()
-    glosses = pipeline.text_to_gloss.convert(text)
-    info = pipeline.text_to_gloss.convert_with_info(text)
+    converter = get_text_to_gloss()
+    glosses = converter.convert(text)
+    info = converter.convert_with_info(text)
     coverage = float(info.get("coverage", 0.0)) if info else 0.0
     oov = info.get("out_of_vocab", []) if info else []
     frames = _collect_pose_frames(glosses, speed)
@@ -472,7 +542,7 @@ async def d2_text(
     }
 
 
-@app.post("/api/d2/audio", dependencies=[Depends(rate_limit)])
+@app.post("/api/d2/audio", dependencies=[Depends(rate_limit), Depends(require_full_install)])
 async def d2_audio(
     file: UploadFile = File(...),
     speed: float = Form(1.0),
@@ -508,7 +578,7 @@ async def d2_audio(
 
 
 # ── Live: single webcam frame → gloss ────────────────────────────────────────
-@app.post("/api/live/frame", dependencies=[Depends(rate_limit)])
+@app.post("/api/live/frame", dependencies=[Depends(rate_limit), Depends(require_full_install)])
 async def live_frame(file: UploadFile = File(...)):
     recognizer = get_bsl_dict_recognizer()
     if recognizer is None:
@@ -567,14 +637,17 @@ async def live_assemble(payload: dict = Body(...)):
 
     print(f"[Live] Assemble: {len(glosses)} glosses -> {english[:60]}...")
 
-    # English -> XTTS
+    # English -> XTTS. Skipped on a demo box for the same reason as
+    # d1/glosses: XTTS is the slowest thing here and the sentence, which is
+    # the useful part, is already done.
     audio_b64 = None
     err: Optional[str] = None
-    try:
-        audio_b64 = _synthesize_xtts(english, project_root)
-    except Exception as e:
-        err = f"tts: {e}"
-        print(f"[Live] TTS error in assemble: {e}")
+    if not DEMO_MODE:
+        try:
+            audio_b64 = _synthesize_xtts(english, project_root)
+        except Exception as e:
+            err = f"tts: {e}"
+            print(f"[Live] TTS error in assemble: {e}")
 
     return {"sentence": english, "audio_b64": audio_b64, "error": err}
 
