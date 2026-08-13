@@ -68,6 +68,9 @@ class GlossToText:
         self.cerebras_timeout = 10  # seconds; keep short so a hang falls back fast
         # Set after a 429; Cerebras is skipped entirely until this passes.
         self._cerebras_cooldown_until = 0.0
+        # Populated by convert(): glosses with no sign clip, so a caller can
+        # show which words were fingerspelled.
+        self.last_unknown_glosses: List[str] = []
         
         # Built on first use rather than here. Cerebras is the primary provider
         # and speaks plain HTTP, so it must not be gated behind the fallback's
@@ -272,6 +275,85 @@ Natural English sentence:"""
             result += "."
         return result
 
+    # Loaded once per process, shared by every instance. None means "not
+    # looked for yet"; False means "looked and could not find one".
+    _VOCABULARY = None
+
+    # Tried in order. The first is the full sign set; the second is the same
+    # set expressed as one file per gloss; the third is the trained
+    # recogniser's much smaller class list, used only as a last resort.
+    VOCABULARY_SOURCES = (
+        ("json_values", "data/bsl_video_glosses.json"),
+        ("dir_names", "extension-data/signs"),
+        ("json_keys", "models/sign_recognition/vocabulary.json"),
+    )
+
+    @classmethod
+    def _load_vocabulary(cls):
+        """
+        The set of glosses that have a sign clip available, or None if no
+        vocabulary file is present.
+
+        These files are large and are not committed, so a fresh checkout will
+        not have them. That is not an error: the vocabulary is only used to
+        report which glosses will be fingerspelled, never to change what is
+        sent to the model.
+        """
+        if cls._VOCABULARY is not None:
+            return cls._VOCABULARY or None
+
+        import json
+        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for kind, rel in cls.VOCABULARY_SOURCES:
+            path = os.path.join(base, rel)
+            try:
+                if kind == "dir_names":
+                    if not os.path.isdir(path):
+                        continue
+                    names = {os.path.splitext(f)[0].upper()
+                             for f in os.listdir(path) if f.endswith(".json")}
+                elif kind == "json_values":
+                    if not os.path.isfile(path):
+                        continue
+                    with open(path, "r", encoding="utf-8") as fh:
+                        names = {str(v).upper() for v in json.load(fh).values()}
+                else:
+                    if not os.path.isfile(path):
+                        continue
+                    with open(path, "r", encoding="utf-8") as fh:
+                        names = {str(k).upper() for k in json.load(fh)}
+            except Exception:
+                continue
+            if names:
+                cls._VOCABULARY = names
+                return names
+
+        cls._VOCABULARY = False
+        return None
+
+    def unknown_glosses(self, glosses: List[str]) -> List[str]:
+        """
+        Which of these glosses have no sign clip, in order and without repeats.
+
+        Read this as "will be fingerspelled", not "invalid". The vocabulary
+        lists signs that have a video clip, so ordinary words can be absent:
+        of twenty everyday glosses, seven including WHAT, WHERE and YESTERDAY
+        are missing. It cannot tell a fingerspelled name from a nonsense token,
+        which is exactly why it is not used to filter what reaches the model.
+        """
+        vocab = self._load_vocabulary()
+        if not vocab:
+            return []
+        seen, out = set(), []
+        for g in glosses:
+            key = str(g).upper()
+            if key.lower() in ('<unk>', '<pad>', '<sos>', '<eos>'):
+                continue
+            if key not in vocab and key not in seen:
+                seen.add(key)
+                out.append(key)
+        return out
+
     def _cerebras_rate_limited(self) -> bool:
         """Whether Cerebras is inside a cooldown from a recent 429."""
         return time.time() < self._cerebras_cooldown_until
@@ -353,6 +435,10 @@ Your task: Convert the BSL glosses into a natural, grammatically correct English
 - Add appropriate articles, pronouns, and auxiliary verbs
 - Rearrange words to follow English grammar
 - Keep the meaning intact
+- If a gloss is not a word you recognise, keep it in the sentence as it is,
+  capitalised as a name would be. It is probably a fingerspelled name or place.
+  Never substitute a word you invented for a gloss you do not know: a wrong
+  word the reader trusts is worse than an unfamiliar one they can question.
 - Return ONLY the English sentence, nothing else."""
 
         user_prompt = f"BSL Glosses: {gloss_str}"
@@ -404,16 +490,25 @@ Your task: Convert the BSL glosses into a natural, grammatically correct English
             
         Returns:
             Natural English sentence
+
+        Side effect: sets last_unknown_glosses to the glosses with no sign clip,
+        so a caller can show which words were fingerspelled. It is recorded, not
+        acted on, because the vocabulary cannot distinguish a fingerspelled name
+        from a nonsense token.
         """
+        self.last_unknown_glosses = []
+
         if not glosses:
             return ""
-        
+
         # Filter empty strings
         glosses = [g for g in glosses if g and g.strip()]
-        
+
         if not glosses:
             return ""
-        
+
+        self.last_unknown_glosses = self.unknown_glosses(glosses)
+
         if self.mode == 'simple':
             return self._simple_convert(glosses)
         elif self.mode == 'llm':
