@@ -30,3 +30,12 @@ tqdm>=4.65.0
 
 # Gradio (for demo)
 gradio>=5.0.0
+
+# Hosted LLM providers for gloss to English (src/inference/gloss_to_text.py).
+# Cerebras is the primary and is called over plain HTTP, so it needs only
+# requests. groq is the fallback's SDK: without it the fallback is unavailable,
+# and a Cerebras failure drops the output to the rule-based converter, which is
+# noticeably worse ("Me name what?" rather than "What is my name?").
+# Verified together with requests 2.32.5 and groq 1.6.0.
+requests>=2.31.0
+groq>=1.6.0
