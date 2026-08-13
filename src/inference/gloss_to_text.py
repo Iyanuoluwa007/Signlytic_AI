@@ -17,6 +17,7 @@ Modes:
 
 import os
 import re
+import time
 from typing import List, Optional, Dict
 
 # Optional imports
@@ -32,6 +33,11 @@ class GlossToText:
     Convert BSL glosses to natural English text.
     """
     
+    # How long to stop calling Cerebras after it returns 429. The account's
+    # binding limit is per minute (x-ratelimit-limit-requests-minute), so a
+    # full minute clears it; the server's retry-after is preferred when given.
+    CEREBRAS_COOLDOWN_SECONDS = 60.0
+
     # Common BSL grammar patterns for rule-based conversion
     QUESTION_WORDS = {'what', 'where', 'when', 'who', 'why', 'how', 'which'}
     TIME_MARKERS = {'yesterday', 'today', 'tomorrow', 'now', 'later', 'before', 
@@ -60,6 +66,8 @@ class GlossToText:
         self.cerebras_api_key = os.environ.get("CEREBRAS_API_KEY")
         self.cerebras_model = "gpt-oss-120b"
         self.cerebras_timeout = 10  # seconds; keep short so a hang falls back fast
+        # Set after a 429; Cerebras is skipped entirely until this passes.
+        self._cerebras_cooldown_until = 0.0
         
         # Built on first use rather than here. Cerebras is the primary provider
         # and speaks plain HTTP, so it must not be gated behind the fallback's
@@ -264,13 +272,26 @@ Natural English sentence:"""
             result += "."
         return result
 
+    def _cerebras_rate_limited(self) -> bool:
+        """Whether Cerebras is inside a cooldown from a recent 429."""
+        return time.time() < self._cerebras_cooldown_until
+
     def _cerebras_convert(self, system_prompt: str, user_prompt: str) -> Optional[str]:
         """
         Call the Cerebras chat completions API (OpenAI-compatible).
-        Returns the sentence, or None if no key is configured or the
-        response has no content. Raises on HTTP errors and timeouts.
+        Returns the sentence, or None if no key is configured, the account is
+        inside a rate-limit cooldown, or the response has no content. Raises on
+        HTTP errors and timeouts.
         """
         if not self.cerebras_api_key:
+            return None
+
+        # The account allows only a few requests per minute, and captions
+        # arrive far faster than that, so 429s are routine rather than
+        # exceptional. Each one costs the better part of a second before the
+        # fallback is even tried, so once rate limited, skip Cerebras until the
+        # window has passed instead of paying for a call that cannot succeed.
+        if self._cerebras_rate_limited():
             return None
 
         import requests
@@ -293,6 +314,17 @@ Natural English sentence:"""
             },
             timeout=self.cerebras_timeout,
         )
+
+        if response.status_code == 429:
+            # Prefer the server's own figure; fall back to the per-minute
+            # window, which is the limit that is actually hit in practice.
+            try:
+                wait = float(response.headers.get("retry-after", ""))
+            except ValueError:
+                wait = self.CEREBRAS_COOLDOWN_SECONDS
+            self._cerebras_cooldown_until = time.time() + max(1.0, wait)
+            print(f"[LLM] Cerebras rate limited, skipping it for {int(max(1.0, wait))}s")
+
         response.raise_for_status()
         content = response.json()["choices"][0]["message"].get("content")
         return content.strip() if content and content.strip() else None
@@ -331,7 +363,7 @@ Your task: Convert the BSL glosses into a natural, grammatically correct English
             if result:
                 print("[LLM] served by: cerebras")
                 return self._finalize_sentence(result)
-            if self.cerebras_api_key:
+            if self.cerebras_api_key and not self._cerebras_rate_limited():
                 print("[LLM] Cerebras returned empty content, falling back to Groq")
         except Exception as e:
             print(f"[LLM] Cerebras error ({type(e).__name__}): {e}, falling back to Groq")
