@@ -3,6 +3,13 @@
 import { useState, useRef, type ChangeEvent } from "react";
 import Signable from "@/components/Signable";
 
+// The local system, released from the main repo on its own version stream. The
+// browser extension and the desktop app ship from the overlay repo and move
+// independently, so their versions are deliberately not tied to this one.
+const LOCAL_VERSION = "v1.2.0";
+const LOCAL_RELEASE_URL =
+  "https://github.com/Iyanuoluwa007/Signlytic_AI/releases/tag/v1.2.0";
+
 /* =========================================
    LOCAL FALLBACK DICTIONARIES
    Used when API routes are unavailable
@@ -240,13 +247,14 @@ export default function DemoPage() {
                           This requires a local NVIDIA GPU.
                         </p>
                         <a
-                          href="https://github.com/Iyanuoluwa007/Signlytic_AI"
+                          href={LOCAL_RELEASE_URL}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#5eead4] hover:text-[#5eead4]/80 transition-colors"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
                           Clone repository and run locally
+                          <span className="text-white/30 font-normal">{LOCAL_VERSION}</span>
                         </a>
                       </div>
                     </div>
@@ -384,13 +392,14 @@ export default function DemoPage() {
                     <ResultCard label="Signing animation">
                       <div className="border-2 border-dashed border-white/[0.06] rounded-lg h-40 flex flex-col items-center justify-center mb-2 px-3">
                         <a
-                          href="https://github.com/Iyanuoluwa007/Signlytic_AI"
+                          href={LOCAL_RELEASE_URL}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#5eead4] hover:text-[#5eead4]/80 transition-colors mb-3"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
                           Clone repository and run locally
+                          <span className="text-white/30 font-normal">{LOCAL_VERSION}</span>
                         </a>
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="text-white/10 mb-2"><circle cx="12" cy="5" r="2"/><path d="M12 7v6"/><path d="M8 11l4 2 4-2"/><path d="M8 21l4-6 4 6"/></svg>
                         <span className="text-[11px] text-white/20 mb-0.5">3D avatar signing preview</span>

@@ -5,8 +5,9 @@ import Signable from "@/components/Signable";
 
 const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.7/signlytic-extension.zip";
 
-// Windows desktop build. The main repo is private, so releases are published
-// on the public overlay repo.
+// Windows desktop build. The app and the extension are released from the
+// overlay repo, separately from the main project, so the two version streams
+// do not have to move together.
 const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.6/Signlytic.AI.Setup.0.3.6.exe";
 
 export default function ExtensionPage() {
