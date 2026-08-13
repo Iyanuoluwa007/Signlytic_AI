@@ -1,10 +1,10 @@
 {
   "_meta": {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "total_signs": 5203,
-    "bundled_core": 0,
-    "cdnBase": "https://raw.githubusercontent.com/Iyanuoluwa007/Signlytic_AI/main/extension-data/signs/",
-    "note": "core/ directory will contain top-200 most frequent BSL signs as individual JSON files. All others lazy-loaded from CDN and cached in IndexedDB."
+    "bundled_core": 192,
+    "cdnBase": "https://signlytic-ai-website.vercel.app/api/signs/",
+    "note": "core/ holds the most frequent BSL signs as individual JSON files, bundled with the extension. Everything else is fetched per gloss from cdnBase and cached in IndexedDB. Nothing currently reads this file at runtime; overlay.js has the same endpoint inline. The old cdnBase pointed at raw.githubusercontent.com for extension-data/signs/, which is gitignored and returns 404."
   },
   "fingerspell": [
     "A","B","C","D","E","F","G","H","I","J","K","L","M",

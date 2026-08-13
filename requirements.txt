@@ -15,7 +15,12 @@ scikit-learn>=1.2.0
 pyyaml>=6.0
 
 # Audio
-TTS>=0.22.0
+# coqui-tts rather than TTS: the original Coqui package is unmaintained and its
+# last release caps out below Python 3.12, so `pip install -r requirements.txt`
+# failed outright on anything newer with "No matching distribution found". The
+# fork is maintained, supports current Python, and keeps the same import path,
+# so `from TTS.api import TTS` is unchanged in app_server.py and the scripts.
+coqui-tts>=0.27.5
 openai-whisper>=20230314
 
 # Evaluation

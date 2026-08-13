@@ -419,7 +419,7 @@ export default function DemoPage() {
                     { title: "BSL to English (Live)", body: "Go to the BSL to English tab. Type BSL glosses like TOMORROW MEETING WHAT TIME and click Translate. The system uses Llama 3.3 70B to produce natural English. Video and camera recognition require a local GPU." },
                     { title: "English to BSL (Live)", body: "Go to the English to BSL tab. Type an English sentence and click Convert to BSL. The AI generates proper BSL gloss ordering. Audio input requires a local GPU with Whisper." },
                     { title: "What are glosses?", body: "A \"gloss\" is the written name of a BSL sign. For example, TOMORROW MEETING WHAT TIME means \"What time is the meeting tomorrow?\" BSL uses a different word order than English." },
-                    { title: "Full System (Local GPU)", body: "The complete system includes Video-SWIN-T recognition (5,203 signs), Groq LLM translation, Coqui XTTS v2 speech, and 3D avatar animation. Clone the GitHub repository and run locally with a GPU for the full experience." },
+                    { title: "Full System (Local GPU)", body: "The complete system includes Video-SWIN-T recognition (5,203 signs), Cerebras gpt-oss-120b translation with a Groq fallback, Coqui XTTS v2 speech, and 3D avatar animation. Clone the GitHub repository and run locally with a GPU for the full experience." },
                     { title: "Accessibility", body: "All outputs include visible text. Nothing relies on audio. The interface supports keyboard navigation. Press Enter to submit in any text field." },
                   ].map(h => (
                     <div key={h.title} className="bg-white/[0.02] border border-white/[0.06] border-l-2 border-l-[#0e7c6b] rounded-xl p-5">
