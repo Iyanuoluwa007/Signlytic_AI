@@ -229,10 +229,21 @@ bobsl_structure_report.txt
 
 extension-data/
 
-extension-data/
-
 # Mixamo derived avatar rigs. Licensed for use in this project but not for
 # redistribution, so they are kept out of the repository. The apps load the
 # model at runtime through the site /api/avatar proxy.
 extension-data/avatars/
 *.glb
+
+# Editor and scripted-edit backups, and local scratch output. These sat
+# untracked at the repo root for months and made `git status` unreadable.
+*.bak
+*.bak.*
+*_backup.html
+/startup_log.txt
+/body.json
+
+# Claude Code worktrees. Local only, and a stale one here kept 104 MB of
+# purged objects alive because rev-list --all treats other worktrees' HEADs
+# as roots, so gc would never prune them.
+.claude/worktrees/

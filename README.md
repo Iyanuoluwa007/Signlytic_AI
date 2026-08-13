@@ -37,7 +37,7 @@ Signlytic AI translates between British Sign Language (BSL) and English using de
 ```
 Direction 1: BSL to English
 BSL Video --> Video-SWIN-T --> 768-dim features --> Cosine Retrieval (5,203 signs)
-         --> BSL Glosses --> Groq Llama 3.3 70B --> English Text
+         --> BSL Glosses --> Cerebras gpt-oss-120b (Groq fallback) --> English Text
          --> Coqui XTTS v2 --> Speech Output
 
 Direction 2: English to BSL
@@ -55,7 +55,8 @@ English Speech --> OpenAI Whisper (base) --> English Text
 | Sign Recognition | Video-SWIN-T | Retrieval on 5,203 pre-extracted 768-dim features |
 | Speech Recognition | OpenAI Whisper | Base model, 16 kHz mono |
 | Text-to-Speech | Coqui XTTS v2 | Voice cloning with speaker reference |
-| Language Model | Groq Llama 3.3 70B | Gloss-to-English (llama-3.3-70b-versatile) |
+| Language Model | Cerebras gpt-oss-120b | Gloss-to-English, primary provider |
+| Language Model Fallback | Groq Llama 3.3 70B | Used when Cerebras errors or times out (llama-3.3-70b-versatile) |
 | Local LLM Fallback | FLAN-T5 Base | Offline text-to-gloss conversion |
 | Signing Animation | 2D Pose Animator | Skeleton signing with MP4 export |
 | Vocabulary | 11,573+ glosses | BSL-1K + BSLDict datasets |
@@ -95,8 +96,16 @@ pip install -r requirements.txt
 ### Environment Variables
 
 ```
+CEREBRAS_API_KEY=<your-cerebras-api-key>
 GROQ_API_KEY=<your-groq-api-key>
 ```
+
+Cerebras is the primary gloss-to-English provider and Groq is the fallback,
+used when Cerebras errors or times out. Either key on its own is enough to
+start: with only `GROQ_API_KEY` set, Groq serves every request; with only
+`CEREBRAS_API_KEY` set, a Cerebras failure falls through to the rule-based
+converter, whose output is noticeably plainer. With neither set, the converter
+refuses to start in `groq` mode rather than degrading silently.
 
 ### Run the Application
 
@@ -193,7 +202,7 @@ bsl_translation_project/
 - Performs isolated sign recognition; continuous signing from natural sequences is not yet supported
 - 2D Pose Animator produces simplified skeleton animations without facial expressions and non-manual markers
 - Requires GPU hardware for video recognition, speech processing, and animation
-- Rule-based text-to-gloss covers ~80 words; complex sentences need the Groq API
+- Rule-based text-to-gloss covers ~80 words; complex sentences need a hosted LLM key
 - 100% accuracy is on dictionary-source videos; novel user videos will have lower similarity scores
 
 ---
