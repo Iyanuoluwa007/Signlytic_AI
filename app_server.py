@@ -528,7 +528,11 @@ REMOTE_GLOSS_DURATION = 0.9
 # Signs are immutable, and a sentence usually repeats common glosses, so one
 # fetch each is plenty. Bounded so a long-running box cannot grow without limit.
 _sign_frame_cache: Dict[str, Optional[list]] = {}
-_SIGN_CACHE_MAX = 512
+
+# Each cached sign is a few hundred kilobytes once parsed into Python lists, so
+# 512 of them can reach a few hundred MB. That is nothing on a 24 GB box and
+# most of the budget on a 1 GB Always Free shape, hence the knob.
+_SIGN_CACHE_MAX = int(os.environ.get("SIGNLYTIC_SIGN_CACHE", "512"))
 
 
 def _fetch_remote_sign(gloss: str) -> Optional[list]:
