@@ -704,7 +704,7 @@ async def live_frame(file: UploadFile = File(...)):
 @app.post("/api/live/assemble", dependencies=[Depends(rate_limit)])
 async def live_assemble(payload: dict = Body(...)):
     """
-    Take the accumulated live gloss list, run it through GlossToText (Groq llama-3.3-70b),
+    Take the accumulated live gloss list, run it through GlossToText (Cerebras gpt-oss-120b, Groq fallback),
     then synthesise the English result with the cloned XTTS v2 voice.
     Input:  {"glosses": ["HELLO", "MY", "NAME", "OKE"]}
     Output: {"sentence": "...", "audio_b64": "<b64 wav>" | None, "error": str | None}

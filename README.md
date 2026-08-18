@@ -58,7 +58,7 @@ English Speech --> OpenAI Whisper (base) --> English Text
 | Speech Recognition | OpenAI Whisper | Base model, 16 kHz mono |
 | Text-to-Speech | Coqui XTTS v2 | Voice cloning with speaker reference |
 | Language Model | Cerebras gpt-oss-120b | Gloss-to-English, primary provider |
-| Language Model Fallback | Groq Llama 3.3 70B | Used when Cerebras errors or times out (llama-3.3-70b-versatile) |
+| Language Model Fallback | Groq gpt-oss-120b | Used when Cerebras errors or times out (openai/gpt-oss-120b) |
 | Local LLM Fallback | FLAN-T5 Base | Offline text-to-gloss conversion |
 | Signing Animation | 2D Pose Animator | Skeleton signing with MP4 export |
 | Vocabulary | 11,573+ glosses | BSL-1K + BSLDict datasets |

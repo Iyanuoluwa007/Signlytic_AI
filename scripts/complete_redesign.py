@@ -218,7 +218,7 @@ new_about_simple = '''with gr.TabItem("About"):
                 | Sign Recognition | Video-SWIN-T Transformer (100% accuracy) |
                 | Speech Recognition | OpenAI Whisper |
                 | Text-to-Speech | Coqui XTTS v2 with voice cloning |
-                | Language Model | Groq Llama 3.3 70B |
+                | Language Model | Groq gpt-oss-120b |
                 | Vocabulary | 11,573+ BSL glosses |
                 
                 ---

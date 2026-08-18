@@ -590,7 +590,7 @@ English: "{text}"
 BSL Glosses:"""
 
         response = self.groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": "You are an expert in British Sign Language linguistics. Convert English to BSL gloss notation accurately."},
                 {"role": "user", "content": prompt}

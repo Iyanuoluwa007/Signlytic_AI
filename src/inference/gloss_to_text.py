@@ -12,7 +12,7 @@ Modes:
 - simple: Basic concatenation (fast, lower quality)
 - llm: Local FLAN-T5 model
 - groq: Hosted LLM API (best quality). Tries Cerebras gpt-oss-120b first,
-  falls back to Groq llama-3.3-70b-versatile if Cerebras fails or times out.
+  falls back to Groq openai/gpt-oss-120b if Cerebras fails or times out.
 """
 
 import os
@@ -49,7 +49,7 @@ class GlossToText:
         self,
         mode: str = "simple",
         groq_api_key: Optional[str] = None,
-        groq_model: str = "llama-3.3-70b-versatile"
+        groq_model: str = "openai/gpt-oss-120b"
     ):
         """
         Initialize converter.
@@ -414,7 +414,7 @@ Natural English sentence:"""
     def _groq_convert(self, glosses: List[str]) -> str:
         """
         Hosted LLM conversion: Cerebras (gpt-oss-120b) primary,
-        Groq (llama-3.3-70b-versatile) fallback.
+        Groq (openai/gpt-oss-120b) fallback.
         """
         gloss_str = " ".join(g.upper() for g in glosses
                            if g.lower() not in ['<unk>', '<pad>', '<sos>', '<eos>'])

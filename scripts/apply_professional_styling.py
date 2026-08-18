@@ -263,7 +263,7 @@ old_about = '''# About Tab
                 ### Technical Stack
                 - **ASR:** OpenAI Whisper
                 - **TTS:** Coqui XTTS v2 with voice cloning
-                - **Gloss-to-Text:** Groq Llama 3.3 70B
+                - **Gloss-to-Text:** Groq gpt-oss-120b
                 - **Signing Renderer:** 2D pose animator (default) + legacy clip avatar fallback
                 - **Vocabulary:** 11,573 BSL glosses
                 
@@ -300,7 +300,7 @@ new_about = '''# About Tab
                 | **Sign Recognition** | Video-SWIN-T Transformer (100% accuracy on 5,203 signs) |
                 | **Speech Recognition** | OpenAI Whisper (base model) |
                 | **Text-to-Speech** | Coqui XTTS v2 with voice cloning |
-                | **Language Model** | Groq Llama 3.3 70B for gloss↔text conversion |
+                | **Language Model** | Groq gpt-oss-120b for gloss↔text conversion |
                 | **Avatar Rendering** | 2D Pose Animator + Video Concatenation |
                 | **Vocabulary** | 11,573+ BSL glosses |
                 

@@ -1470,7 +1470,7 @@ def create_demo():
                 <tr><td><strong>Sign Recognition</strong></td><td>Video-SWIN-T</td><td>Retrieval on 5,203 pre-extracted 768-dim features</td></tr>
                 <tr><td><strong>Speech Recognition</strong></td><td>OpenAI Whisper</td><td>Base model, 16 kHz mono</td></tr>
                 <tr><td><strong>Text-to-Speech</strong></td><td>Coqui XTTS v2</td><td>Voice cloning with speaker reference</td></tr>
-                <tr><td><strong>Language Model</strong></td><td>Groq Llama 3.3 70B</td><td>Gloss to natural English</td></tr>
+                <tr><td><strong>Language Model</strong></td><td>Groq gpt-oss-120b</td><td>Gloss to natural English</td></tr>
                 <tr><td><strong>Avatar</strong></td><td>2D Pose Animator</td><td>Skeleton signing + video export</td></tr>
                 <tr><td><strong>Vocabulary</strong></td><td>11,573+ glosses</td><td>BSL-1K + BSLDict datasets</td></tr>
                 </tbody></table>

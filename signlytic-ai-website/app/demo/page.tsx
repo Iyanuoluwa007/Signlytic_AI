@@ -184,7 +184,7 @@ export default function DemoPage() {
         <div className="max-w-[1120px] mx-auto px-6 py-2.5 flex items-center justify-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-[#5eead4] animate-pulse flex-shrink-0" />
           <p className="text-[11px] text-[#5eead4]/80">
-            <span className="font-semibold">Live</span> &mdash; Text translation powered by Llama 3.3 70B. Video recognition, speech, and signing animation require <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[#5eead4]">local GPU setup</a>.
+            <span className="font-semibold">Live</span> &mdash; Text translation powered by gpt-oss-120b. Video recognition, speech, and signing animation require <a href="https://github.com/Iyanuoluwa007/Signlytic_AI" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[#5eead4]">local GPU setup</a>.
           </p>
         </div>
       </div>
@@ -296,7 +296,7 @@ export default function DemoPage() {
                     {d1Processing && (
                       <div className="flex items-center gap-2 mb-3 p-3 bg-white/[0.02] rounded-xl">
                         <div className="w-4 h-4 border-[1.5px] border-[#0e7c6b]/40 border-t-[#0e7c6b] rounded-full animate-spin" />
-                        <span className="text-[12px] text-white/30">Translating via Llama 3.3 70B...</span>
+                        <span className="text-[12px] text-white/30">Translating via gpt-oss-120b...</span>
                       </div>
                     )}
                     <ResultCard label="BSL glosses">
@@ -307,7 +307,7 @@ export default function DemoPage() {
                       {d1Source && (
                         <div className="mt-2">
                           <span className={`text-[9px] font-bold uppercase tracking-wider ${d1Source === "ai" ? "text-[#5eead4]/50" : "text-amber-400/50"}`}>
-                            {d1Source === "ai" ? "Powered by Llama 3.3 70B via Groq" : "Offline fallback (dictionary)"}
+                            {d1Source === "ai" ? "Powered by gpt-oss-120b via Groq" : "Offline fallback (dictionary)"}
                           </span>
                         </div>
                       )}
@@ -371,7 +371,7 @@ export default function DemoPage() {
                     {d2Processing && (
                       <div className="flex items-center gap-2 mb-3 p-3 bg-white/[0.02] rounded-xl">
                         <div className="w-4 h-4 border-[1.5px] border-[#0e7c6b]/40 border-t-[#0e7c6b] rounded-full animate-spin" />
-                        <span className="text-[12px] text-white/30">Converting via Llama 3.3 70B...</span>
+                        <span className="text-[12px] text-white/30">Converting via gpt-oss-120b...</span>
                       </div>
                     )}
                     <ResultCard label="What you said">
@@ -382,7 +382,7 @@ export default function DemoPage() {
                       {d2Source && (
                         <div className="mt-2">
                           <span className={`text-[9px] font-bold uppercase tracking-wider ${d2Source === "ai" ? "text-[#5eead4]/50" : "text-amber-400/50"}`}>
-                            {d2Source === "ai" ? "Powered by Llama 3.3 70B via Groq" : "Offline fallback (dictionary)"}
+                            {d2Source === "ai" ? "Powered by gpt-oss-120b via Groq" : "Offline fallback (dictionary)"}
                           </span>
                         </div>
                       )}
@@ -425,7 +425,7 @@ export default function DemoPage() {
                 <p className="text-[13px] text-white/35 mb-6"><Signable text="Simple guides for BSL users and hearing users.">Simple guides for BSL users and hearing users.</Signable></p>
                 <div className="space-y-3">
                   {[
-                    { title: "BSL to English (Live)", body: "Go to the BSL to English tab. Type BSL glosses like TOMORROW MEETING WHAT TIME and click Translate. The system uses Llama 3.3 70B to produce natural English. Video and camera recognition require a local GPU." },
+                    { title: "BSL to English (Live)", body: "Go to the BSL to English tab. Type BSL glosses like TOMORROW MEETING WHAT TIME and click Translate. The system uses gpt-oss-120b to produce natural English. Video and camera recognition require a local GPU." },
                     { title: "English to BSL (Live)", body: "Go to the English to BSL tab. Type an English sentence and click Convert to BSL. The AI generates proper BSL gloss ordering. Audio input requires a local GPU with Whisper." },
                     { title: "What are glosses?", body: "A \"gloss\" is the written name of a BSL sign. For example, TOMORROW MEETING WHAT TIME means \"What time is the meeting tomorrow?\" BSL uses a different word order than English." },
                     { title: "Full System (Local GPU)", body: "The complete system includes Video-SWIN-T recognition (5,203 signs), Cerebras gpt-oss-120b translation with a Groq fallback, Coqui XTTS v2 speech, and 3D avatar animation. Clone the GitHub repository and run locally with a GPU for the full experience." },
@@ -463,7 +463,7 @@ export default function DemoPage() {
                   <table className="w-full text-[13px]">
                     <thead><tr className="bg-[#0e7c6b]/15">{["Component","Technology","Details"].map(h => <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-[#5eead4] uppercase tracking-[0.1em]">{h}</th>)}</tr></thead>
                     <tbody>
-                      {[["Sign Recognition","Video-SWIN-T","5,203 pre-extracted 768-dim features"],["Speech Recognition","OpenAI Whisper","Base model, 16 kHz mono"],["Text-to-Speech","Coqui XTTS v2","Voice cloning with speaker reference"],["Language Model","Groq Llama 3.3 70B","Gloss to natural English (live on demo)"],["Signing Animation","3D Avatar + 2D Pose","Mixamo avatars + skeleton signing"],["Vocabulary","11,573+ glosses","BSL-1K + BSLDict datasets"]].map(([c,t,d]) => (
+                      {[["Sign Recognition","Video-SWIN-T","5,203 pre-extracted 768-dim features"],["Speech Recognition","OpenAI Whisper","Base model, 16 kHz mono"],["Text-to-Speech","Coqui XTTS v2","Voice cloning with speaker reference"],["Language Model","Groq gpt-oss-120b","Gloss to natural English (live on demo)"],["Signing Animation","3D Avatar + 2D Pose","Mixamo avatars + skeleton signing"],["Vocabulary","11,573+ glosses","BSL-1K + BSLDict datasets"]].map(([c,t,d]) => (
                         <tr key={c} className="border-t border-white/[0.04] hover:bg-white/[0.01]">
                           <td className="px-4 py-3 font-medium text-white/60">{c}</td>
                           <td className="px-4 py-3 font-mono text-[12px] text-[#5eead4]/70">{t}</td>

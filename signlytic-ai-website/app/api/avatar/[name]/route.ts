@@ -54,18 +54,54 @@ export async function GET(
 
   const url = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${GH_DIR}/${file}`;
 
-  try {
-    const upstream = await fetch(url, {
+  // GitHub rate limits these fetches. The models are tens of megabytes, far
+  // past what the CDN will hold, so the year-long s-maxage above never takes
+  // effect and every cold visitor reaches raw.githubusercontent directly. A 429
+  // is therefore routine rather than exceptional, and a single attempt turns a
+  // throttle into a broken avatar for that visitor.
+  //
+  // Retrying briefly, honouring Retry-After when GitHub sends one, converts
+  // most throttles into a slightly slower success. It does not address the
+  // cause, which is the file size.
+  const attempt = (): Promise<Response> =>
+    fetch(url, {
       headers: { Authorization: `token ${GH_PAT}` },
       // Let the platform cache the upstream fetch as well as the response
       cache: "force-cache",
     });
 
+  try {
+    let upstream = await attempt();
+
+    for (let tries = 0; upstream.status === 429 && tries < 2; tries++) {
+      const retryAfter = Number(upstream.headers.get("retry-after"));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 3000)
+          : 500 * (tries + 1);
+      await new Promise((r) => setTimeout(r, waitMs));
+      upstream = await attempt();
+    }
+
     if (!upstream.ok || !upstream.body) {
       console.error(`[ERR] avatar upstream ${upstream.status} for ${file}`);
       return NextResponse.json(
-        { error: "Avatar unavailable" },
-        { status: 502, headers: CORS }
+        {
+          error: "Avatar unavailable",
+          detail:
+            upstream.status === 429
+              ? "The avatar store is rate limited. Try again shortly."
+              : undefined,
+        },
+        {
+          status: 502,
+          headers: {
+            ...CORS,
+            // Never let a transient failure be cached in place of the model.
+            "Cache-Control": "no-store",
+            ...(upstream.status === 429 ? { "Retry-After": "5" } : {}),
+          },
+        }
       );
     }
 

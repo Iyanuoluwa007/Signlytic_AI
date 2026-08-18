@@ -322,7 +322,7 @@ export default function Home() {
               },
               {
                 title: "AI-Powered Translation",
-                desc: "Groq Llama 3.3 70B converts BSL glosses into fluent, grammatically correct English sentences.",
+                desc: "Groq gpt-oss-120b converts BSL glosses into fluent, grammatically correct English sentences.",
               },
               {
                 title: "Voice Cloning TTS",
@@ -610,7 +610,7 @@ export default function Home() {
                     { c: "Sign Recognition", t: "Video-SWIN-T", d: "Retrieval on 5,203 pre-extracted 768-dim features" },
                     { c: "Speech Recognition", t: "OpenAI Whisper", d: "Base model, 16 kHz mono" },
                     { c: "Text-to-Speech", t: "Coqui XTTS v2", d: "Voice cloning with speaker reference" },
-                    { c: "Language Model", t: "Groq Llama 3.3 70B", d: "Gloss to natural English" },
+                    { c: "Language Model", t: "Groq gpt-oss-120b", d: "Gloss to natural English" },
                     { c: "Signing Animation", t: "2D Pose Animator", d: "Skeleton signing with MP4 export" },
                     { c: "Vocabulary", t: "11,573+ glosses", d: "BSL-1K + BSLDict datasets" },
                   ].map((r) => (
