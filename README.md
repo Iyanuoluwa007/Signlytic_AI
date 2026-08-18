@@ -8,6 +8,8 @@ Signlytic AI translates between British Sign Language (BSL) and English using de
 &nbsp;|&nbsp;
 **Interactive Demo:** [signlytic-ai-website.vercel.app/demo](https://signlytic-ai-website.vercel.app/demo)
 
+[![Sponsor](https://img.shields.io/github/sponsors/Iyanuoluwa007?label=Sponsor&logo=GitHub&color=ea4aaa)](https://github.com/sponsors/Iyanuoluwa007)
+
 ---
 
 ## System Overview
@@ -215,6 +217,32 @@ bsl_translation_project/
 - Chrome extension for screen caption to BSL signing overlay
 - User testing with BSL communities
 - Expanded rule-based vocabulary
+
+---
+
+## Support this project
+
+Signlytic AI is built and maintained by one person, in the open, and given away
+free. There is no company behind it and no funding.
+
+If it is useful to you, or you would like the parts that are still missing to
+arrive sooner, you can sponsor the work:
+
+**[github.com/sponsors/Iyanuoluwa007](https://github.com/sponsors/Iyanuoluwa007)**
+
+Sponsorship goes toward the things that cost money rather than time: hosting the
+demo so it is available on any device, the language model usage behind live
+translation, and the sign data storage. Beyond that it buys time to work on
+continuous recognition, wider vocabulary coverage, and testing with BSL users,
+which is the part this most needs.
+
+Not in a position to sponsor? These help just as much:
+
+- Use it, and tell me where it fails. Real usage from BSL users is worth more
+  than money to a project like this.
+- Star the repository, so it reaches people who might benefit.
+- Share it with anyone teaching, learning or using BSL.
+- Contribute vocabulary corrections, or report signs that render badly.
 
 ---
 
