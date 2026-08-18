@@ -56,7 +56,14 @@ export async function POST(req: NextRequest) {
             },
           ],
           temperature: 0.3,
-          max_tokens: 200,
+          // gpt-oss is a reasoning model: the reasoning is billed against the
+          // completion budget before any sentence is emitted. At 200 a short
+          // gloss run was observed spending 137 tokens thinking, close enough
+          // to the ceiling that an unlucky request returns finish_reason
+          // "length" and empty content. reasoning_effort low brings the same
+          // request down to about 30, and the larger budget removes the cliff.
+          reasoning_effort: "low",
+          max_completion_tokens: 512,
         }),
       }
     );

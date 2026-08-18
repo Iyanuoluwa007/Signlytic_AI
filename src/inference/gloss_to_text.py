@@ -468,7 +468,13 @@ Your task: Convert the BSL glosses into a natural, grammatically correct English
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.3,
-                max_tokens=150
+                # gpt-oss reasons before it answers, and that reasoning is
+                # billed against the completion budget. "THANK-YOU HELP ME"
+                # was measured spending 137 of 150 tokens thinking, so an
+                # unlucky run hit the ceiling and returned empty content.
+                # reasoning_effort low takes the same request to about 30.
+                reasoning_effort="low",
+                max_completion_tokens=512,
             )
 
             result = response.choices[0].message.content.strip()

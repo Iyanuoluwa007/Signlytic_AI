@@ -596,7 +596,10 @@ BSL Glosses:"""
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3,
-            max_tokens=100
+            # Reasoning is billed against the completion budget on gpt-oss, so
+            # 100 leaves almost nothing for the answer itself.
+            reasoning_effort="low",
+            max_completion_tokens=512
         )
         
         result = response.choices[0].message.content.strip()
