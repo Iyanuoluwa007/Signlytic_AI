@@ -10,7 +10,7 @@ import Signable from "@/components/Signable";
 // sponsor page, so switch it to whichever platform is live first.
 const SPONSOR_URL = "https://github.com/sponsors/Iyanuoluwa007";
 const DESKTOP_WINDOWS_URL =
-  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.6/Signlytic.AI.Setup.0.3.6.exe";
+  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI.Setup.0.3.7.exe";
 
 /* ═══════════════════════════════════════
    SCROLL ANIMATION SYSTEM

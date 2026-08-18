@@ -14,9 +14,16 @@
 // avatar models are Mixamo characters and are not licensed for
 // redistribution, so they are not offered as standalone downloads; the API
 // keeps them in a private store and streams them to the app.
+// Bump whenever the model files themselves change. Two caches would otherwise
+// pin the old model indefinitely: the GLB is stored in IndexedDB with no expiry
+// and checked before the network, and the endpoint serves it with
+// "immutable, max-age=31536000". Without a new key and a new URL, anyone who
+// already loaded a model would keep it for a year.
+const AVATAR_VERSION = '2';
+
 const AVATAR_CDN = {
-  male:   'https://signlytic-ai-website.vercel.app/api/avatar/male',
-  female: 'https://signlytic-ai-website.vercel.app/api/avatar/female',
+  male:   `https://signlytic-ai-website.vercel.app/api/avatar/male?v=${AVATAR_VERSION}`,
+  female: `https://signlytic-ai-website.vercel.app/api/avatar/female?v=${AVATAR_VERSION}`,
 };
 
 const BONE_PREFIX = { male: 'mixamorig', female: 'mixamorig' };
@@ -253,6 +260,20 @@ async function glbCacheGet(key) {
   } catch { return null; }
 }
 
+// Removes models cached under an older scheme or version, so bumping the
+// version does not simply accumulate copies in the user's browser.
+async function glbCacheDeleteLegacy(gender) {
+  try {
+    const db = await openGlbDB();
+    const tx = db.transaction('glb', 'readwrite');
+    const store = tx.objectStore('glb');
+    store.delete(`glb-${gender}`);
+    for (let v = 1; v < Number(AVATAR_VERSION); v++) {
+      store.delete(`glb-${gender}-v${v}`);
+    }
+  } catch {}
+}
+
 async function glbCacheSet(key, arrayBuffer) {
   try {
     const db = await openGlbDB();
@@ -363,7 +384,7 @@ class ThreeAvatarRenderer {
     this.loading = true;
 
     const url   = this.modelUrl || AVATAR_CDN[this.gender];
-    const cacheKey = `glb-${this.gender}`;
+    const cacheKey = `glb-${this.gender}-v${AVATAR_VERSION}`;
 
     // 1. Try IDB cache
     let arrayBuffer = await glbCacheGet(cacheKey);
@@ -390,6 +411,9 @@ class ThreeAvatarRenderer {
         const blob = new Blob(chunks);
         arrayBuffer = await blob.arrayBuffer();
         glbCacheSet(cacheKey, arrayBuffer);
+        // The superseded model is dead weight, and it is large.
+        // Drop it once its replacement is safely stored.
+        glbCacheDeleteLegacy(this.gender);
       } catch (err) {
         console.error('[Signlytic 3D] GLB fetch failed:', err);
         this.loading = false;

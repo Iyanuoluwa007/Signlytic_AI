@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Signlytic AI \u2014 BSL Overlay",
   "short_name": "Signlytic",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Real-time British Sign Language overlay. Detects page captions or uses your microphone to translate English into BSL signing animation.",
   "permissions": [
     "activeTab",
