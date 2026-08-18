@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Embedded into the caption helper binary itself, with -sectcreate __TEXT
+  __info_plist, rather than sitting beside it as a file.
+
+  A command line tool has no bundle, so macOS has nowhere to read a usage
+  description from, and asking for the microphone or for speech recognition
+  without one does not fail politely: the process is killed outright with
+  __TCC_CRASHING_DUE_TO_PRIVACY_VIOLATION__ and no prompt is ever shown.
+  Verified here, not assumed.
+
+  The app bundle carries the same strings, because when the helper is spawned
+  by the packaged app it is the app that TCC holds responsible and the app's
+  strings that the user is shown. Both are needed: these cover the helper run
+  on its own during development, the app's cover the shipped path.
+-->
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>ai.signlytic.desktop.captions</string>
+  <key>CFBundleName</key>
+  <string>Signlytic Captions</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Signlytic AI listens to the microphone so speech in the room can be captioned and signed.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>Signlytic AI turns speech into text on this Mac so it can be translated into British Sign Language.</string>
+</dict>
+</plist>

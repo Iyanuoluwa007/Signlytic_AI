@@ -35,12 +35,15 @@ contextBridge.exposeInMainWorld("signlytic", {
     set: (value) => ipcRenderer.invoke("speed-set", value),
   },
 
-  // Windows Live Captions
+  // System captions: Windows Live Captions, or speech recognition on macOS.
   captions: {
     // Whether starting captions should also switch on "Include microphone
-    // audio" in Live Captions.
+    // audio" in Live Captions. Windows only.
     getMicAudio: () => ipcRenderer.invoke("mic-audio-get"),
     setMicAudio: (value) => ipcRenderer.invoke("mic-audio-set", value),
+    // Which audio the macOS helper listens to: "mic" or "system".
+    getAudioSource: () => ipcRenderer.invoke("audio-source-get"),
+    setAudioSource: (value) => ipcRenderer.invoke("audio-source-set", value),
     capabilities: () => ipcRenderer.invoke("captions-capabilities"),
     start: () => ipcRenderer.invoke("captions-start"),
     stop: () => ipcRenderer.invoke("captions-stop"),

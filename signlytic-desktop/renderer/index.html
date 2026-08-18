@@ -146,6 +146,10 @@
     color: #6b8798;
   }
   .set-check.disabled, .set-check.disabled + .set-note { opacity: 0.45; cursor: default; }
+  /* Whole settings rows that do not apply to this platform are removed rather
+     than greyed out. A disabled control still reads as something you could
+     have, and neither of these is available on the other OS. */
+  .set-gone { display: none !important; }
 
   /* The signer is the point of the app, so it always sits directly under the
      title bar and above the controls, and never collapses to nothing when the
@@ -276,6 +280,18 @@
     </div>
 
     <div class="set-sep"></div>
+
+    <!-- macOS only. Shown by desktop.js when the caption source turns out to
+         be speech recognition; hidden on Windows, where Live Captions decides
+         what it listens to and the checkbox below is the relevant control. -->
+    <div class="set-row set-gone" id="audio-source-row">
+      <span class="set-label">Listen to</span>
+      <div class="seg" id="audio-source-seg">
+        <button id="audio-mic" class="active">Microphone</button>
+        <button id="audio-system">System audio</button>
+      </div>
+    </div>
+    <p class="set-note set-gone" id="audio-source-note"></p>
 
     <label class="set-check" for="mic-audio">
       <input type="checkbox" id="mic-audio" checked>

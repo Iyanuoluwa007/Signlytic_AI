@@ -6,3 +6,14 @@ renderer/vendor/
 
 # electron-builder output
 dist/
+
+# Compiled by `npm run build:mac-helper` from caption-source.swift, which is
+# the committed source. A build product, and a platform-specific binary at
+# that, so it is rebuilt rather than tracked.
+main/captions/mac/signlytic-captions
+
+# AppleDouble sidecars. exFAT and FAT have no native extended attributes, so
+# macOS writes these next to every file it touches on such a volume. They are
+# not source, and electron-builder chokes on the one it writes beside app.asar.
+._*
+.DS_Store

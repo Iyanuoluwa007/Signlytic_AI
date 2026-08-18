@@ -254,9 +254,13 @@ input.addEventListener("keydown", (e) => { if (e.key === "Enter") submitManualTe
 const capBtn = document.getElementById("captions-toggle");
 let capOn = false;
 
+// Held so the label can be restored after "Stop Captions" without assuming
+// which platform's wording it started with.
+let capStartLabel = "Start Live Captions";
+
 function setCaptionsUi(on) {
   capOn = on;
-  capBtn.textContent = on ? "Stop Captions" : "Start Live Captions";
+  capBtn.textContent = on ? "Stop Captions" : capStartLabel;
   capBtn.classList.toggle("on", on);
 }
 
@@ -273,13 +277,55 @@ capBtn.addEventListener("click", async () => {
   else setStatus((res && res.reason) || "Could not start captions");
 });
 
+// Set from capabilities() below. The caption reader emits the same states on
+// both platforms, but "Live Captions" is the name of a Windows app, so the
+// wording for them cannot be.
+let captionSourceName = "Live Captions";
+
 window.signlytic.captions.onStatus((s) => {
-  if (s.state === "waiting") setStatus("Waiting for Live Captions...");
+  if (s.state === "waiting") setStatus("Waiting for " + captionSourceName + "...");
   else if (s.state === "attached") setStatus("Listening");
   else if (s.state === "idle") setStatus("Listening (no speech yet)");
   else if (s.detail) setStatus(s.detail);
   if (s.state === "stopped" || s.state === "error") setCaptionsUi(false);
 });
+
+// ── macOS audio source ──────────────────────────────────────────────────────
+// On macOS the caption text is produced by recognising speech, so the app has
+// to be told what to listen to. Windows never sees these controls: Live
+// Captions picks its own audio and the checkbox above is what matters there.
+const AUDIO_SOURCE_NOTES = {
+  mic: "Listens to the microphone, so speech in the room is signed. Needs microphone and speech recognition permission.",
+  system: "Listens to what this Mac is playing, so calls and video are signed. Needs screen recording permission, which is how macOS allows system audio to be captured. Video with copy protection will refuse to be captured.",
+};
+
+const audioSourceRow = document.getElementById("audio-source-row");
+const audioSourceNote = document.getElementById("audio-source-note");
+const audioMicBtn = document.getElementById("audio-mic");
+const audioSystemBtn = document.getElementById("audio-system");
+
+function markAudioSource(source) {
+  const isSystem = source === "system";
+  audioMicBtn.classList.toggle("active", !isSystem);
+  audioSystemBtn.classList.toggle("active", isSystem);
+  audioSourceNote.textContent = AUDIO_SOURCE_NOTES[isSystem ? "system" : "mic"];
+}
+
+async function chooseAudioSource(source) {
+  const res = await window.signlytic.captions.setAudioSource(source);
+  const applied = (res && res.source) || source;
+  markAudioSource(applied);
+  // The helper is told its source when it is spawned, so a change only takes
+  // effect on the next start. Saying so beats looking like nothing happened.
+  setStatus(
+    capOn
+      ? "Audio source changes when you stop and start captions again"
+      : (applied === "system" ? "Captions will listen to system audio" : "Captions will listen to the microphone")
+  );
+}
+
+audioMicBtn.addEventListener("click", () => chooseAudioSource("mic"));
+audioSystemBtn.addEventListener("click", () => chooseAudioSource("system"));
 
 window.signlytic.captions.capabilities().then((c) => {
   if (!c.supported) {
@@ -290,6 +336,22 @@ window.signlytic.captions.capabilities().then((c) => {
     micCheck.disabled = true;
     micCheck.closest(".set-check").classList.add("disabled");
     micCheck.closest(".set-check").title = c.reason || "System captions not available";
+    return;
+  }
+
+  if (c.source === "macos-speech-recognition") {
+    // "Live Captions" is the name of a Windows app, not of what happens here.
+    capStartLabel = "Start Captions";
+    captionSourceName = "speech recognition";
+    capBtn.textContent = capStartLabel;
+    audioSourceRow.classList.remove("set-gone");
+    audioSourceNote.classList.remove("set-gone");
+    // Driving another app's settings menu is a Windows-only affair, so the
+    // checkbox that does it has nothing to act on here.
+    micCheck.closest(".set-check").classList.add("set-gone");
+    const micNote = document.getElementById("mic-note");
+    if (micNote) micNote.classList.add("set-gone");
+    window.signlytic.captions.getAudioSource().then((a) => markAudioSource(a && a.source));
   }
 });
 

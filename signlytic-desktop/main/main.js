@@ -211,6 +211,22 @@ function micAudioEnabled() {
   return v === undefined ? true : !!v;
 }
 
+// macOS only: which audio the caption helper listens to. Microphone is the
+// default because it needs one permission rather than two, and because speech
+// in the room is the case a laptop user hits first. System audio is the one
+// that matches what Windows Live Captions does, so both are offered.
+function audioSource() {
+  return readPrefs().audioSource === "system" ? "system" : "mic";
+}
+
+ipcMain.handle("audio-source-get", () => ({ source: audioSource() }));
+
+ipcMain.handle("audio-source-set", (_e, value) => {
+  const source = value === "system" ? "system" : "mic";
+  writePrefs({ audioSource: source });
+  return { ok: true, source };
+});
+
 ipcMain.handle("mic-audio-get", () => ({ enabled: micAudioEnabled() }));
 
 ipcMain.handle("mic-audio-set", (_e, value) => {
@@ -241,7 +257,7 @@ ipcMain.handle("captions-start", async () => {
   const launched = await CaptionStream.ensureLiveCaptionsRunning();
 
   const stream = ensureCaptionStream();
-  stream.start();
+  stream.start({ audioSource: audioSource() });
 
   // Live Captions resets "Include microphone audio" to off every time it
   // starts, so it is switched on here rather than left to the user to find in
@@ -252,7 +268,10 @@ ipcMain.handle("captions-start", async () => {
   // seconds, and holding the reply that long would leave the button looking
   // stuck. Captions are already flowing by then, and the result arrives as a
   // status message.
-  if (micAudioEnabled()) {
+  // Windows only. There is no other app's settings menu to drive on macOS: the
+  // helper is told which audio to listen to when it is spawned. Without this
+  // guard macOS would report a failure to set an option that does not exist.
+  if (process.platform === "win32" && micAudioEnabled()) {
     CaptionStream.enableMicrophoneAudio().then((res) => {
       console.log("[captions] microphone: " + (res.ok ? "ok" : "failed") + " - " + res.detail);
       if (!res.ok) {
@@ -263,8 +282,10 @@ ipcMain.handle("captions-start", async () => {
         });
       }
     });
-  } else {
+  } else if (process.platform === "win32") {
     console.log("[captions] microphone: skipped, turned off in settings");
+  } else {
+    console.log("[captions] audio source: " + audioSource());
   }
 
   return { ok: true, launched };
@@ -280,6 +301,11 @@ ipcMain.handle("captions-stop", () => {
 ipcMain.handle("captions-launch-app", () => {
   const caps = CaptionStream.capabilities();
   if (!caps.supported) return { ok: false, reason: caps.reason };
+  // macOS has no separate app to open. Captions come from the helper this app
+  // spawns, so starting captions is the whole of it.
+  if (process.platform !== "win32") {
+    return { ok: false, reason: "There is no separate captions app to open on macOS" };
+  }
   return { ok: CaptionStream.launchLiveCaptions() };
 });
 
@@ -308,14 +334,14 @@ app.whenReady().then(() => {
   // exercised headlessly. Set SIGNLYTIC_CAPTIONS_AUTOSTART=1.
   if (process.env.SIGNLYTIC_CAPTIONS_AUTOSTART === "1") {
     console.log("[captions] autostart enabled");
-    ensureCaptionStream().start();
+    ensureCaptionStream().start({ audioSource: audioSource() });
     // Same as pressing the button, so the headless run exercises the whole
     // start path rather than a shortcut through it.
-    if (micAudioEnabled()) {
+    if (process.platform === "win32" && micAudioEnabled()) {
       CaptionStream.enableMicrophoneAudio().then((res) => {
         console.log("[captions] microphone: " + (res.ok ? "ok" : "failed") + " - " + res.detail);
       });
-    } else {
+    } else if (process.platform === "win32") {
       console.log("[captions] microphone: skipped, turned off in settings");
     }
   }

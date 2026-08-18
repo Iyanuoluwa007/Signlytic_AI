@@ -1,9 +1,19 @@
-// Runs the Live Captions sidecar and turns its output into finalised
+// Runs the platform's caption helper and turns its output into finalised
 // sentences.
 //
-// The sidecar is a PowerShell script rather than a compiled binary: Windows
-// already ships the UI Automation assemblies, so this needs no .NET SDK, no
-// Rust toolchain, no native addon and no build step.
+// Both helpers print the same thing: JSON lines carrying the whole caption
+// buffer as it stands. Everything after that point is shared, so the assembler
+// and the sentence logic have no platform branches in them at all.
+//
+// Windows: a PowerShell script rather than a compiled binary, because Windows
+// already ships the UI Automation assemblies, so it needs no .NET SDK, no Rust
+// toolchain, no native addon and no build step.
+//
+// macOS: a compiled Swift binary that recognises speech, rather than reading
+// the system Live Captions window. There is no supported API for reading that
+// window's output, and speech recognition is a public API that runs on device
+// and also covers speech in the room. See main/captions/README.md, and
+// mac/tools/ax-probe.swift for the tool that tests the Accessibility route.
 
 const { spawn, execFile } = require("child_process");
 const path = require("path");
@@ -24,6 +34,10 @@ const unpacked = (name) =>
 
 const SIDECAR = unpacked("live-captions.ps1");
 const MIC_SCRIPT = unpacked("enable-microphone.ps1");
+// Same asar problem as the PowerShell scripts, and worse: an executable cannot
+// be run from inside the archive at all. It is unpacked at build time and the
+// path rewritten here to match.
+const MAC_HELPER = unpacked(path.join("mac", "signlytic-captions"));
 const LIVE_CAPTIONS_EXE = path.join(
   process.env.SystemRoot || "C:\\Windows",
   "System32",
@@ -48,16 +62,18 @@ class CaptionStream extends EventEmitter {
     this._restarts = 0;
     this._restartTimer = null;
     this._lastStderr = "";
+    // macOS only: microphone or system audio. Ignored on Windows, where Live
+    // Captions decides for itself what it listens to.
+    this._audioSource = options.audioSource === "system" ? "system" : "mic";
   }
 
-  // Whether this OS has a system caption source we can read.
+  // Whether this OS has a caption source we can read.
   //
   // Windows: yes, via UI Automation against the Live Captions window.
-  // macOS: not yet. macOS has Live Captions from Ventura, but it is read
-  //   through the Accessibility API rather than UI Automation, needs a signed
-  //   helper and explicit Accessibility permission, and is a separate native
-  //   implementation. The rest of the app is platform-neutral, so only this
-  //   source needs adding; until then macOS uses manual text entry.
+  // macOS: yes, but by recognising speech rather than by reading the system
+  //   Live Captions window. Apple publishes no API for reading that window,
+  //   whereas speech recognition is public, runs on device, and also covers
+  //   speech in the room, which reading a caption window never could.
   static capabilities() {
     if (process.platform === "win32") {
       return CaptionStream.isLiveCaptionsInstalled()
@@ -65,7 +81,11 @@ class CaptionStream extends EventEmitter {
         : { supported: false, reason: "Live Captions is not available on this version of Windows" };
     }
     if (process.platform === "darwin") {
-      return { supported: false, reason: "System captions on macOS are not wired up yet; use the text box" };
+      // A source build that has not run the helper build step would otherwise
+      // fail at spawn time with nothing useful to show the user.
+      return fs.existsSync(MAC_HELPER)
+        ? { supported: true, source: "macos-speech-recognition" }
+        : { supported: false, reason: "The caption helper has not been built; run npm run build:mac-helper" };
     }
     return { supported: false, reason: "System captions are not available on this platform" };
   }
@@ -161,13 +181,18 @@ class CaptionStream extends EventEmitter {
     });
   }
 
-  start() {
+  start(options = {}) {
     if (this.proc) return;
-    // Never spawn the PowerShell sidecar off Windows.
+    // Never spawn a helper the platform has no source for.
     const caps = CaptionStream.capabilities();
     if (!caps.supported) {
       this._setState("error", caps.reason);
       return;
+    }
+    // Taken at start rather than held from construction, so changing the
+    // setting and pressing start again actually switches source.
+    if (options.audioSource) {
+      this._audioSource = options.audioSource === "system" ? "system" : "mic";
     }
     this._wanted = true;
     this._restarts = 0;
@@ -179,17 +204,9 @@ class CaptionStream extends EventEmitter {
     this.assembler.reset();
     this.buf = "";
 
-    this.proc = spawn(
-      "powershell.exe",
-      [
-        "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-        "-File", SIDECAR,
-        // So the reader stops itself if this app is force-killed rather than
-        // shut down, instead of lingering as an orphan.
-        "-ParentPid", String(process.pid),
-      ],
-      { windowsHide: true }
-    );
+    this.proc = process.platform === "darwin"
+      ? CaptionStream._spawnMacHelper(this._audioSource)
+      : CaptionStream._spawnWindowsSidecar();
 
     this.proc.stdout.setEncoding("utf8");
     this.proc.stdout.on("data", (chunk) => this._onData(chunk));
@@ -212,6 +229,13 @@ class CaptionStream extends EventEmitter {
       // to another process over COM, so an occasional death is possible;
       // restart rather than leaving the user with a dead panel.
       const why = this._describeExit(code);
+      // Restarting cannot fix a refused permission; it just buries the reason
+      // under five retries before the user is finally told.
+      if (process.platform === "darwin" && code >= 3 && code <= 6) {
+        this._setState("error", why);
+        this._wanted = false;
+        return;
+      }
       if (this._restarts >= CaptionStream.MAX_RESTARTS) {
         this._setState("error", "caption reader keeps stopping (" + why + ")");
         this._wanted = false;
@@ -238,8 +262,37 @@ class CaptionStream extends EventEmitter {
     }
   }
 
-  // Windows exit codes from a terminated PowerShell host are not obvious, so
-  // spell them out rather than surfacing a bare number to the user.
+  static _spawnWindowsSidecar() {
+    return spawn(
+      "powershell.exe",
+      [
+        "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+        "-File", SIDECAR,
+        // So the reader stops itself if this app is force-killed rather than
+        // shut down, instead of lingering as an orphan.
+        "-ParentPid", String(process.pid),
+      ],
+      { windowsHide: true }
+    );
+  }
+
+  static _spawnMacHelper(audioSource) {
+    return spawn(
+      MAC_HELPER,
+      [
+        "--source", audioSource,
+        // British English, because the whole point is British Sign Language.
+        "--locale", "en-GB",
+        // Same orphan precaution as on Windows, and it matters more here: an
+        // abandoned helper would hold the microphone open.
+        "--parent-pid", String(process.pid),
+      ]
+    );
+  }
+
+  // Windows exit codes from a terminated PowerShell host are not obvious, and
+  // the macOS helper's codes say which permission was refused, so spell both
+  // out rather than surfacing a bare number to the user.
   _describeExit(code) {
     const parts = [];
     if (code === null || code === undefined) parts.push("terminated");
@@ -247,10 +300,21 @@ class CaptionStream extends EventEmitter {
     else {
       const unsigned = code < 0 ? code >>> 0 : code;
       parts.push("code " + code);
-      if (unsigned === 0xfffd0000) parts.push("PowerShell host ended unexpectedly");
-      else if (unsigned === 0xc000013a) parts.push("interrupted");
-      else if (code === 1) parts.push("script error");
-      else if (code === 2) parts.push("Live Captions window not found");
+      if (process.platform === "darwin") {
+        // Kept in step with the exit code constants in caption-source.swift.
+        // A refused permission is the likeliest failure by far, and it is not
+        // something a restart can fix, so say which one plainly.
+        if (code === 1) parts.push("helper error");
+        else if (code === 3) parts.push("speech recognition permission was refused");
+        else if (code === 4) parts.push("microphone permission was refused");
+        else if (code === 5) parts.push("screen recording permission was refused");
+        else if (code === 6) parts.push("speech recognition is unavailable for British English");
+      } else {
+        if (unsigned === 0xfffd0000) parts.push("PowerShell host ended unexpectedly");
+        else if (unsigned === 0xc000013a) parts.push("interrupted");
+        else if (code === 1) parts.push("script error");
+        else if (code === 2) parts.push("Live Captions window not found");
+      }
     }
     if (this._lastStderr) parts.push(this._lastStderr.split("\n")[0].slice(0, 120));
     return parts.join(": ");

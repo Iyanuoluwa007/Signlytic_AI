@@ -9,7 +9,8 @@
   "scripts": {
     "sync-vendor": "node scripts/sync-vendor.js",
     "start": "npm run sync-vendor && electron .",
-    "dist": "npm run sync-vendor && electron-builder"
+    "dist": "npm run sync-vendor && node scripts/build-mac-helper.js && electron-builder",
+    "build:mac-helper": "node scripts/build-mac-helper.js"
   },
   "build": {
     "appId": "ai.signlytic.desktop",
@@ -17,10 +18,14 @@
     "files": [
       "main/**/*",
       "renderer/**/*",
-      "!**/*.map"
+      "!**/*.map",
+      "!main/captions/mac/*.swift",
+      "!main/captions/mac/Info.plist",
+      "!main/captions/mac/tools/**"
     ],
     "asarUnpack": [
-      "main/captions/*.ps1"
+      "main/captions/*.ps1",
+      "main/captions/mac/signlytic-captions"
     ],
     "win": {
       "target": [
@@ -31,7 +36,15 @@
       "target": [
         "dmg"
       ],
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "minimumSystemVersion": "13.0",
+      "hardenedRuntime": true,
+      "entitlements": "packaging/entitlements.mac.plist",
+      "entitlementsInherit": "packaging/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Signlytic AI listens to the microphone so speech in the room can be captioned and signed in British Sign Language.",
+        "NSSpeechRecognitionUsageDescription": "Signlytic AI turns speech into text on this Mac so it can be translated into British Sign Language."
+      }
     }
   },
   "devDependencies": {
