@@ -38,16 +38,40 @@ async function kvSet(key: string, value: string, ttl: number): Promise<void> {
 }
 
 // --- GitHub raw content fetch ---
-async function fetchFromGitHub(gloss: string): Promise<string | null> {
+// Distinguishes "this sign does not exist" from "GitHub is throttling us".
+// Returning null for both made a rate limit look identical to a missing sign,
+// so the client fingerspelled a word it has a perfectly good clip for, and the
+// logs gave no hint that anything was wrong.
+type FetchResult =
+  | { ok: true; data: string }
+  | { ok: false; throttled: boolean };
+
+async function fetchFromGitHub(gloss: string): Promise<FetchResult> {
   const url = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${gloss}.json`;
+  const attempt = () =>
+    fetch(url, { headers: { Authorization: `token ${GH_PAT}` } });
+
   try {
-    const res = await fetch(url, {
-      headers: { Authorization: `token ${GH_PAT}` },
-    });
-    if (!res.ok) return null;
-    return await res.text();
+    let res = await attempt();
+
+    for (let tries = 0; res.status === 429 && tries < 2; tries++) {
+      const retryAfter = Number(res.headers.get("retry-after"));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 2000)
+          : 400 * (tries + 1);
+      await new Promise((r) => setTimeout(r, waitMs));
+      res = await attempt();
+    }
+
+    if (res.ok) return { ok: true, data: await res.text() };
+    if (res.status === 429) {
+      console.error(`[ERR] signs upstream 429 for ${gloss}`);
+      return { ok: false, throttled: true };
+    }
+    return { ok: false, throttled: false };
   } catch {
-    return null;
+    return { ok: false, throttled: false };
   }
 }
 
@@ -78,10 +102,28 @@ export async function GET(
   }
 
   // 2. Fetch from GitHub private repo
-  const data = await fetchFromGitHub(key);
-  if (!data) {
-    return NextResponse.json({ error: "Sign not found" }, { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+  const result = await fetchFromGitHub(key);
+  if (!result.ok) {
+    // 503 for a throttle, so a caller can retry and so this is not mistaken
+    // for a sign that does not exist. Never cached, either way.
+    return result.throttled
+      ? NextResponse.json(
+          { error: "Sign store rate limited", retry: true },
+          {
+            status: 503,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Cache-Control": "no-store",
+              "Retry-After": "5",
+            },
+          }
+        )
+      : NextResponse.json(
+          { error: "Sign not found" },
+          { status: 404, headers: { "Access-Control-Allow-Origin": "*" } }
+        );
   }
+  const data = result.data;
 
   // 3. Cache in Redis (async, don't block response)
   kvSet(`sign:${key}`, data, CACHE_TTL);
