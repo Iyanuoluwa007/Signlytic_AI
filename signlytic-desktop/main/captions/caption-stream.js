@@ -71,9 +71,12 @@ class CaptionStream extends EventEmitter {
   //
   // Windows: yes, via UI Automation against the Live Captions window.
   // macOS: yes, but by recognising speech rather than by reading the system
-  //   Live Captions window. Apple publishes no API for reading that window,
-  //   whereas speech recognition is public, runs on device, and also covers
-  //   speech in the room, which reading a caption window never could.
+  //   Live Captions window. That window can in fact be read, through the
+  //   Accessibility API, and the README records the evidence. It is not used
+  //   because it would cost the user Accessibility permission, the most
+  //   powerful on the machine, and requires them to switch Live Captions on
+  //   themselves. Speech recognition is public, needs neither, and covers
+  //   speech in the room directly.
   static capabilities() {
     if (process.platform === "win32") {
       return CaptionStream.isLiveCaptionsInstalled()

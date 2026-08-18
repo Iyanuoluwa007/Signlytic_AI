@@ -5,12 +5,12 @@
 // caption-assembler.js needs no macOS special case.
 //
 // Why speech recognition rather than reading the system Live Captions window:
-// macOS has Live Captions, but Apple publishes no API for reading its output,
-// so any such reader would depend on the Accessibility tree of an Apple
-// internal app and could break without warning. Speech recognition is a public,
-// permissioned API, runs on device, and covers the in-person case that reading
-// a caption window never could. tools/ax-probe.swift is the tool for testing
-// the Accessibility route; see the README for what it found.
+// that window can be read, through the Accessibility API, and tools/ax-probe.swift
+// proves it. It is not used because doing so costs the user Accessibility
+// permission, the most powerful on the machine, and requires them to switch
+// Live Captions on themselves. Speech recognition is a public, permissioned
+// API, runs on device, needs neither of those, and covers speech in the room
+// directly. See the README for the full comparison.
 //
 //   --source mic       microphone, for conversation in the room
 //   --source system    system audio, for calls and video, via ScreenCaptureKit

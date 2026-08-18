@@ -4,10 +4,14 @@
 // transcript text through the Accessibility API, the way the Windows Live
 // Captions window exposes it through UI Automation?
 //
-// The Windows reader attaches to a known element (CaptionsTextBlock) and reads
-// its value. If macOS has an equivalent, this prints it. If the window turns
-// out to be an opaque surface with no readable text, this prints the tree
-// showing that, and the AX route is dead.
+// It does. The window is AXLiveCaptionsWindow and the text sits in AXStaticText
+// children, one per line, already punctuated. This tool is kept so the finding
+// can be re-checked against a new macOS release rather than trusted.
+//
+// Run it with audio actually playing. The window does not exist while there is
+// nothing to caption, so a run against a silent machine reports no windows and
+// reads exactly like a dead end. That is what it looked like on the first run
+// here, and it was wrong.
 //
 // Build and run:
 //   swiftc -O main/captions/mac/tools/ax-probe.swift -o /tmp/ax-probe
@@ -15,6 +19,8 @@
 //
 // Needs Live Captions switched on in System Settings, Accessibility, and
 // Accessibility permission granted to whatever runs this.
+//
+//   say "the weather is good today" & swiftc ... && /tmp/ax-probe
 
 import Foundation
 import ApplicationServices
@@ -137,7 +143,9 @@ print("")
 print("---- verdict ----")
 if foundText.isEmpty {
     print("No readable text found anywhere in the Live Captions AX tree.")
-    print("If captions were visibly on screen while this ran, the AX route is dead.")
+    print("Check that captions were actually on screen while this ran: the")
+    print("window is not created at all while there is nothing to caption, and")
+    print("an idle run looks identical to the route being unavailable.")
 } else {
     print("Readable text found (\(foundText.count) strings):")
     for t in foundText { print("  \(t)") }

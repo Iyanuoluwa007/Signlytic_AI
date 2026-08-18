@@ -72,32 +72,62 @@ pre-attach history, no duplicates, no half sentences.
 
 ## macOS
 
-### Why not read the system Live Captions window
+### The system Live Captions window, and what reading it actually does
 
-macOS has had Live Captions since Ventura, and reading it would be the direct
-analogue of the Windows approach. It was not chosen, for reasons that are
-worth keeping:
+**It can be read.** This was tested rather than assumed, and the first guess
+was wrong, so the evidence is recorded here.
 
-- Apple publishes no API for reading it. Anything that worked would be reading
-  the Accessibility tree of an Apple internal app
-  (`com.apple.accessibility.LiveTranscriptionAgent`, which lives inside
-  `AccessibilitySharedSupport.framework`), and could break in a point release.
-- It would need the user to grant Accessibility permission, which is the most
-  powerful permission on the machine, to caption a film.
-- It only captions what the Mac plays. Speech in the room, which is the case a
-  laptop user hits most, would still not be covered.
-
-Speech recognition has none of those problems: `SFSpeechRecognizer` is public,
-runs on device for British English, and can listen to either the microphone or
-the system's own audio.
-
-`mac/tools/ax-probe.swift` tests the Accessibility route rather than leaving it
-to assumption. It attaches to Live Captions and dumps its whole Accessibility
-tree, marking any readable text. Build and run it with Live Captions switched
-on:
+`mac/tools/ax-probe.swift` attaches to Live Captions and dumps its whole
+Accessibility tree. Run it with Live Captions switched on **and audio playing**:
 
     swiftc -O main/captions/mac/tools/ax-probe.swift -o /tmp/ax-probe
     /tmp/ax-probe
+
+The window is hidden until there is something to caption, so a probe run
+against a silent machine reports `windows: 0` and looks like a dead end. With
+audio playing it reports:
+
+    AXWindow [AXSystemFloatingWindow] id=AXLiveCaptionsWindow
+      AXTitle = "Live Captions"
+      AXStaticText.AXValue = "The weather is good today."
+
+The caption text sits in `AXStaticText` children of that window, one per line,
+and reading them in order gives a rolling buffer with the same behaviour as the
+Windows one: cumulative, revised in place, oldest lines scrolling away. It
+arrives **already punctuated**, which is the part the recognition helper has to
+reconstruct for itself, and it tracks speech closely, with text appearing
+within a few seconds of it being spoken.
+
+The window's own menu exposes `Computer Audio` and `Microphone`, so the source
+can be switched the same way the Windows helper switches it.
+
+Element identifiers, the macOS counterpart of the Windows ones below:
+
+    com.apple.accessibility.LiveTranscriptionAgent   the process
+    AXLiveCaptionsWindow                             the window identifier
+    AXStaticText                                     the caption lines
+
+### Why speech recognition is used anyway
+
+Reading that window is a real option and is not ruled out. Recognition was
+chosen for reasons that are about cost to the user, not about feasibility:
+
+- It needs **Accessibility permission**, which is the most powerful permission
+  on the machine, and grants the ability to read and control every other app.
+  That is a lot to ask in order to caption a film.
+- It needs the user to switch Live Captions on themselves, in System Settings,
+  and its first run downloads a speech model. None of that can be automated,
+  and the window only exists while it is running.
+- It is an Apple internal app with no published API, so the tree could change
+  in a point release.
+- It captions what the Mac plays. Speech in the room is covered only by
+  switching its own Microphone option on, which is another thing to drive.
+
+`SFSpeechRecognizer` is public, runs on device for British English, needs no
+Accessibility permission, and covers both audio sources directly. If the
+Accessibility route is ever wanted it slots in behind the same interface: it
+would be a second helper printing the same JSON lines, chosen by the same
+setting, with the assembler and everything after it untouched.
 
 ### What the recognised transcript actually does
 
