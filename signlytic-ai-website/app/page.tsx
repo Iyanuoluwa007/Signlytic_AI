@@ -5,6 +5,10 @@ import Signable from "@/components/Signable";
 
 // Published on the public overlay repo: the main repo is private, so its
 // release assets are not publicly downloadable.
+// Where the Sponsor links point. Until a GitHub Sponsors profile is
+// approved this redirects to the plain profile page rather than a
+// sponsor page, so switch it to whichever platform is live first.
+const SPONSOR_URL = "https://github.com/sponsors/Iyanuoluwa007";
 const DESKTOP_WINDOWS_URL =
   "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.6/Signlytic.AI.Setup.0.3.6.exe";
 
@@ -934,6 +938,10 @@ export default function Home() {
               {
                 l: "Browser Extension",
                 h: "/extension",
+              },
+              {
+                l: "Sponsor",
+                h: SPONSOR_URL,
               },
               {
                 l: "LinkedIn",

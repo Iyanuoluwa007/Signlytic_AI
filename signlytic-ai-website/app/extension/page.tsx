@@ -3,6 +3,11 @@
 import { useEffect } from "react";
 import Signable from "@/components/Signable";
 
+// Where the Sponsor link points. Until a GitHub Sponsors profile is
+// approved this redirects to the plain profile page rather than a
+// sponsor page, so switch it to whichever platform is live first.
+const SPONSOR_URL = "https://github.com/sponsors/Iyanuoluwa007";
+
 const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.8/signlytic-extension.zip";
 
 // Windows desktop build. The app and the extension are released from the
@@ -310,6 +315,18 @@ export default function ExtensionPage() {
             </div>
             <span className="text-[13px] font-semibold text-white/50">Signlytic AI</span>
           </a>
+          <div className="flex justify-center gap-6 text-[11px] text-white/15 mb-3">
+            <a href="/" className="hover:text-white/40 transition-colors">Home</a>
+            <a href="/demo" className="hover:text-white/40 transition-colors">Demo</a>
+            <a
+              href={SPONSOR_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white/40 transition-colors"
+            >
+              Sponsor
+            </a>
+          </div>
           <p className="text-white/15 text-[11px]">Independent Robotics &amp; AI Systems Engineer &middot; v2.0 &middot; March 2026</p>
         </div>
       </footer>
