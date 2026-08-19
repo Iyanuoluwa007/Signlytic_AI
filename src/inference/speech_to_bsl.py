@@ -151,13 +151,18 @@ class TextToGloss:
         Args:
             mode: Conversion mode ('simple', 'llm', 'groq')
             vocabulary_path: Path to vocabulary.json (for filtering valid glosses)
-            groq_api_key: API key for Groq (required if mode='groq')
+            groq_api_key: API key for Groq. Defaults to the GROQ_API_KEY
+                          environment variable; needed only if mode='groq'.
             strict_vocab: If True, only output glosses in vocabulary. 
                          If False (default), output all glosses but mark coverage.
         """
         self.mode = mode
         self.vocabulary = self._load_vocabulary(vocabulary_path)
-        self.groq_api_key = groq_api_key
+        # Fall back to the environment, matching GlossToText in gloss_to_text.py
+        # and GlossToTextWithGroq in bsl_to_speech.py. This class used to be the
+        # one exception, so mode='groq' raised for a caller who reasonably
+        # assumed the key would be picked up the way its siblings pick it up.
+        self.groq_api_key = groq_api_key or os.environ.get("GROQ_API_KEY")
         self.strict_vocab = strict_vocab
         
         # Add number words to vocabulary if not present
