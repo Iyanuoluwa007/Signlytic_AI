@@ -211,18 +211,22 @@ function micAudioEnabled() {
   return v === undefined ? true : !!v;
 }
 
-// macOS only: which audio the caption helper listens to. Microphone is the
-// default because it needs one permission rather than two, and because speech
-// in the room is the case a laptop user hits first. System audio is the one
-// that matches what Windows Live Captions does, so both are offered.
+// macOS only: what the caption helper listens to. Microphone is the default
+// because it needs the fewest permissions and no other app running, and because
+// speech in the room is the case a laptop user hits first.
+const AUDIO_SOURCES = ["mic", "system", "captions"];
+
 function audioSource() {
-  return readPrefs().audioSource === "system" ? "system" : "mic";
+  const saved = readPrefs().audioSource;
+  return AUDIO_SOURCES.includes(saved) ? saved : "mic";
 }
 
 ipcMain.handle("audio-source-get", () => ({ source: audioSource() }));
 
 ipcMain.handle("audio-source-set", (_e, value) => {
-  const source = value === "system" ? "system" : "mic";
+  // Clamped here rather than trusted from the renderer, so a bad value cannot
+  // be written to the prefs file and leave captions unstartable next launch.
+  const source = AUDIO_SOURCES.includes(value) ? value : "mic";
   writePrefs({ audioSource: source });
   return { ok: true, source };
 });

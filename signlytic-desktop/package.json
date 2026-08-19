@@ -37,6 +37,7 @@
         "dmg"
       ],
       "category": "public.app-category.utilities",
+      "identity": "-",
       "minimumSystemVersion": "13.0",
       "hardenedRuntime": true,
       "entitlements": "packaging/entitlements.mac.plist",

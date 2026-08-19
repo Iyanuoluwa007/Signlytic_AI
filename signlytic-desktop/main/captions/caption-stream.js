@@ -62,9 +62,13 @@ class CaptionStream extends EventEmitter {
     this._restarts = 0;
     this._restartTimer = null;
     this._lastStderr = "";
-    // macOS only: microphone or system audio. Ignored on Windows, where Live
-    // Captions decides for itself what it listens to.
-    this._audioSource = options.audioSource === "system" ? "system" : "mic";
+    // The helper explains a refused permission far better than an exit code
+    // can, so the message is kept and used in place of the generic one.
+    this._lastErrorText = "";
+    // macOS only: microphone, system audio, or the system Live Captions window.
+    // Ignored on Windows, where Live Captions decides what it listens to and
+    // there is only ever one way to read it.
+    this._audioSource = CaptionStream._normaliseSource(options.audioSource);
   }
 
   // Whether this OS has a caption source we can read.
@@ -91,6 +95,12 @@ class CaptionStream extends EventEmitter {
         : { supported: false, reason: "The caption helper has not been built; run npm run build:mac-helper" };
     }
     return { supported: false, reason: "System captions are not available on this platform" };
+  }
+
+  // Anything unrecognised falls back to the microphone, which is the source
+  // that needs the fewest permissions and no other app to be running.
+  static _normaliseSource(value) {
+    return ["mic", "system", "captions"].includes(value) ? value : "mic";
   }
 
   static isLiveCaptionsInstalled() {
@@ -195,7 +205,7 @@ class CaptionStream extends EventEmitter {
     // Taken at start rather than held from construction, so changing the
     // setting and pressing start again actually switches source.
     if (options.audioSource) {
-      this._audioSource = options.audioSource === "system" ? "system" : "mic";
+      this._audioSource = CaptionStream._normaliseSource(options.audioSource);
     }
     this._wanted = true;
     this._restarts = 0;
@@ -206,6 +216,7 @@ class CaptionStream extends EventEmitter {
     if (this.proc) return;
     this.assembler.reset();
     this.buf = "";
+    this._lastErrorText = "";
 
     this.proc = process.platform === "darwin"
       ? CaptionStream._spawnMacHelper(this._audioSource)
@@ -234,8 +245,11 @@ class CaptionStream extends EventEmitter {
       const why = this._describeExit(code);
       // Restarting cannot fix a refused permission; it just buries the reason
       // under five retries before the user is finally told.
-      if (process.platform === "darwin" && code >= 3 && code <= 6) {
-        this._setState("error", why);
+      if (process.platform === "darwin" && code >= 3 && code <= 7) {
+        // "code 7: Accessibility permission was refused" tells the user what
+        // went wrong but not what to do about it. The helper already said
+        // which setting to open, so prefer that.
+        this._setState("error", this._lastErrorText || why);
         this._wanted = false;
         return;
       }
@@ -312,6 +326,7 @@ class CaptionStream extends EventEmitter {
         else if (code === 4) parts.push("microphone permission was refused");
         else if (code === 5) parts.push("screen recording permission was refused");
         else if (code === 6) parts.push("speech recognition is unavailable for British English");
+        else if (code === 7) parts.push("Accessibility permission was refused");
       } else {
         if (unsigned === 0xfffd0000) parts.push("PowerShell host ended unexpectedly");
         else if (unsigned === 0xc000013a) parts.push("interrupted");
@@ -359,6 +374,7 @@ class CaptionStream extends EventEmitter {
     } else if (rec.type === "status") {
       this._setState(rec.state, rec.detail);
     } else if (rec.type === "error") {
+      this._lastErrorText = String(rec.message || "");
       this.emit("error-text", rec.message);
     }
   }

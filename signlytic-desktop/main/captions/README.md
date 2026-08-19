@@ -107,10 +107,11 @@ Element identifiers, the macOS counterpart of the Windows ones below:
     AXLiveCaptionsWindow                             the window identifier
     AXStaticText                                     the caption lines
 
-### Why speech recognition is used anyway
+### All three are offered
 
-Reading that window is a real option and is not ruled out. Recognition was
-chosen for reasons that are about cost to the user, not about feasibility:
+Reading that window is a real option, so it is one of the three sources the
+helper supports, chosen with `--source captions`. It is not the default, for
+reasons that are about cost to the user rather than about feasibility:
 
 - It needs **Accessibility permission**, which is the most powerful permission
   on the machine, and grants the ability to read and control every other app.
@@ -124,12 +125,19 @@ chosen for reasons that are about cost to the user, not about feasibility:
   switching its own Microphone option on, which is another thing to drive.
 
 `SFSpeechRecognizer` is public, runs on device for British English, needs no
-Accessibility permission, and covers both audio sources directly. If the
-Accessibility route is ever wanted it slots in behind the same interface: it
-would be a second helper printing the same JSON lines, chosen by the same
-setting, with the assembler and everything after it untouched.
+Accessibility permission, and covers both audio sources directly, so the
+microphone is what the app starts on.
+
+The Live Captions source is the least code of the three. It needs none of the
+reconstruction below, because the window is already a punctuated rolling
+buffer, so it reports what it reads and stops there. That is the same job the
+PowerShell sidecar does on Windows, which is the point: three sources, one
+assembler, no branches after the buffer.
 
 ### What the recognised transcript actually does
+
+Applies to the microphone and system audio sources only. The Live Captions
+source has none of these problems.
 
 Same shape as the Windows buffer, cumulative and revised in place, with three
 differences that all cost time to find:
@@ -188,3 +196,7 @@ permission.
     4   microphone permission refused
     5   screen recording permission refused (system audio only)
     6   no recogniser for British English
+    7   Accessibility permission refused (Live Captions source only)
+
+Where the helper explained the problem itself, that message is shown instead of
+the exit description: "code 7" says what happened, not what to do about it.

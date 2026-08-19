@@ -297,18 +297,25 @@ window.signlytic.captions.onStatus((s) => {
 const AUDIO_SOURCE_NOTES = {
   mic: "Listens to the microphone, so speech in the room is signed. Needs microphone and speech recognition permission.",
   system: "Listens to what this Mac is playing, so calls and video are signed. Needs screen recording permission, which is how macOS allows system audio to be captured. Video with copy protection will refuse to be captured.",
+  captions: "Reads the caption window macOS itself produces, so the wording is Apple's rather than ours. Usually the most accurate. Needs Accessibility permission, and Live Captions has to be switched on in System Settings, Accessibility, and left running.",
+};
+
+const AUDIO_SOURCE_BUTTONS = {
+  mic: "audio-mic",
+  system: "audio-system",
+  captions: "audio-captions",
 };
 
 const audioSourceRow = document.getElementById("audio-source-row");
 const audioSourceNote = document.getElementById("audio-source-note");
-const audioMicBtn = document.getElementById("audio-mic");
-const audioSystemBtn = document.getElementById("audio-system");
 
 function markAudioSource(source) {
-  const isSystem = source === "system";
-  audioMicBtn.classList.toggle("active", !isSystem);
-  audioSystemBtn.classList.toggle("active", isSystem);
-  audioSourceNote.textContent = AUDIO_SOURCE_NOTES[isSystem ? "system" : "mic"];
+  const chosen = AUDIO_SOURCE_NOTES[source] ? source : "mic";
+  for (const [name, id] of Object.entries(AUDIO_SOURCE_BUTTONS)) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("active", name === chosen);
+  }
+  audioSourceNote.textContent = AUDIO_SOURCE_NOTES[chosen];
 }
 
 async function chooseAudioSource(source) {
@@ -317,15 +324,22 @@ async function chooseAudioSource(source) {
   markAudioSource(applied);
   // The helper is told its source when it is spawned, so a change only takes
   // effect on the next start. Saying so beats looking like nothing happened.
+  const WILL_LISTEN = {
+    mic: "Captions will listen to the microphone",
+    system: "Captions will listen to system audio",
+    captions: "Captions will read the macOS Live Captions window",
+  };
   setStatus(
     capOn
-      ? "Audio source changes when you stop and start captions again"
-      : (applied === "system" ? "Captions will listen to system audio" : "Captions will listen to the microphone")
+      ? "Caption source changes when you stop and start captions again"
+      : WILL_LISTEN[applied] || WILL_LISTEN.mic
   );
 }
 
-audioMicBtn.addEventListener("click", () => chooseAudioSource("mic"));
-audioSystemBtn.addEventListener("click", () => chooseAudioSource("system"));
+for (const [name, id] of Object.entries(AUDIO_SOURCE_BUTTONS)) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("click", () => chooseAudioSource(name));
+}
 
 window.signlytic.captions.capabilities().then((c) => {
   if (!c.supported) {

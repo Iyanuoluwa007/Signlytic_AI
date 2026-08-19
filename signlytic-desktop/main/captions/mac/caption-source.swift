@@ -14,6 +14,10 @@
 //
 //   --source mic       microphone, for conversation in the room
 //   --source system    system audio, for calls and video, via ScreenCaptureKit
+//   --source captions  the system Live Captions window, read over the
+//                      Accessibility API. Apple's own transcription, already
+//                      punctuated, so this one needs none of the reconstruction
+//                      the other two do.
 //
 // Output records:
 //   {"type":"status","state":"...","detail":"..."}
@@ -25,6 +29,8 @@ import Speech
 import AVFoundation
 import ScreenCaptureKit
 import CoreMedia
+import ApplicationServices
+import AppKit
 
 // Exit codes. caption-stream.js turns these into something a user can act on,
 // so they must stay in step with _describeExit there.
@@ -33,6 +39,7 @@ let EXIT_NO_SPEECH_PERMISSION = 3
 let EXIT_NO_MIC_PERMISSION = 4
 let EXIT_NO_SCREEN_PERMISSION = 5
 let EXIT_RECOGNISER_UNAVAILABLE = 6
+let EXIT_NO_ACCESSIBILITY = 7
 
 // A recognition request is not allowed to run indefinitely, so it is recycled
 // before it can be cut off mid-sentence. Finished text carries across, so the
@@ -118,8 +125,8 @@ while argIndex < args.count {
     argIndex += 1
 }
 
-guard sourceKind == "mic" || sourceKind == "system" else {
-    fail("unknown source \(sourceKind), expected mic or system", EXIT_ERROR)
+guard ["mic", "system", "captions"].contains(sourceKind) else {
+    fail("unknown source \(sourceKind), expected mic, system or captions", EXIT_ERROR)
 }
 
 // ---------------------------------------------------------------------------
@@ -598,6 +605,113 @@ final class SystemAudioSource: NSObject, SCStreamOutput, SCStreamDelegate {
     }
 }
 
+// The system Live Captions window, read over the Accessibility API.
+//
+// The closest thing macOS has to the Windows reader, and it behaves the same
+// way: the window holds the last few lines, rewrites them in place, and lets
+// the oldest scroll off. Unlike recognition it arrives already punctuated, so
+// nothing here reconstructs sentence boundaries. The whole window is reported
+// as one buffer and the shared assembler does the rest, which is exactly what
+// the PowerShell sidecar does on Windows.
+//
+// Two things that are not obvious:
+//   - The window does not exist while there is nothing to caption, so its
+//     absence is normal and must not be reported as a failure.
+//   - Live Captions has to be switched on by the user in System Settings. It
+//     cannot be turned on programmatically, and there is no window to read
+//     until it is.
+final class LiveCaptionsSource {
+    private static let BUNDLE_ID = "com.apple.accessibility.LiveTranscriptionAgent"
+    private static let WINDOW_ID = "AXLiveCaptionsWindow"
+
+    private var timer: DispatchSourceTimer?
+    private var announcedAttached = false
+    private var announcedWaiting = false
+
+    private func attribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
+        var out: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &out) == .success else { return nil }
+        return out
+    }
+
+    // The caption lines are AXStaticText values, one per line. Tree order is
+    // reading order, so gathering them depth first and joining is enough.
+    private func collectText(_ element: AXUIElement, into lines: inout [String]) {
+        if let role = attribute(element, kAXRoleAttribute) as? String, role == "AXStaticText",
+           let value = attribute(element, kAXValueAttribute) as? String {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { lines.append(trimmed) }
+        }
+        if let children = attribute(element, kAXChildrenAttribute) as? [AXUIElement] {
+            for child in children { collectText(child, into: &lines) }
+        }
+    }
+
+    private func readBuffer() -> String? {
+        guard let app = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleIdentifier == LiveCaptionsSource.BUNDLE_ID
+        }) else { return nil }
+
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        guard let windows = attribute(axApp, kAXWindowsAttribute) as? [AXUIElement] else { return nil }
+
+        for window in windows {
+            let identifier = (attribute(window, kAXIdentifierAttribute) as? String) ?? ""
+            guard identifier == LiveCaptionsSource.WINDOW_ID else { continue }
+            var lines: [String] = []
+            collectText(window, into: &lines)
+            if lines.isEmpty { return nil }
+            return lines.joined(separator: " ")
+        }
+        return nil
+    }
+
+    func start() {
+        // Accessibility cannot be requested and granted in place the way the
+        // microphone can. The prompt only points at System Settings, and the
+        // app has to be restarted afterwards, so this reports and stops rather
+        // than sitting there looking like it is working.
+        if !AXIsProcessTrusted() {
+            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            _ = AXIsProcessTrustedWithOptions(options)
+            fail("Signlytic AI needs Accessibility permission to read the Live Captions window. Allow it under System Settings, Privacy and Security, Accessibility, then start the app again.", EXIT_NO_ACCESSIBILITY)
+        }
+
+        status("idle", "waiting for the Live Captions window")
+
+        let t = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
+        // Fast enough to keep up with a window that is rewritten as someone
+        // speaks, cheap enough that walking the tree costs nothing noticeable.
+        t.schedule(deadline: .now() + 0.2, repeating: 0.3)
+        t.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            guard let text = self.readBuffer() else {
+                // No window yet, or nothing in it. Normal while nobody is
+                // talking, so say so once and then keep quiet.
+                if !self.announcedWaiting && !self.announcedAttached {
+                    self.announcedWaiting = true
+                    status("idle", "Live Captions is not showing anything yet; switch it on in System Settings, Accessibility if you have not")
+                }
+                return
+            }
+            if !self.announcedAttached {
+                self.announcedAttached = true
+                status("attached", "reading the Live Captions window")
+            }
+            // Straight through. The text is already punctuated and already a
+            // rolling buffer, which is exactly what the assembler expects.
+            publish(text)
+        }
+        t.resume()
+        timer = t
+    }
+
+    func stop() {
+        timer?.cancel()
+        timer = nil
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Permissions
 // ---------------------------------------------------------------------------
@@ -652,18 +766,29 @@ func startSettleTimer() {
     settleTimer = timer
 }
 
-status("starting", "preparing \(sourceKind == "mic" ? "microphone" : "system audio") captions")
+let SOURCE_NAMES = [
+    "mic": "captions from the microphone",
+    "system": "captions from system audio",
+    "captions": "the macOS Live Captions window",
+]
+status("starting", "preparing \(SOURCE_NAMES[sourceKind] ?? sourceKind)")
 
-let recogniser = Recogniser(locale: localeIdentifier)
+// Built only for the sources that need it. Reading the Live Captions window
+// asks for no microphone and no speech recognition permission at all, and
+// constructing this eagerly would fail on a Mac with no recogniser for British
+// English even when none was wanted.
+var recogniser: Recogniser?
 var micSource: MicrophoneSource?
 var systemSource: AnyObject?
+var captionsSource: LiveCaptionsSource?
 
 // Stopped by caption-stream.js with a kill, so release the audio hardware
 // rather than leaving the microphone indicator on until the process is reaped.
 func shutDown() {
     micSource?.stop()
     if #available(macOS 13.0, *) { (systemSource as? SystemAudioSource)?.stop() }
-    recogniser.stop()
+    captionsSource?.stop()
+    recogniser?.stop()
     exit(0)
 }
 
@@ -677,40 +802,50 @@ intSource.setEventHandler { shutDown() }
 intSource.resume()
 signal(SIGINT, SIG_IGN)
 
-startSettleTimer()
+if sourceKind == "captions" {
+    // Nothing to recognise and nothing to settle: the window already holds a
+    // finished, punctuated buffer.
+    let source = LiveCaptionsSource()
+    captionsSource = source
+    source.start()
+} else {
+    startSettleTimer()
 
-requestSpeechPermission {
-    let onDevice = recogniser.usesOnDeviceRecognition
-    status("starting", "speech recognition ready\(onDevice ? ", on device" : "")")
+    let engine = Recogniser(locale: localeIdentifier)
+    recogniser = engine
 
-    if sourceKind == "mic" {
-        requestMicrophonePermission {
-            recogniser.start()
-            let source = MicrophoneSource(recogniser: recogniser)
-            do {
-                try source.start()
-            } catch {
-                fail("could not start the microphone: \(error.localizedDescription)", EXIT_NO_MIC_PERMISSION)
+    requestSpeechPermission {
+        let onDevice = engine.usesOnDeviceRecognition
+        status("starting", "speech recognition ready\(onDevice ? ", on device" : "")")
+
+        if sourceKind == "mic" {
+            requestMicrophonePermission {
+                engine.start()
+                let source = MicrophoneSource(recogniser: engine)
+                do {
+                    try source.start()
+                } catch {
+                    fail("could not start the microphone: \(error.localizedDescription)", EXIT_NO_MIC_PERMISSION)
+                }
+                micSource = source
+                status("idle", "listening to the microphone")
             }
-            micSource = source
-            status("idle", "listening to the microphone")
-        }
-    } else {
-        guard #available(macOS 13.0, *) else {
-            fail("capturing system audio needs macOS 13 or later", EXIT_ERROR)
-        }
-        recogniser.start()
-        let source = SystemAudioSource(recogniser: recogniser)
-        systemSource = source
-        Task {
-            do {
-                try await source.start()
-                status("idle", "listening to system audio")
-            } catch {
-                fail("macOS has not granted screen recording, which is how it allows system audio to be captured. Allow Signlytic AI under System Settings, Privacy and Security, Screen and System Audio Recording, then start captions again.", EXIT_NO_SCREEN_PERMISSION)
+        } else {
+            guard #available(macOS 13.0, *) else {
+                fail("capturing system audio needs macOS 13 or later", EXIT_ERROR)
+            }
+            engine.start()
+            let source = SystemAudioSource(recogniser: engine)
+            systemSource = source
+            Task {
+                do {
+                    try await source.start()
+                    status("idle", "listening to system audio")
+                } catch {
+                    fail("macOS has not granted screen recording, which is how it allows system audio to be captured. Allow Signlytic AI under System Settings, Privacy and Security, Screen and System Audio Recording, then start captions again.", EXIT_NO_SCREEN_PERMISSION)
+                }
             }
         }
     }
 }
-
 RunLoop.main.run()

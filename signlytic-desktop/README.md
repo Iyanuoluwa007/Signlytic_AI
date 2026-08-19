@@ -28,8 +28,8 @@ The pipeline after the text arrives is identical everywhere. Only the caption
 | | Windows | macOS |
 | --- | --- | --- |
 | Manual text entry | yes | yes |
-| System captions | yes, Windows 11 Live Captions | yes, speech recognition |
-| Caption audio | whatever Windows captions | microphone or system audio |
+| System captions | yes, Windows 11 Live Captions | yes, three sources |
+| Caption source | whatever Windows captions | microphone, system audio, or the macOS Live Captions window |
 | 2D and 3D signing | yes | yes |
 
 `CaptionStream.capabilities()` is the single place that decides this. The
@@ -52,13 +52,40 @@ caption helper is a universal binary.
 Captions do not work until these are granted. macOS asks for the first two the
 first time you press Start Captions.
 
-| Permission | When | Why |
-| --- | --- | --- |
-| Speech Recognition | first start | turns speech into text, on device |
-| Microphone | first start, microphone source | listens to the room |
-| Screen Recording | system audio source only | the only supported way to capture system audio |
+Which ones you need depends on the source you pick under Settings, Listen to.
+No source needs all of them.
 
-Screen Recording is the awkward one. macOS offers no separate "record system
+| Permission | Needed for | Why |
+| --- | --- | --- |
+| Speech Recognition | Microphone, System audio | turns speech into text, on device |
+| Microphone | Microphone | listens to the room |
+| Screen Recording | System audio | the only supported way to capture system audio |
+| Accessibility | Live Captions | reads the caption window macOS draws |
+
+### The three sources
+
+- **Microphone**, the default. Speech in the room. Two permissions, both asked
+  for by a prompt you can accept in place.
+- **System audio.** What the Mac is playing, so calls and video. This is the
+  closest match to what the Windows build does.
+- **Live Captions.** Reads the caption window macOS itself produces, so the
+  wording is Apple's rather than ours, and it arrives already punctuated.
+  Usually the most accurate of the three. It needs Live Captions switched on
+  under System Settings, Accessibility, Live Captions, and left running, and it
+  needs Accessibility permission for this app. Its window does not exist while
+  nothing is being captioned, so the app reports that it is waiting rather than
+  treating it as a failure.
+
+Accessibility is the most powerful permission on the machine, which is why it
+is not the default: granting it lets an app read and control every other app.
+The microphone source deliberately needs nothing of the sort.
+
+Accessibility cannot be granted from a prompt the way the first two can. macOS
+only offers to open System Settings, and the app has to be started again
+afterwards, so the app says exactly that rather than waiting on a permission
+that will never arrive.
+
+Screen Recording is the other awkward one. macOS offers no separate "record system
 audio" permission, so capturing what the machine is playing is done through
 ScreenCaptureKit and counts as screen recording, even though no picture is
 ever captured. It is not granted by a prompt you can accept in place: allow
@@ -67,7 +94,8 @@ System Audio Recording, then start captions again. Video with copy protection
 will refuse to be captured.
 
 Nothing is uploaded. Recognition uses the on-device model, which the app
-requests explicitly.
+requests explicitly, and the Live Captions source never leaves the machine at
+all because macOS has already done the work.
 
 ### Opening an unsigned build
 
