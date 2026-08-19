@@ -197,7 +197,7 @@ new_create_demo = '''def create_demo():
             <div class="stats-row">
                 <span class="stat-badge">SWIN Recognition: {swin_status}</span>
                 <span class="stat-badge">Avatar Videos: {video_count:,}</span>
-                <span class="stat-badge">LLM: {'Groq Llama 3.3' if DEFAULT_GROQ_API_KEY else 'Simple Mode'}</span>
+                <span class="stat-badge">LLM: {'Groq gpt-oss-120b' if DEFAULT_GROQ_API_KEY else 'Simple Mode'}</span>
                 <span class="stat-badge">TTS: Coqui XTTS v2</span>
             </div>
         </div>

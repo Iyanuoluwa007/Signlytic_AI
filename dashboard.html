@@ -1136,7 +1136,8 @@ body::before{
                 <tbody>
                   <tr><td>BSL Recognition</td><td>Video-SWIN-T + cosine retrieval</td></tr>
                   <tr><td>Speech → Text</td><td>OpenAI Whisper base (16kHz)</td></tr>
-                  <tr><td>Text → Gloss</td><td>Groq Llama 3.3 70B</td></tr>
+                  <tr><td>Text → Gloss</td><td>Groq gpt-oss-120b</td></tr>
+                  <tr><td>Gloss → English</td><td>Cerebras gpt-oss-120b, Groq fallback</td></tr>
                   <tr><td>TTS</td><td>Coqui XTTS v2</td></tr>
                   <tr><td>2D Signing</td><td>MediaPipe pose renderer</td></tr>
                   <tr><td>3D Signing</td><td>Mixamo GLB + Three.js r128</td></tr>

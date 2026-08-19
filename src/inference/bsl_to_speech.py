@@ -139,10 +139,16 @@ class GlossToTextWithGroq:
         short_sentence_cutoff: int = 12,
         use_stop_glosses: bool = True,
         enable_normalize_map: bool = False,
+        model: str = "openai/gpt-oss-120b",
     ):
         import os
 
         self.api_key = api_key or os.environ.get("GROQ_API_KEY")
+        # Kept as a parameter rather than a literal at the call site: providers
+        # retire models on a schedule, and when that happens this should be one
+        # edit in one place. The previous model here, llama-3.1-8b-instant, was
+        # shut down by Groq on 2026-08-16 and had to be found by search.
+        self.model = model
         if not self.api_key:
             print("Warning: No Groq API key. Set GROQ_API_KEY or pass api_key parameter.")
 
@@ -198,12 +204,19 @@ class GlossToTextWithGroq:
             return self._simple_fallback(raw[:10])
 
         # Dynamic output constraints
+        # gpt-oss is a reasoning model: it spends tokens thinking before it
+        # emits anything, and that thinking is billed against the completion
+        # budget. The old ceilings here, 60 and 140, were sized for a plain
+        # instruct model and would now be swallowed by reasoning, returning
+        # finish_reason "length" and empty content. The prompt still bounds the
+        # sentence length, so a larger ceiling does not make the output longer;
+        # it only stops the reasoning from crowding the answer out.
         if is_short:
             output_rule = "Output exactly 1 short sentence."
-            max_tokens = 60
+            max_completion_tokens = 512
         else:
             output_rule = "Output up to 3 short sentences (max ~60 words total)."
-            max_tokens = 140
+            max_completion_tokens = 768
 
         system_prompt = (
             "You translate British Sign Language (BSL) gloss tokens into natural English.\n"
@@ -223,12 +236,13 @@ class GlossToTextWithGroq:
 
             client = Groq(api_key=self.api_key)
             response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=max_tokens,
+                max_completion_tokens=max_completion_tokens,
+                reasoning_effort="low",
                 temperature=0.0,
                 top_p=1.0,
             )
