@@ -251,3 +251,10 @@ extension-data/avatars/
 # Local SSH keys and anything beside them. *.key does not cover .pub,
 # and the whole folder is local-only regardless.
 key/
+
+# macOS AppleDouble sidecars. The project lives on an exFAT drive, which
+# has no native extended attributes, so macOS writes a ._ file beside every
+# real one. They were ignored under signlytic-desktop only; this covers the
+# whole tree, including docs/.
+._*
+.DS_Store
