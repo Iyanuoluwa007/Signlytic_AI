@@ -1,4 +1,4 @@
-// overlay.js — Signlytic AI Extension Overlay Controller (v0.2.0)
+// overlay.js: Signlytic AI Extension Overlay Controller
 // Depends on: avatar3d.js (ThreeAvatarRenderer), Three.js r128, GLTFLoader
 
 // ─── DOM refs ────────────────────────────────────────────────────────────────
@@ -122,14 +122,14 @@ async function load3DAvatar(forceGender) {
     genderBadge.textContent = gender;
     setStatus('listening', 'avatar ready');
   } else {
-    setStatus('error', 'avatar load failed — check GitHub CDN');
+    setStatus('error', 'avatar load failed, check the CDN');
     showAvatarError();
   }
 }
 
 function showAvatarError() {
   avatarLoading.classList.add('visible');
-  loadingLabel.textContent = 'load failed — check README';
+  loadingLabel.textContent = 'load failed, check README';
   loadingBar.style.width = '0%';
 }
 
@@ -381,7 +381,7 @@ function append2dQueue(newSigns) {
     return;
   }
   signQueue2d = signQueue2d.concat(newSigns);
-  // Append only NEW gloss tokens — don't rebuild the row
+  // Append only NEW gloss tokens, don't rebuild the row
   const emptyEl = document.getElementById('gloss-empty');
   if (emptyEl) emptyEl.style.display = 'none';
   newSigns.forEach(s => {
@@ -431,10 +431,10 @@ async function idbSet(gloss, frames) {
   } catch {}
 }
 
-// Sign sources — checked in priority order:
+// Sign sources, checked in priority order:
 //   1. IndexedDB cache (instant)
 //   2. Bundled core/ (174 signs, offline)
-//   3. Local FastAPI dashboard (http://localhost:8000) — full 5,203 signs
+//   3. Local FastAPI dashboard (http://localhost:8000), full 5,203 signs
 //   4. Fingerspell fallback (handled by caller)
 const LOCAL_API = 'http://localhost:8000';
 
@@ -764,8 +764,8 @@ window.addEventListener('message', (event) => {
       applySettings(msg.settings || {});
       panel.classList.remove('hidden');
       const initSrc = msg.settings?.captionSource || 'auto';
-      if (initSrc === 'mic')         setStatus('listening', 'mic active — speak now');
-      else if (initSrc === 'manual') setStatus('listening', 'manual mode — type below');
+      if (initSrc === 'mic')         setStatus('listening', 'mic active, speak now');
+      else if (initSrc === 'manual') setStatus('listening', 'manual mode, type below');
       else                           setStatus('listening', 'waiting for captions...');
       showManualInput(initSrc === 'manual');
       requestAnimationFrame(() => {

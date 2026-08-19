@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Signlytic AI \u2014 BSL Overlay",
+  "name": "Signlytic AI - BSL Overlay",
   "short_name": "Signlytic",
   "version": "0.3.9",
   "description": "Real-time British Sign Language overlay. Detects page captions or uses your microphone to translate English into BSL signing animation.",
@@ -31,7 +31,7 @@
   ],
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Signlytic AI \u2014 BSL Overlay",
+    "default_title": "Signlytic AI - BSL Overlay",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

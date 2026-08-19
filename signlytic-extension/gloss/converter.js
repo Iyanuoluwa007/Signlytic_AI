@@ -1,4 +1,4 @@
-// gloss/converter.js — English → BSL Gloss Converter (Rule-Based)
+// gloss/converter.js: English to BSL Gloss Converter (Rule-Based)
 // Exported as ES module for dynamic import() in overlay.js
 //
 // BSL gloss rules applied (in order):
@@ -154,7 +154,7 @@ function lemmatise(word) {
     if (/[sxz]$/.test(stem) || /[cs]h$/.test(stem)) return stem;
   }
 
-  // -s plural (dogs→dog, cats→cat) — be conservative
+  // -s plural (dogs to dog, cats to cat), be conservative
   if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) {
     const stem = word.slice(0, -1);
     if (!/[aeiou]$/.test(stem)) return stem; // only strip if stem ends consonant

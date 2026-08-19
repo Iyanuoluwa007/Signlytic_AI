@@ -1,4 +1,4 @@
-// background.js — Signlytic AI Extension Service Worker
+// background.js: Signlytic AI Extension Service Worker
 // Relay hub between content_script and overlay iframe
 
 // Track which tabs have an active overlay
@@ -43,7 +43,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ ok: true });
       break;
 
-    // Content script captured text — relay to overlay on same tab
+    // Content script captured text, relay to overlay on same tab
     case 'TEXT_CAPTURED':
       if (tabId) {
         chrome.tabs.sendMessage(tabId, {

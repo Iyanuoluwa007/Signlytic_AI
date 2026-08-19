@@ -4,7 +4,7 @@ import "./globals.css";
 import BslLayer from "@/components/BslLayer";
 
 export const metadata: Metadata = {
-  title: "Signlytic AI — British Sign Language Translation",
+  title: "Signlytic AI - British Sign Language Translation",
   description:
     "Bidirectional BSL translation system. Upload BSL videos for English, convert English to BSL signing. 5,203 signs, 100% dictionary accuracy. Powered by Video-SWIN-T, Groq LLM, Coqui TTS.",
   keywords: [
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Oke Iyanuoluwa Enoch" }],
   openGraph: {
-    title: "Signlytic AI — BSL Translation",
+    title: "Signlytic AI - BSL Translation",
     description:
       "Bidirectional BSL translation. 5,203 signs, 100% dictionary accuracy.",
     type: "website",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Signlytic AI — BSL Translation",
+    title: "Signlytic AI - BSL Translation",
     description:
       "Translate between British Sign Language and English.",
   },

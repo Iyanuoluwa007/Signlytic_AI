@@ -1,4 +1,4 @@
-// popup.js — Signlytic AI Extension Popup
+// popup.js: Signlytic AI Extension Popup
 
 const SOURCE_HINTS = {
   auto:     'Detects page captions, falls back to mic',
@@ -90,7 +90,7 @@ function sendPatch(patch) {
 
 function updateStatusIndicator(enabled) {
   statusIndicator.classList.toggle('on', !!enabled);
-  statusMsg.textContent = enabled ? 'active — overlay injected' : 'paused — click to enable';
+  statusMsg.textContent = enabled ? 'active, overlay injected' : 'paused, click to enable';
 }
 
 function updateSourceHint(source) {
