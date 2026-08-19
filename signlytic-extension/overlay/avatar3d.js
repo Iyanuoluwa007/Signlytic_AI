@@ -474,11 +474,15 @@ class ThreeAvatarRenderer {
     // (see BODY_Z_SCALE), and rest space must match target space or every frame
     // picks up a spurious out-of-plane rotation.
     this.restDir = {};
+    this.restWorldQ = {};
     for (const [key, bone] of Object.entries(this.bones)) {
       const wq = new THREE.Quaternion();
       bone.getWorldQuaternion(wq);
       // Bone's Y-axis in world space = the direction it points in T-pose
       this.restDir[key] = new THREE.Vector3(0, 1, 0).applyQuaternion(wq).normalize();
+      // The full rest orientation, needed to place a bone whose parent has
+      // itself been rotated this frame. See _driveSegment.
+      this.restWorldQ[key] = wq.clone();
     }
 
     const boneCount = Object.keys(this.bones).length;
@@ -560,10 +564,11 @@ class ThreeAvatarRenderer {
         const deltaQ = new THREE.Quaternion().setFromUnitVectors(restDir.clone().normalize(), targetDir);
         const parentWorldQ = new THREE.Quaternion();
         if (bone.parent) bone.parent.getWorldQuaternion(parentWorldQ);
+        const restWorldQ = (this.restWorldQ && this.restWorldQ[boneName])
+          || parentWorldQ.clone().multiply(this.restQ[boneName] || new THREE.Quaternion());
         const localQ = parentWorldQ.clone().invert()
           .multiply(deltaQ)
-          .multiply(parentWorldQ)
-          .multiply(this.restQ[boneName] || new THREE.Quaternion());
+          .multiply(restWorldQ);
         bone.quaternion.copy(localQ);
       }
     }
@@ -636,18 +641,30 @@ class ThreeAvatarRenderer {
     // Delta rotation: world-space rotation from rest direction to target direction
     const deltaQ = new THREE.Quaternion().setFromUnitVectors(restDir.clone().normalize(), targetDir);
 
-    // Correct local-space conversion (ported from commit 4a6fa65):
-    // desiredWorldQ = deltaQ * restWorldQ  (apply delta to rest world orientation)
-    // localQ = parentWorldQ^-1 * deltaQ * parentWorldQ * restQ
+    // We want the bone to end up at  deltaQ * restWorldQ, so its Y axis lands
+    // on targetDir. Converting that to a local rotation:
+    //
+    //   boneWorldQ = parentWorldQ_now * localQ = deltaQ * restWorldQ
+    //   localQ     = parentWorldQ_now^-1 * deltaQ * restWorldQ
+    //
+    // restWorldQ is captured from the T-pose at load. The earlier form put the
+    // CURRENT parent orientation where the rest one belongs and folded in restQ
+    // instead. Those agree only while the parent is still at rest, which holds
+    // for an upper arm, whose parent shoulder is never driven, and fails for a
+    // forearm, whose parent was rotated moments earlier in the same frame.
+    // Measured on the rig, that left the forearm 72 degrees out whenever the
+    // upper arm moved, and the forearm is what decides where the hand lands.
     const parentWorldQ = new THREE.Quaternion();
     if (bone.parent) {
       bone.parent.getWorldQuaternion(parentWorldQ);
     }
 
+    const restWorldQ = (this.restWorldQ && this.restWorldQ[boneName])
+      || parentWorldQ.clone().multiply(this.restQ[boneName] || new THREE.Quaternion());
+
     const localQ = parentWorldQ.clone().invert()
       .multiply(deltaQ)
-      .multiply(parentWorldQ)
-      .multiply(this.restQ[boneName] || new THREE.Quaternion());
+      .multiply(restWorldQ);
 
     // Smooth interpolation (slerp 0.6 for responsiveness without jitter)
     bone.quaternion.slerp(localQ, 0.6);
