@@ -97,6 +97,22 @@ LOCAL_VERSION_RE = re.compile(r'LOCAL_VERSION\s*=\s*"v(' + SEMVER + r')"')
 # Which files are searched
 # --------------------------------------------------------------------------
 
+# Deliberately held behind the current version, with the reason. A platform
+# whose binary cannot be produced on this machine will lag, and the honest
+# handling is to record why rather than to stop checking it: the pinned version
+# is still required to exist and to resolve.
+#
+# Remove an entry once the build catches up. scripts/check_versions.py is named
+# in docs/MACOS_NEXT_SESSION.md as the place to do that.
+PINNED = {
+    ("desktop", "universal.dmg"): (
+        "0.3.7",
+        "the macOS build needs a Mac; 0.3.8 is Windows-only until it is rebuilt "
+        "there. See docs/MACOS_NEXT_SESSION.md, task 1.",
+    ),
+}
+
+
 SEARCH_FILES = [
     "README.md",
     "signlytic-extension/README.md",
@@ -143,13 +159,13 @@ REMOTE_ANCHORS = [
      "downloads table, Windows"),
     ("README.md", "desktop",
      re.compile(r"\| Desktop App \| macOS 13\+ \| v(" + SEMVER + r") beta"),
-     "downloads table, macOS"),
+     "downloads table, macOS", ("desktop", "universal.dmg")),
     ("Software App/README.md", "desktop",
      re.compile(r"\| Windows 11 \| v(" + SEMVER + r") beta"),
      "download table, Windows"),
     ("Software App/README.md", "desktop",
      re.compile(r"\| macOS 13 or later \| v(" + SEMVER + r") beta"),
-     "download table, macOS"),
+     "download table, macOS", ("desktop", "universal.dmg")),
 ]
 
 
@@ -188,29 +204,52 @@ def check_urls(label: str, text: str, streams: dict, problems: list, seen_urls: 
 
         seen_urls.add(m.group(0))
 
-        if tag != st.tag:
+        # A pinned asset is allowed to sit on an older version, but only the
+        # exact version named in PINNED, and it must still resolve.
+        pin = None
+        for (skey, suffix), (pv, why) in PINNED.items():
+            if st.key == skey and asset and asset.endswith(suffix):
+                pin = (pv, why)
+                break
+        expected = pin[0] if pin else st.version
+        expected_tag = f"{st.tag_prefix}{expected}"
+
+        if tag != expected_tag:
+            extra = f"  [pinned: {pin[1]}]" if pin else f"  (source of truth: {st.source_desc})"
             problems.append(
-                f"{label}:{line}  {st.label}: tag is {tag}, expected {st.tag}"
-                f"  (source of truth: {st.source_desc})")
+                f"{label}:{line}  {st.label}: tag is {tag}, expected {expected_tag}{extra}")
 
         # The asset filename carries the version independently of the tag, so a
         # correct tag with a stale filename is a live 404. Check it separately.
         if asset:
             found = re.findall(SEMVER, asset)
             for v in found:
-                if v != st.version:
+                if v != expected:
                     problems.append(
                         f"{label}:{line}  {st.label}: asset filename says {v}, "
-                        f"expected {st.version}  ({asset})")
+                        f"expected {expected}  ({asset})")
 
 
 def check_anchors(anchors, read, streams: dict, problems: list):
-    for rel, key, pattern, desc in anchors:
+    for entry in anchors:
+        # A 5th element names a PINNED key, for prose describing a platform that
+        # is deliberately held back. Pinned text is still checked, against the
+        # pinned version, rather than exempted.
+        rel, key, pattern, desc = entry[:4]
+        pin_key = entry[4] if len(entry) > 4 else None
         text = read(rel)
         if text is None:
             problems.append(f"{rel}  missing, but an anchor is defined for it")
             continue
         st = streams[key]
+        expected, why = st.version, None
+        if pin_key is not None:
+            if pin_key not in PINNED:
+                problems.append(
+                    f"{rel}  anchor names pin {pin_key}, which is no longer in "
+                    f"PINNED. Drop the pin from the anchor as well.")
+                continue
+            expected, why = PINNED[pin_key]
         found = pattern.findall(text)
         if not found:
             problems.append(
@@ -219,9 +258,10 @@ def check_anchors(anchors, read, streams: dict, problems: list):
                 f"location stops being checked.")
             continue
         for v in found:
-            if v != st.version:
+            if v != expected:
+                extra = f"  [pinned: {why}]" if why else ""
                 problems.append(
-                    f"{rel}  {st.label} {desc}: says {v}, expected {st.version}")
+                    f"{rel}  {st.label} {desc}: says {v}, expected {expected}{extra}")
 
 
 # --------------------------------------------------------------------------

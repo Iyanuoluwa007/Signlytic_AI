@@ -1,14 +1,14 @@
 # Signlytic AI Chrome Extension
 
 The BSL signing overlay for browser tabs: captions on the page in, a signing
-panel out. This directory is the extension source. Version 0.4.0, Manifest V3.
+panel out. This directory is the extension source. Version 0.4.1, Manifest V3.
 
 ## Install it
 
 The built release, install instructions and usage notes live in the overlay
 repository, which is where the extension is published from:
 
-**[Download v0.4.0](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.0/signlytic-extension.zip)**
+**[Download v0.4.1](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.1/signlytic-extension.zip)**
 &nbsp;|&nbsp;
 [install instructions](https://github.com/Iyanuoluwa007/Signlytic-Overlay/tree/main/Extension)
 &nbsp;|&nbsp;

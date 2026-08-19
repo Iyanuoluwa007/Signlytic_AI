@@ -8,12 +8,12 @@ import Signable from "@/components/Signable";
 // sponsor page, so switch it to whichever platform is live first.
 const SPONSOR_URL = "https://github.com/sponsors/Iyanuoluwa007";
 
-const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.0/signlytic-extension.zip";
+const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.1/signlytic-extension.zip";
 
 // Desktop builds. The app and the extension are released from the overlay
 // repo, separately from the main project, so the two version streams do not
 // have to move together. Both platforms ship from the same tag.
-const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI.Setup.0.3.7.exe";
+const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.8/Signlytic.AI.Setup.0.3.8.exe";
 // Universal build, Apple silicon and Intel in one file, which is why it is
 // larger than the Windows installer.
 const DESKTOP_MAC_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg";
@@ -113,7 +113,7 @@ export default function ExtensionPage() {
               className="inline-flex items-center gap-2.5 bg-[#0e7c6b] hover:bg-[#0e7c6b]/90 text-white font-semibold px-7 py-3 rounded-xl text-[14px] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(14,124,107,0.35)]"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Beta - v0.4.0
+              Download Beta - v0.4.1
             </a>
             <a
               href="https://github.com/Iyanuoluwa007/Signlytic-Overlay"
@@ -295,7 +295,8 @@ export default function ExtensionPage() {
             <br />
             macOS 13 or newer, Apple silicon and Intel &middot; unsigned, so right-click the app and choose Open the first time
             <br />
-            Both free. The Mac build is newer and less tested than the Windows one.
+            Both free. Windows is on 0.3.8; the Mac build is still 0.3.7 and does not yet
+            carry the 3D avatar fix, because it has to be rebuilt on a Mac.
           </p>
         </div>
       </section>
