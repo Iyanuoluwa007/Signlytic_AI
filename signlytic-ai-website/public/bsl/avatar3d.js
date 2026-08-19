@@ -26,7 +26,21 @@ const AVATAR_CDN = {
   female: `https://signlytic-ai-website.vercel.app/api/avatar/female?v=${AVATAR_VERSION}`,
 };
 
-const BONE_PREFIX = { male: 'mixamorig', female: 'mixamorig' };
+// Mixamo exports do not agree on a prefix. The male rig here uses
+// "mixamorigHips" and the female "mixamorig8Hips". A hardcoded "mixamorig"
+// still matched the female names, but stripping it left "8LeftArm", which
+// equals no entry in BONE_NAMES, so not one bone was mapped. The avatar
+// loaded, reported itself ready, and then stood still through every sign.
+// Read the prefix off the rig rather than assuming it.
+function detectBonePrefix(root) {
+  let prefix = null;
+  root.traverse(o => {
+    if (prefix !== null || !o.name) return;
+    const m = /^(.*?)Hips$/.exec(o.name);
+    if (m) prefix = m[1];
+  });
+  return prefix;
+}
 
 // Depth scaling for body landmarks.
 // BSL is signed in the space in front of the chest, so this is what lets the
@@ -39,6 +53,26 @@ const BONE_PREFIX = { male: 'mixamorig', female: 'mixamorig' };
 // the arm into a stub for a head-on camera. 0.75 keeps the hands clearly in
 // front of the chest while the forearm stays readable.
 const BODY_Z_SCALE = 0.75;
+
+// Solve the wrist to a position rather than pointing the bones along a
+// direction. Direction-only retargeting takes limb LENGTH from the rig, so the
+// wrist lands at shoulder + rigArmLength * direction and can only reach where
+// the avatar's proportions allow. In BSL the location of the hand carries
+// meaning, a sign at the chin is not the same sign at the chest, so the wrist
+// has to arrive where the capture puts it.
+const ARM_IK = true;
+
+// The capture is not in metric units. Its torso measures 1.79 shoulder-widths
+// where an adult, and this rig, measure about 1.34, so vertical offsets are
+// stretched by roughly half as much again. Mapping through TORSO fractions
+// rather than raw shoulder-widths removes that, and needs no magic number:
+// the ratio is measured from the rig and from each frame.
+//
+// Depth gets an explicit gain because MediaPipe's z from a single camera is
+// only loosely scaled. 0.38 puts the wrist a median 0.7 shoulder-widths in
+// front of the chest, which is where the previous direction-driven code landed
+// and is anatomically sensible for signing space.
+const IK_Z_GAIN = 0.22;
 
 // ─── Pose normalisation ──────────────────────────────────────────────────────
 // Raw sign capture data is unreliable: across a 250-sign sample, 62% of signs
@@ -214,6 +248,8 @@ const BONE_NAMES = {
   spine2:      'Spine2',
   neck:        'Neck',
   head:        'Head',
+  lUpLeg:      'LeftUpLeg',
+  rUpLeg:      'RightUpLeg',
   lShoulder:   'LeftShoulder',
   lArm:        'LeftArm',
   lForeArm:    'LeftForeArm',
@@ -455,10 +491,13 @@ class ThreeAvatarRenderer {
     this.scene.add(this.model);
 
     // Build bone map ÔÇö match by name prefix (isBone unreliable in r128 GLTFLoader)
-    const prefix = BONE_PREFIX[this.gender];
+    const prefix = detectBonePrefix(this.model);
+    if (prefix === null) {
+      console.warn('[Signlytic 3D] No bone named *Hips found; this avatar cannot be posed.');
+    }
     this.model.traverse(obj => {
-      if (!obj.name || !obj.name.startsWith(prefix)) return;
-      const shortName = obj.name.replace(prefix, '');
+      if (prefix === null || !obj.name || !obj.name.startsWith(prefix)) return;
+      const shortName = obj.name.slice(prefix.length);
       for (const [key, bname] of Object.entries(BONE_NAMES)) {
         if (bname === shortName) {
           this.bones[key] = obj;
@@ -483,6 +522,36 @@ class ThreeAvatarRenderer {
       // The full rest orientation, needed to place a bone whose parent has
       // itself been rotated this frame. See _driveSegment.
       this.restWorldQ[key] = wq.clone();
+    }
+
+    // Rig proportions, measured once from the T-pose. Segment lengths are fixed
+    // by the bone hierarchy, and shoulder width and torso length are the
+    // yardsticks the capture is mapped onto.
+    {
+      const wpos = (b) => { const v = new THREE.Vector3(); b.getWorldPosition(v); return v; };
+      const B = this.bones;
+      if (B.lArm && B.rArm && B.lForeArm && B.lHand && B.rForeArm && B.rHand) {
+        const lS = wpos(B.lArm), rS = wpos(B.rArm);
+        const shW = lS.distanceTo(rS);
+        // Torso is measured shoulder joints to HIP JOINTS, matching MediaPipe's
+        // hip landmarks 23 and 24. The Hips bone sits at the pelvis centre, a
+        // little above the joints, and using it made the rig's torso read short,
+        // which placed every hand slightly high.
+        let torso = shW * 1.34;   // fallback if the leg bones are absent
+        if (this.bones.lUpLeg && this.bones.rUpLeg) {
+          const hipMidY = (wpos(this.bones.lUpLeg).y + wpos(this.bones.rUpLeg).y) / 2;
+          torso = Math.abs(lS.clone().add(rS).multiplyScalar(0.5).y - hipMidY);
+        } else if (this.bones.hips) {
+          torso = Math.abs(lS.clone().add(rS).multiplyScalar(0.5).y - wpos(this.bones.hips).y);
+        }
+        this.rig = {
+          shW, torso,
+          lUpper: lS.distanceTo(wpos(B.lForeArm)),
+          lFore:  wpos(B.lForeArm).distanceTo(wpos(B.lHand)),
+          rUpper: rS.distanceTo(wpos(B.rForeArm)),
+          rFore:  wpos(B.rForeArm).distanceTo(wpos(B.rHand)),
+        };
+      }
     }
 
     const boneCount = Object.keys(this.bones).length;
@@ -596,20 +665,26 @@ class ThreeAvatarRenderer {
     const lWrist    = lm(MP.L_WRIST);
     const rWrist    = lm(MP.R_WRIST);
 
-    // ÔöÇÔöÇ Left arm (driven by RIGHT landmarks - mirror for face-to-face) ÔöÇÔöÇ
-    if (rShoulder && rElbow && this.bones.lArm) {
-      this._driveSegment('lArm', rShoulder, rElbow, new THREE.Vector3(-1, 0, 0));
-    }
-    if (rElbow && rWrist && this.bones.lForeArm) {
-      this._driveSegment('lForeArm', rElbow, rWrist, new THREE.Vector3(-1, 0, 0));
-    }
+    // ÔöÇÔöÇ Arms. Rig LEFT is driven by RIGHT landmarks, mirroring face-to-face ÔöÇÔöÇ
+    const solved = ARM_IK && this.rig
+      && this._solveArm('l', body, MP.R_SHOULDER, MP.R_ELBOW, MP.R_WRIST)
+      && this._solveArm('r', body, MP.L_SHOULDER, MP.L_ELBOW, MP.L_WRIST);
 
-    // ÔöÇÔöÇ Right arm (driven by LEFT landmarks - mirror for face-to-face) ÔöÇÔöÇ
-    if (lShoulder && lElbow && this.bones.rArm) {
-      this._driveSegment('rArm', lShoulder, lElbow, new THREE.Vector3(1, 0, 0));
-    }
-    if (lElbow && lWrist && this.bones.rForeArm) {
-      this._driveSegment('rForeArm', lElbow, lWrist, new THREE.Vector3(1, 0, 0));
+    if (!solved) {
+      // Fallback: point the bones along the captured directions. Reaches only
+      // as far as the rig's own arm allows, but never fails.
+      if (rShoulder && rElbow && this.bones.lArm) {
+        this._driveSegment('lArm', rShoulder, rElbow, new THREE.Vector3(-1, 0, 0));
+      }
+      if (rElbow && rWrist && this.bones.lForeArm) {
+        this._driveSegment('lForeArm', rElbow, rWrist, new THREE.Vector3(-1, 0, 0));
+      }
+      if (lShoulder && lElbow && this.bones.rArm) {
+        this._driveSegment('rArm', lShoulder, lElbow, new THREE.Vector3(1, 0, 0));
+      }
+      if (lElbow && lWrist && this.bones.rForeArm) {
+        this._driveSegment('rForeArm', lElbow, lWrist, new THREE.Vector3(1, 0, 0));
+      }
     }
 
     // ÔöÇÔöÇ Spine lean (from shoulder midpoint vs hip midpoint) ÔöÇÔöÇ
@@ -620,6 +695,99 @@ class ThreeAvatarRenderer {
       const hipMid      = lHip.clone().add(rHip).multiplyScalar(0.5);
       this._driveSegment('spine1', hipMid, shoulderMid, new THREE.Vector3(0, 1, 0));
     }
+  }
+
+  // ÔöÇÔöÇ Map a captured landmark into the rig's own proportions ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // Returns a world position, or null when the frame lacks the anchors.
+  //
+  // Horizontal offsets are carried in shoulder-widths and vertical ones in
+  // torso lengths, each measured on the body they came from, so a capture with
+  // different proportions to the avatar still lands in the right place on it.
+  _landmarkToRig(body, idx, shoulderMidWorld) {
+    const b = body[idx];
+    const lS = body[MP.L_SHOULDER], rS = body[MP.R_SHOULDER];
+    const lH = body[MP.L_HIP], rH = body[MP.R_HIP];
+    if (!b || !lS || !rS || !lH || !rH) return null;
+
+    const shW = Math.hypot(lS[0] - rS[0], lS[1] - rS[1]);
+    if (!(shW > 1e-6)) return null;
+    const midX = (lS[0] + rS[0]) / 2;
+    const midY = (lS[1] + rS[1]) / 2;
+    const midZ = ((lS[2] || 0) + (rS[2] || 0)) / 2;
+    const torso = Math.abs((lH[1] + rH[1]) / 2 - midY);
+    if (!(torso > 1e-6)) return null;
+
+    return new THREE.Vector3(
+      // negated: the rig's left arm is driven by right-hand landmarks
+      -((b[0] - midX) / shW) * this.rig.shW + shoulderMidWorld.x,
+      // landmark y grows downward; torso fractions carry the vertical
+      -((b[1] - midY) / torso) * this.rig.torso + shoulderMidWorld.y,
+      // MediaPipe -z points toward the camera, which is +z here
+      -(((b[2] || 0) - midZ) / shW) * this.rig.shW * IK_Z_GAIN + shoulderMidWorld.z
+    );
+  }
+
+  // ÔöÇÔöÇ Two-bone IK: put the wrist on its target, elbow led by the capture ÔöÇÔöÇ
+  // side: 'l' | 'r' rig side. Returns false if the frame cannot be solved, so
+  // the caller can fall back rather than leave the arm frozen.
+  _solveArm(side, body, shIdx, elIdx, wrIdx) {
+    const armBone  = this.bones[side + 'Arm'];
+    const foreBone = this.bones[side + 'ForeArm'];
+    const handBone = this.bones[side + 'Hand'];
+    if (!armBone || !foreBone || !handBone) return false;
+
+    const lArm = this.bones.lArm, rArm = this.bones.rArm;
+    if (!lArm || !rArm) return false;
+    const lP = new THREE.Vector3(), rP = new THREE.Vector3();
+    lArm.getWorldPosition(lP); rArm.getWorldPosition(rP);
+    const shoulderMid = lP.clone().add(rP).multiplyScalar(0.5);
+
+    const target = this._landmarkToRig(body, wrIdx, shoulderMid);
+    const elbowT = this._landmarkToRig(body, elIdx, shoulderMid);
+    if (!target || !elbowT) return false;
+
+    const S = (side === 'l' ? lP : rP);
+    const L1 = this.rig[side + 'Upper'];
+    const L2 = this.rig[side + 'Fore'];
+    if (!(L1 > 1e-6) || !(L2 > 1e-6)) return false;
+
+    // Reach limit. Pull the target in rather than let the solver fail, and stop
+    // just short of full extension so the elbow never locks dead straight.
+    const toT = target.clone().sub(S);
+    let d = toT.length();
+    if (!(d > 1e-6)) return false;
+    const dMax = (L1 + L2) * 0.995;
+    const dMin = Math.abs(L1 - L2) + 1e-4;
+    if (d > dMax) { toT.multiplyScalar(dMax / d); d = dMax; }
+    else if (d < dMin) { toT.multiplyScalar(dMin / d); d = dMin; }
+    const T = S.clone().add(toT);
+
+    // Elbow sits on a circle around the shoulder-to-wrist axis. The captured
+    // elbow chooses where on that circle, so the avatar bends its arm the way
+    // the signer did instead of by a fixed rule.
+    const axis = toT.clone().divideScalar(d);
+    const cosA = Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d)));
+    const along = L1 * cosA;
+    const radius = L1 * Math.sqrt(Math.max(0, 1 - cosA * cosA));
+
+    let perp = elbowT.clone().sub(S);
+    perp.sub(axis.clone().multiplyScalar(perp.dot(axis)));
+    if (perp.lengthSq() < 1e-8) {
+      // Captured elbow lies on the axis, so it cannot pick a direction. Fall
+      // back to pointing the elbow down and slightly back, as a human arm does.
+      perp = new THREE.Vector3(0, -1, -0.3);
+      perp.sub(axis.clone().multiplyScalar(perp.dot(axis)));
+      if (perp.lengthSq() < 1e-8) perp = new THREE.Vector3(0, 0, -1);
+    }
+    perp.normalize();
+
+    const E = S.clone().add(axis.clone().multiplyScalar(along)).add(perp.multiplyScalar(radius));
+
+    // |E-S| is L1 and |T-E| is L2 by construction, so pointing each bone along
+    // these two directions lands the wrist exactly on T.
+    this._driveSegment(side + 'Arm', S, E, null);
+    this._driveSegment(side + 'ForeArm', E, T, null);
+    return true;
   }
 
   // ÔöÇÔöÇ Drive a single bone segment toward a target direction ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
@@ -792,6 +960,11 @@ class ThreeAvatarRenderer {
     this.ready  = false;
     this.bones  = {};
     this.restQ  = {};
+    // Everything below is measured from the rig being replaced, so carrying it
+    // over would pose the new body with the old one's proportions.
+    this.restDir    = null;
+    this.restWorldQ = null;
+    this.rig        = null;
 
     if (this.model) {
       this.scene.remove(this.model);
