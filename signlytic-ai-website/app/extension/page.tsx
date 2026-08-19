@@ -10,10 +10,13 @@ const SPONSOR_URL = "https://github.com/sponsors/Iyanuoluwa007";
 
 const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.9/signlytic-extension.zip";
 
-// Windows desktop build. The app and the extension are released from the
-// overlay repo, separately from the main project, so the two version streams
-// do not have to move together.
+// Desktop builds. The app and the extension are released from the overlay
+// repo, separately from the main project, so the two version streams do not
+// have to move together. Both platforms ship from the same tag.
 const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI.Setup.0.3.7.exe";
+// Universal build, Apple silicon and Intel in one file, which is why it is
+// larger than the Windows installer.
+const DESKTOP_MAC_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg";
 
 export default function ExtensionPage() {
   // Arriving from another page with a hash (the home page links here as
@@ -255,8 +258,8 @@ export default function ExtensionPage() {
             <Signable text="The desktop app signs what your whole computer is saying, not just your browser tabs.">
               The desktop app signs what your whole computer is saying, not just your browser tabs.
             </Signable>{" "}
-            <Signable text="It reads Windows Live Captions, so it works with video calls and desktop apps.">
-              It reads Windows Live Captions, so it works with video calls and desktop apps.
+            <Signable text="It reads Windows Live Captions, or listens directly on a Mac, so it works with video calls and desktop apps.">
+              It reads Windows Live Captions, or listens directly on a Mac, so it works with video calls and desktop apps.
             </Signable>
           </p>
 
@@ -264,7 +267,7 @@ export default function ExtensionPage() {
           <div className="flex items-center justify-center gap-2 mb-12 text-[12px] text-white/20 flex-wrap">
             <span className="px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-lg">Any app audio</span>
             <span>&#8594;</span>
-            <span className="px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-lg">Windows Live Captions</span>
+            <span className="px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-lg">Live Captions or Mac speech</span>
             <span>&#8594;</span>
             <span className="px-3 py-1.5 bg-[#0e7c6b]/10 border border-[#0e7c6b]/20 rounded-lg text-[#5eead4]">BSL signing avatar</span>
           </div>
@@ -278,13 +281,21 @@ export default function ExtensionPage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download for Windows
             </a>
-            <span className="inline-flex items-center gap-2 border border-white/[0.08] text-white/25 font-medium px-5 py-3 rounded-xl text-[13px]">
-              Mac app upcoming
-            </span>
+            <a
+              href={DESKTOP_MAC_URL}
+              className="inline-flex items-center gap-2.5 border border-[#0e7c6b]/40 hover:border-[#0e7c6b] text-[#5eead4] font-semibold px-7 py-3 rounded-xl text-[14px] transition-all hover:-translate-y-0.5 hover:bg-[#0e7c6b]/10"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download for Mac
+            </a>
           </div>
 
-          <p className="text-[11px] text-white/20">
-            Windows 11 with Live Captions &middot; Unsigned installer, choose More info then Run anyway &middot; Free
+          <p className="text-[11px] text-white/20 leading-relaxed max-w-md mx-auto">
+            Windows 11 with Live Captions &middot; unsigned installer, choose More info then Run anyway
+            <br />
+            macOS 13 or newer, Apple silicon and Intel &middot; unsigned, so right-click the app and choose Open the first time
+            <br />
+            Both free. The Mac build is newer and less tested than the Windows one.
           </p>
         </div>
       </section>

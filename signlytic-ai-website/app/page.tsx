@@ -11,6 +11,9 @@ import Signable from "@/components/Signable";
 const SPONSOR_URL = "https://github.com/sponsors/Iyanuoluwa007";
 const DESKTOP_WINDOWS_URL =
   "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI.Setup.0.3.7.exe";
+// Universal build, Apple silicon and Intel in one file.
+const DESKTOP_MAC_URL =
+  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg";
 
 /* ═══════════════════════════════════════
    SCROLL ANIMATION SYSTEM
@@ -869,8 +872,8 @@ export default function Home() {
                 </h3>
                 <p className="text-[13px] text-white/30 leading-relaxed">
                   <span className="relative z-10">
-                    <Signable text="Signs what your computer is saying, in any app, using Windows Live Captions.">
-                      Signs what your computer is saying, in any app, using Windows Live Captions.
+                    <Signable text="Signs what your computer is saying, in any app. Windows and Mac.">
+                      Signs what your computer is saying, in any app. Windows and Mac.
                     </Signable>
                   </span>
                 </p>
@@ -881,8 +884,14 @@ export default function Home() {
                   >
                     Download for Windows &#8594;
                   </a>
+                  <a
+                    href={DESKTOP_MAC_URL}
+                    className="relative z-10 text-[12px] text-[#0e7c6b]/70 font-medium hover:text-[#0e7c6b] transition-colors"
+                  >
+                    Download for Mac &#8594;
+                  </a>
                   <span className="text-[11px] text-white/20">
-                    Mac app upcoming &middot;{" "}
+                    Mac build is newer &middot;{" "}
                     <span className="relative z-10 underline underline-offset-2 hover:text-white/40">
                       <a href="/extension#desktop">see details</a>
                     </span>
