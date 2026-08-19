@@ -115,7 +115,7 @@ how it is put together and how to build it.
 The same signing overlay, scoped to browser tabs, driven by captions on the page.
 See [signlytic-extension/](signlytic-extension/).
 
-**[Download](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.9/signlytic-extension.zip)**
+**[Download](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.0/signlytic-extension.zip)**
 
 Both apps are free, in beta, and released from the
 [overlay repository](https://github.com/Iyanuoluwa007/Signlytic-Overlay) so their

@@ -8,7 +8,7 @@ import Signable from "@/components/Signable";
 // sponsor page, so switch it to whichever platform is live first.
 const SPONSOR_URL = "https://github.com/sponsors/Iyanuoluwa007";
 
-const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.9/signlytic-extension.zip";
+const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.0/signlytic-extension.zip";
 
 // Desktop builds. The app and the extension are released from the overlay
 // repo, separately from the main project, so the two version streams do not
@@ -113,7 +113,7 @@ export default function ExtensionPage() {
               className="inline-flex items-center gap-2.5 bg-[#0e7c6b] hover:bg-[#0e7c6b]/90 text-white font-semibold px-7 py-3 rounded-xl text-[14px] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(14,124,107,0.35)]"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Beta - v0.3.9
+              Download Beta - v0.4.0
             </a>
             <a
               href="https://github.com/Iyanuoluwa007/Signlytic-Overlay"
