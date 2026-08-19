@@ -75,6 +75,54 @@ This approach achieves 100% Top-1 accuracy on dictionary signs because cosine si
 
 ---
 
+## Apps
+
+The research code below runs the full system locally, and needs a GPU. If you
+just want BSL signing on your own screen, the apps do that without any of that
+setup.
+
+### Desktop app (Windows and macOS)
+
+A floating signing avatar that signs whatever your computer is saying, in any
+application, not only in a browser.
+
+**[Download for Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI.Setup.0.3.7.exe)**
+&nbsp;|&nbsp;
+**[Download for Mac](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg)**
+&nbsp;|&nbsp;
+[release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.7)
+
+The two platforms reach the same place by different routes. On Windows the app
+reads the Live Captions window, so it needs Windows 11 22H2 or newer. On macOS
+there is no equivalent window to read, so the app recognises speech itself, from
+the microphone or from system audio, and feeds the same sentence assembler.
+The Mac build needs macOS 13 or newer and is universal, so one file covers both
+Apple silicon and Intel.
+
+Neither build is code-signed, so both need talking past the operating system
+once. Windows: **More info**, then **Run anyway**. macOS is stricter, and
+opening it normally will fail: **right-click the app and choose Open**, then
+confirm. macOS also asks for microphone and speech recognition permission the
+first time captions start, and for screen recording if you pick system audio,
+which is how it gates capturing what other apps play.
+
+The Mac build is on its first release and is less tested than the Windows one,
+which has been through several. See [signlytic-desktop/](signlytic-desktop/) for
+how it is put together and how to build it.
+
+### Chrome extension
+
+The same signing overlay, scoped to browser tabs, driven by captions on the page.
+See [signlytic-extension/](signlytic-extension/).
+
+**[Download](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.3.9/signlytic-extension.zip)**
+
+Both apps are free, in beta, and released from the
+[overlay repository](https://github.com/Iyanuoluwa007/Signlytic-Overlay) so their
+version streams can move independently of the research code here.
+
+---
+
 ## Getting Started
 
 ### Requirements
@@ -123,13 +171,13 @@ python app.py
 
 The Gradio application provides four tabs:
 
-**BSL to English** — Upload a BSL video, record via webcam, or type BSL glosses. The system produces English text with optional speech output. Video recognition and live camera translation require local GPU.
+**BSL to English**: Upload a BSL video, record via webcam, or type BSL glosses. The system produces English text with optional speech output. Video recognition and live camera translation require local GPU.
 
-**English to BSL** — Record audio or type English text. The system produces BSL glosses with word coverage metrics and animated signing preview. Speech input requires Whisper (GPU). Pose animation requires local GPU with 2D Pose Animator.
+**English to BSL**: Record audio or type English text. The system produces BSL glosses with word coverage metrics and animated signing preview. Speech input requires Whisper (GPU). Pose animation requires local GPU with 2D Pose Animator.
 
-**Help & Accessibility** — Usage guides for BSL users and hearing users. All outputs include visible text. Nothing relies solely on audio. The interface supports keyboard navigation.
+**Help & Accessibility**: Usage guides for BSL users and hearing users. All outputs include visible text. Nothing relies solely on audio. The interface supports keyboard navigation.
 
-**About & System** — Architecture details, model comparison, and performance metrics.
+**About & System**: Architecture details, model comparison, and performance metrics.
 
 ---
 
@@ -174,6 +222,14 @@ bsl_translation_project/
       demo/page.tsx               # Interactive demo page
       layout.tsx                  # Root layout with analytics
       globals.css                 # Global styles
+  signlytic-desktop/              # Electron desktop app, Windows and macOS
+    main/captions/
+      caption-stream.js           # Picks a caption source per platform
+      live-captions.ps1           # PowerShell sidecar reading Live Captions
+      mac/caption-source.swift    # Speech recognition, mic or system audio
+    renderer/                     # Signing avatar and app UI
+  signlytic-extension/            # Chrome extension, same overlay in a tab
+    overlay/avatar3d.js           # 3D avatar, the shared source of truth
 ```
 
 ---
@@ -192,10 +248,10 @@ bsl_translation_project/
 
 ## Datasets
 
-- **BSLDict** — 5,203 isolated BSL sign videos with gloss labels
-- **BSL-1K** — ~1,000 BSL sign classes with automatic annotations from broadcast subtitles (BOBSL)
-- **WLASL** — ASL dataset used for cross-language experiments
-- **INCLUDE** — French LSF dataset used for multi-lingual experiments
+- **BSLDict**: 5,203 isolated BSL sign videos with gloss labels
+- **BSL-1K**: ~1,000 BSL sign classes with automatic annotations from broadcast subtitles (BOBSL)
+- **WLASL**: ASL dataset used for cross-language experiments
+- **INCLUDE**: French LSF dataset used for multi-lingual experiments
 
 ---
 
@@ -211,12 +267,17 @@ bsl_translation_project/
 
 ## Planned Improvements
 
+Three earlier entries here have since shipped and have been removed rather than
+left standing: 3D character animation alongside the 2D skeleton, live camera
+translation, and the Chrome extension. What is still open:
+
 - Continuous sign language recognition from natural signing sequences
-- 3D character animation as an alternative to 2D skeleton rendering
-- Live camera translation for real-time BSL recognition
-- Chrome extension for screen caption to BSL signing overlay
 - User testing with BSL communities
 - Expanded rule-based vocabulary
+- Code-signing and notarising the desktop builds, so neither platform asks the
+  user to override its own warning
+- Reading the macOS Live Captions window, so the Mac app can work from system
+  captions the way the Windows one does
 
 ---
 

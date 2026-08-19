@@ -3,6 +3,18 @@
 Turns speech into British Sign Language on the desktop: caption text in, a
 signing avatar out.
 
+Built releases, if you want to use it rather than work on it:
+**[Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI.Setup.0.3.7.exe)**
+&nbsp;|&nbsp;
+**[macOS](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg)**
+&nbsp;|&nbsp;
+[release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.7).
+Neither is code-signed, so both need talking past the OS once. See
+[Opening an unsigned build](#opening-an-unsigned-build) for the macOS side,
+which is stricter than the Windows one.
+
+To run from source:
+
     npm install
     npm start
 
