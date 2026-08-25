@@ -4,10 +4,11 @@
 // a single panel that swaps content, not an avatar per sentence).
 //
 // Two render engines behind one playback interface:
-//   2D skeleton  - default. No WebGL, no 3D model download, and it is the
-//                  renderer whose output is currently correct.
-//   3D avatar    - opt in. Lazy-loads Three.js plus a ~33 MB model, so it is
-//                  never fetched unless the visitor asks for it.
+//   2D skeleton  - the default, and currently the only renderer approved to
+//                  be shown without the visitor asking for it.
+//   3D avatar    - opt in, per session. Lazy-loads Three.js plus the model
+//                  (3.5 MB male, 5.4 MB female), so it is never fetched
+//                  unless the visitor asks for it.
 // Both expose playQueue/stopQueue/pause/resume/speed, so switching is just
 // swapping which object the controls talk to.
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -67,6 +68,11 @@ const AVATAR_MODEL = process.env.NEXT_PUBLIC_AVATAR_MALE_URL || "/api/avatar/mal
 
 const GLOSS_CACHE_KEY = "signlytic-bsl-gloss-cache-v1";
 const MODE_KEY = "signlytic-bsl-mode";
+
+// 3D is not approved to be shown by default yet. While this is false, every
+// visitor starts on the 2D skeleton and has to switch to 3D themselves, each
+// session. Set it to true once the 3D signing has been reviewed and signed off.
+const THREE_D_APPROVED_AS_DEFAULT = false;
 // Same-origin in production. Local dev has no Upstash/GitHub credentials, so
 // .env.local can point sign fetches at the deployed API, which sends CORS.
 const SIGNS_API_BASE = process.env.NEXT_PUBLIC_SIGNS_API_BASE || "";
@@ -132,11 +138,17 @@ export default function BslSignPanel() {
     []
   );
 
-  // Restore the visitor's last chosen mode
+  // Restore the visitor's last chosen mode, except that a saved "3d" is not
+  // restored while 3D is unapproved as a default. Someone who tried 3D once
+  // would otherwise keep landing on it without choosing it again, which is the
+  // same thing as 3D being the default for that visitor.
+  //
+  // The choice is still written to storage, so approving 3D restores everyone's
+  // own preference immediately. One flag, one line, no other change needed.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(MODE_KEY);
-      if (saved === "3d" || saved === "2d") {
+      if (saved === "2d" || (saved === "3d" && THREE_D_APPROVED_AS_DEFAULT)) {
         setMode(saved);
         modeRef.current = saved;
       }
