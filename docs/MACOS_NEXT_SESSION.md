@@ -6,6 +6,16 @@ that is still outstanding, in the order it is worth doing.
 
 You are on a Mac. Everything here needs a Mac, which is why it is not done.
 
+**State as of 1 October 2026.** `main` is pushed, so `git pull` gets you
+everything, including both 3D avatar fixes. Windows is released at 0.3.9; the
+Mac is still on 0.3.7 and pinned there. `python scripts/check_versions.py
+--remote` exits 0 on what is pushed, so if it fails after your changes, it is
+your changes.
+
+The Windows machine also has some uncommitted Mac un-pin edits that were written
+for 0.3.8. They were never pushed, so you will not see them, and they are out of
+date. Do the un-pinning fresh from the steps below.
+
 ---
 
 ## Context in one paragraph
@@ -20,17 +30,20 @@ shared between both platforms.
 
 ---
 
-## Task 1: rebuild and release the Mac app at 0.3.8
+## Task 1: rebuild and release the Mac app at 0.3.9
 
-**This is the priority.** The Windows build is already released at 0.3.8. The
+**This is the priority.** The Windows build is already released at 0.3.9. The
 Mac download on the website still points at 0.3.7 and is deliberately pinned
-there, because a Mac build cannot be produced off a Mac.
+there, because a Mac build cannot be produced off a Mac. There is no Mac 0.3.8
+and there will not be one: build 0.3.9, which carries both fixes below.
 
 ### Why the rebuild is needed
 
-0.3.8 fixes the 3D avatar, which was placing hands near the hips and barely
-moving them regardless of the sign. Three faults, all in the 3D renderer, none
-in the sign data:
+The Mac is two fixes behind, both in the 3D avatar and both in the one file.
+
+**0.3.8 fixed where the hands go.** The avatar was placing them near the hips
+and barely moving them regardless of the sign. Three faults, all in the 3D
+renderer, none in the sign data:
 
 - the forearm was positioned against the wrong reference orientation and came
   out 72 degrees off whenever the upper arm moved
@@ -43,10 +56,23 @@ rig uses a different bone-name prefix and not one bone was being mapped, so she
 loaded, reported herself ready, and stood still through every sign.
 
 Measured against the 2D renderer over 818,904 solves from 500 signs, median
-error went from 0.434 to 0.003 of torso length. The fix is in
-`signlytic-extension/overlay/avatar3d.js`, which is the source of truth, and is
-copied into the desktop app by `sync-vendor` at build time. **You do not need to
-touch it. Just build.**
+error went from 0.434 to 0.003 of torso length.
+
+**0.3.9 fixed the hands themselves.** With the arms right, hands still came out
+mangled: a hand collapsing into a twisted strand, open hands clawed with the
+fingers crossed. The hand bone was never turned, so the knuckles absorbed the
+difference between the palm and the captured fingers, up to folding them back
+through the hand; each finger bone could roll freely, wringing the mesh; there
+were no joint limits; and the hand landmarks were read as square when the source
+video is 4:3. The palm is now matched to the capture, fingers bend within human
+limits without rolling, and the forearm takes half the palm's turn so the wrist
+does not wring. Over 150 signs on both avatars, the palm facing the wrong way
+went from a median 89 degrees to 0, fingers folded past 150 degrees from 3.3% to
+none, and finger direction on screen against the 2D from 9 degrees to 3.
+
+Both fixes are in `signlytic-extension/overlay/avatar3d.js`, which is the source
+of truth, and is copied into the desktop app by `sync-vendor` at build time.
+**You do not need to touch it. Just build.**
 
 ### Build
 
@@ -55,44 +81,72 @@ touch it. Just build.**
     cd signlytic-desktop
     npm install
     node node_modules/electron/install.js     # npm 11 skips install scripts
-    npm run dist
 
-Do not build onto the exFAT drive. See gotcha 2 in the handover: send the output
-elsewhere.
+`npm run dist` is the normal build, but it writes its output next to the source,
+and gotcha 2 in the handover says not to build onto the exFAT drive. Run the
+same three steps by hand instead, sending the output elsewhere:
 
+    npm run sync-vendor
+    node scripts/build-mac-helper.js
     npx electron-builder --mac dmg --universal --config.directories.output=~/signlytic-build
+
+**Do not shorten that to the `electron-builder` line on its own.** The two steps
+above it are exactly what `npm run dist` exists to run first.
+`renderer/vendor/` is gitignored, so a fresh clone contains no `avatar3d.js` at
+all: it is copied in from `signlytic-extension/overlay/` by `sync-vendor` at
+build time, and `build-mac-helper.js` compiles the Swift caption helper. Skip
+them and the dmg ships with no avatar renderer and no captions, which is the
+same class of silent trap as gotcha 4.
 
 Confirm the built app actually contains the fix rather than assuming
 `sync-vendor` ran. From inside the app bundle:
 
-    npx asar extract Contents/Resources/app.asar /tmp/asar-check
-    grep -c "detectBonePrefix\|_solveArm" /tmp/asar-check/renderer/vendor/avatar3d.js
+    npx asar extract "Signlytic AI.app/Contents/Resources/app.asar" /tmp/asar-check
+    grep -o "detectBonePrefix\|_solveArm\|_captureHandRest\|_shareTwist" \
+      /tmp/asar-check/renderer/vendor/avatar3d.js | sort -u
 
-Both markers must be present. Gotcha 4 in the handover is exactly this trap: the
+All four markers must be present: the first two are 0.3.8, the last two 0.3.9.
+Better still, `cmp` the extracted file against
+`signlytic-extension/overlay/avatar3d.js`; on Windows they were byte-identical. Gotcha 4 in the handover is exactly this trap: the
 renderer loads from inside `app.asar`, so copying files into
 `app.asar.unpacked` changes nothing and silently runs the old code.
 
 ### Check it before releasing
 
-Launch it and sign something. The two things to look at, because they are what
-changed:
+Launch it and sign something. "Do you take the bus to work?" is a good test:
+WORK and BUS were among the worst signs before. The three things to look at,
+because they are what changed:
 
 1. Switch to the 3D avatar. The hands should move through the signing space in
-   front of the chest, not hang near the hips.
-2. Switch the avatar to female. She should move at all. If she is still, the
+   front of the chest, not hang near the hips. The desktop app still offers 3D
+   the way it always did. The website was separately put back on 2D by default
+   in `245c081` pending a visual sign-off, and that hold is **website only**,
+   a single flag in `signlytic-ai-website/components/BslSignPanel.tsx`. Do not
+   copy it into the desktop app or the extension.
+2. Look at the hands. Open hands should be flat with the fingers in order, not
+   clawed or crossed; curved hands (BUS) should curve the way fingers bend. No
+   finger should fold back through the hand and no wrist should twist like a
+   sweet wrapper.
+3. Switch the avatar to female. She should move at all. If she is still, the
    prefix detection has not reached this build.
 
 ### Release
 
-Attach the dmg to the existing `desktop-v0.3.8` release in the
+Attach the dmg to the existing `desktop-v0.3.9` release in the
 **Signlytic-Overlay** repo, which already holds the Windows installer:
 
-    gh release upload desktop-v0.3.8 "path/to/Signlytic AI-0.3.8-universal.dmg" \
+    gh release upload desktop-v0.3.9 "path/to/Signlytic AI-0.3.9-universal.dmg" \
       --repo Iyanuoluwa007/Signlytic-Overlay
+
+GitHub turns the space into a dot, so the asset is served as
+`Signlytic.AI-0.3.9-universal.dmg`, which is the name every link must use.
+Attaching an asset does not move the Latest badge, so leave that alone. The
+release is currently titled and described as Windows only: edit its title and
+notes to cover both platforms, and keep the attribution section.
 
 Then un-pin the Mac download. In `scripts/check_versions.py` there is a `PINNED`
 entry holding the Mac URL at 0.3.7 with a reason. Remove it, update the Mac URLs
-to 0.3.8 in these files, and the checker will confirm you got them all:
+to 0.3.9 in these files, and the checker will confirm you got them all:
 
 - `signlytic-ai-website/app/page.tsx`
 - `signlytic-ai-website/app/extension/page.tsx`
@@ -106,6 +160,14 @@ Then:
 
 It must exit 0. It parses every release URL, checks asset filenames as well as
 tags, and confirms each asset actually resolves.
+
+The checker does not read prose that says the platforms differ, so fix those by
+hand once both are on 0.3.9: the paragraph starting "The two platforms are not
+on the same version" in `README.md`, the "Both free. Windows is on 0.3.9" line
+in `signlytic-ai-website/app/extension/page.tsx`, the same paragraph in the
+Overlay `README.md`, and the **Status** line in Overlay `Software App/README.md`.
+Pushing `main` deploys the website, so push only after the dmg is uploaded and
+the checker is green.
 
 ---
 
@@ -184,8 +246,18 @@ These are not stylistic preferences, they are requirements:
 - **The browser pane blocks WebGL when hidden**, so browser-based measurement of
   the avatar stalls at `initScene`. Measure headless instead: the vendored
   `three.min.js` is a UMD build and `require()`s straight into Node as real
-  THREE r128. There are probes in `scratchpad/` that rebuild the rig from the
-  GLB's JSON chunk and drive the real renderer methods.
+  THREE r128. Probes that rebuild the rig from the GLB's JSON chunk and drive
+  the real renderer methods were written into `scratchpad/`, which is **not in
+  the repository** and stayed on the Windows machine, so a fresh clone will not
+  have them. Nothing in Task 1 needs them: both fixes are already in the source
+  of truth and measured. They only matter if the avatar has to be retuned, and
+  they are quicker to rewrite than to chase.
+- **Not every avatar file on disk is the one that ships.** The live male has the
+  skeleton of `data/avatars/Male.glb` (prefix `mixamorig`); the live female has
+  that of `extension-data/avatars/Female.glb` (`mixamorig8`). The
+  `extension-data/avatars/Male.glb` copy (`mixamorig9`) is not shipped. If you
+  measure anything, fetch the live ones from `/api/avatar/male` and
+  `/api/avatar/female`.
 - **Fetch with `curl`, not Python `urllib`,** when checking anything served by
   Vercel or behind Cloudflare. `urllib` gets a stripped response and makes
   working things look broken.
@@ -201,7 +273,7 @@ These are not stylistic preferences, they are requirements:
       main/captions/mac/                the Swift helper and its probe tools
       renderer/vendor/                  generated by sync-vendor, do not edit
     signlytic-extension/overlay/        source of truth for both renderers
-      avatar3d.js                       3D avatar, the file 0.3.8 fixes
+      avatar3d.js                       3D avatar, the file 0.3.8 and 0.3.9 fix
       skeleton2d.js                     2D skeleton
     scripts/check_versions.py           gates a release, run with --remote
     docs/MACOS_PORT_HANDOVER.md         how the port works, and its gotchas
