@@ -69,10 +69,86 @@ const ARM_IK = true;
 // the ratio is measured from the rig and from each frame.
 //
 // Depth gets an explicit gain because MediaPipe's z from a single camera is
-// only loosely scaled. 0.38 puts the wrist a median 0.7 shoulder-widths in
+// only loosely scaled. 0.22 puts the wrist a median 0.7 shoulder-widths in
 // front of the chest, which is where the previous direction-driven code landed
 // and is anatomically sensible for signing space.
 const IK_Z_GAIN = 0.22;
+
+// Hand landmarks are image-normalised: x is a fraction of the frame WIDTH and
+// y of its HEIGHT, so on these 4:3 captures a vertical step reads a third too
+// long, and depth comes out compressed. Both gains were fit from the hands
+// themselves: each finger bone has one true length, and these are the scalings
+// under which those lengths vary least across 34,000 captured hands. Read
+// unscaled, a finger pointing at the camera came out pointing up the screen.
+const HAND_Y_GAIN = 0.75;
+const HAND_Z_GAIN = 2.2;
+
+// How far each finger joint may move from the rig's rest pose, in degrees.
+// flex is toward the palm, negative is bending back; abd is sideways. Index 0
+// is the knuckle (or the thumb's base), 1 and 2 the joints beyond it. Without
+// these a finger could fold back through the hand or bend sideways at a joint
+// that only hinges, which is what made a hand look mangled.
+const FINGER_LIMITS = {
+  finger: [
+    { flex: [-30,  95], abd: 25 },
+    { flex: [-10, 115], abd:  8 },
+    { flex: [-10,  95], abd:  8 },
+  ],
+  thumb: [
+    { flex: [-50,  70], abd: 60 },
+    { flex: [-20,  80], abd: 20 },
+    { flex: [-20,  95], abd: 15 },
+  ],
+};
+
+// The joint nearest the fingertip follows the middle joint at about two thirds
+// of its bend. Its own landmark direction is the noisiest on the hand, since
+// the last two landmarks of a finger are only a few pixels apart in the source
+// video, so it is blended half and half with that coupling.
+const DIP_COUPLING = 0.67;
+const DIP_MEASURED_WEIGHT = 0.5;
+
+// Turning the palm over happens along the forearm in a real arm, not at the
+// wrist, and this rig has no forearm twist bone, so left alone every degree of
+// it lands on the wrist and wrings the mesh there. With the palm matched, the
+// hand turns a median 76 degrees about the forearm, 155 at the 90th
+// percentile. The forearm takes this share of that, rolling about its own
+// axis, which moves nothing: the hand stays exactly where the arm solve put it.
+const FOREARM_TWIST_SHARE = 0.5;
+const FOREARM_MAX_TWIST = 110;
+
+// A real hand turns at most about 40 degrees in one frame at 25 fps. The
+// capture occasionally reads a palm back to front for a single frame (0.46%
+// of frames, measured), and following that would flip the avatar's hand over
+// and back. Capping the turn per frame leaves real rotations alone and
+// reduces those to a twitch. The forearm's share is capped to match.
+const HAND_MAX_TURN = 40;
+
+// A wrist bends about 80 degrees each way at most. Twist is left free: it is
+// how the palm turns to face up or down, and palm orientation carries meaning.
+const WRIST_MAX_SWING = 80;
+
+const FINGER_NAMES = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+
+// A palm as an orthonormal frame: across (pinky to index), up (wrist to middle
+// knuckle), and their normal. For a LEFT hand the normal points out of the
+// back of the hand, for a right hand out of the palm, because mirroring flips
+// handedness; palmSide corrects for that so it always points out of the palm.
+// Returns null when the points are too close together to define a plane.
+function palmBasis(W, I, M, K, side) {
+  const up = M.clone().sub(W);
+  const across = I.clone().sub(K);
+  if (up.lengthSq() < 1e-12 || across.lengthSq() < 1e-12) return null;
+  up.normalize(); across.normalize();
+  const n = across.clone().cross(up);
+  if (n.lengthSq() < 1e-8) return null;
+  n.normalize();
+  const across2 = up.clone().cross(n).normalize();
+  return {
+    m: new THREE.Matrix4().makeBasis(across2, up, n),
+    palmSide: side === 'l' ? n.clone().negate() : n.clone(),
+  };
+}
 
 // ─── Pose normalisation ──────────────────────────────────────────────────────
 // Raw sign capture data is unreliable: across a 250-sign sample, 62% of signs
@@ -523,6 +599,7 @@ class ThreeAvatarRenderer {
       // itself been rotated this frame. See _driveSegment.
       this.restWorldQ[key] = wq.clone();
     }
+    this._captureHandRest();
 
     // Rig proportions, measured once from the T-pose. Segment lengths are fixed
     // by the bone hierarchy, and shoulder width and torso length are the
@@ -786,7 +863,8 @@ class ThreeAvatarRenderer {
     // |E-S| is L1 and |T-E| is L2 by construction, so pointing each bone along
     // these two directions lands the wrist exactly on T.
     this._driveSegment(side + 'Arm', S, E, null);
-    this._driveSegment(side + 'ForeArm', E, T, null);
+    this._driveSegment(side + 'ForeArm', E, T, null,
+      this._forearmTwist ? this._forearmTwist[side] : 0);
     return true;
   }
 
@@ -794,7 +872,8 @@ class ThreeAvatarRenderer {
   // boneName:  key in this.bones
   // from, to:  THREE.Vector3 world positions of parent/child joints
   // restDirOverride: fallback rest direction, used only if no auto-detected one exists
-  _driveSegment(boneName, from, to, restDirOverride) {
+  // twist: optional roll, in radians, about the bone's own target direction.
+  _driveSegment(boneName, from, to, restDirOverride, twist) {
     const bone = this.bones[boneName];
     if (!bone) return;
 
@@ -808,6 +887,7 @@ class ThreeAvatarRenderer {
 
     // Delta rotation: world-space rotation from rest direction to target direction
     const deltaQ = new THREE.Quaternion().setFromUnitVectors(restDir.clone().normalize(), targetDir);
+    if (twist) deltaQ.premultiply(new THREE.Quaternion().setFromAxisAngle(targetDir, twist));
 
     // We want the bone to end up at  deltaQ * restWorldQ, so its Y axis lands
     // on targetDir. Converting that to a local rotation:
@@ -838,49 +918,185 @@ class ThreeAvatarRenderer {
     bone.quaternion.slerp(localQ, 0.6);
   }
 
-  // ÔöÇÔöÇ Hand landmark ÔåÆ finger bone driving ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Hand rest frames, measured once from the T-pose ──────────────────────────────
+  // For each hand, the rest palm frame; for each finger bone, its rest segment
+  // direction and palm side, both in its PARENT's rest frame, which is the
+  // frame its bend is measured and limited in.
+  _captureHandRest() {
+    const wpos = (b) => { const v = new THREE.Vector3(); b.getWorldPosition(v); return v; };
+    const B = this.bones;
+    this.handRest = {};
+    for (const side of ['l', 'r']) {
+      const hand = B[side + 'Hand'];
+      if (!hand || !B[side + 'Index1'] || !B[side + 'Middle1'] || !B[side + 'Pinky1']) continue;
+      const palm = palmBasis(wpos(hand), wpos(B[side + 'Index1']), wpos(B[side + 'Middle1']),
+        wpos(B[side + 'Pinky1']), side);
+      if (!palm) continue;
+      const seg = {};
+      for (const f of FINGER_NAMES) {
+        for (let k = 1; k <= 3; k++) {
+          const key = side + f + k, bone = B[key];
+          const parentKey = k === 1 ? side + 'Hand' : side + f + (k - 1);
+          if (!bone || !this.restWorldQ[parentKey]) continue;
+          // Aim along the joint-to-joint direction, not the bone's own axis:
+          // on these rigs the thumb bones' axes are 10 to 15 degrees off it.
+          const child = k < 3 ? B[side + f + (k + 1)] : bone.children[0];
+          let dir = child ? wpos(child).sub(wpos(bone)) : null;
+          if (!dir || dir.lengthSq() < 1e-12) dir = this.restDir[key].clone();
+          dir.normalize();
+          const inv = this.restWorldQ[parentKey].clone().invert();
+          const rl = dir.applyQuaternion(inv);
+          const pl = palm.palmSide.clone().applyQuaternion(inv);
+          pl.sub(rl.clone().multiplyScalar(pl.dot(rl)));
+          if (pl.lengthSq() < 1e-8) continue;
+          pl.normalize();
+          seg[key] = { rl, pl, sl: rl.clone().cross(pl).normalize() };
+        }
+      }
+      this.handRest[side] = { palm: palm.m, seg };
+    }
+  }
+
+  // ── Hand landmarks to hand and finger bones ──────────────────────────────────
   // side: 'l' | 'r'
-  // hand: [[x,y,z] ├ù 21] MediaPipe hand landmarks
+  // hand: [[x,y,z] x 21] MediaPipe hand landmarks
+  //
+  // The palm is matched first, then each finger bone is bent from where its
+  // parent now carries it. The earlier version never turned the hand at all,
+  // so the palm faced wherever the forearm left it, while each finger bone was
+  // aimed at an absolute direction from the capture: whenever the two
+  // disagreed, the knuckles absorbed the difference, up to folding the fingers
+  // back through the hand, and an unconstrained roll at every joint wrung the
+  // mesh like a towel.
   _driveHand(hand, side) {
     if (!hand || hand.length < 21) return;
+    const rest = this.handRest && this.handRest[side];
+    const handBone = this.bones[side + 'Hand'];
+    if (!rest || !handBone || !handBone.parent) return;
 
-    const FINGERS = {
-      Index:  { key: `${side}Index`,  lms: MH.INDEX  },
-      Middle: { key: `${side}Middle`, lms: MH.MIDDLE },
-      Ring:   { key: `${side}Ring`,   lms: MH.RING   },
-      Pinky:  { key: `${side}Pinky`,  lms: MH.PINKY  },
-      Thumb:  { key: `${side}Thumb`,  lms: MH.THUMB  },
-    };
+    // Mirrored in x like the body, so data from one hand drives the rig's other.
+    const C = hand.map(p => p ? new THREE.Vector3(
+      -p[0], -p[1] * HAND_Y_GAIN, -(p[2] || 0) * HAND_Z_GAIN) : null);
 
-    // Rest direction for each finger phalanx ÔÇö points along finger axis
-    // For left hand: +x is toward fingertip; right hand: -x
-    const fingerAxis = side === 'l'
-      ? new THREE.Vector3(1, 0, 0)
-      : new THREE.Vector3(-1, 0, 0);
-
-    for (const [, finger] of Object.entries(FINGERS)) {
-      const lms = finger.lms;
-      for (let phalanx = 0; phalanx < 3; phalanx++) {
-        const boneKey  = `${finger.key}${phalanx + 1}`; // e.g. lIndex1
-        const fromIdx  = lms[phalanx];
-        const toIdx    = lms[phalanx + 1];
-
-        if (!hand[fromIdx] || !hand[toIdx]) continue;
-
-        const from = new THREE.Vector3(
-          -(hand[fromIdx][0] * 2 - 1),
-          -(hand[fromIdx][1] * 2 - 1),
-          -(hand[fromIdx][2] || 0)
-        );
-        const to = new THREE.Vector3(
-          -(hand[toIdx][0] * 2 - 1),
-          -(hand[toIdx][1] * 2 - 1),
-          -(hand[toIdx][2] || 0)
-        );
-
-        this._driveSegment(boneKey, from, to, fingerAxis.clone());
+    // 1. Palm. Turn the rig's rest palm onto the captured one.
+    let corr = null;
+    if (C[0] && C[5] && C[9] && C[17]) {
+      const cap = palmBasis(C[0], C[5], C[9], C[17], side);
+      if (cap) {
+        const R = new THREE.Quaternion().setFromRotationMatrix(
+          cap.m.clone().multiply(rest.palm.clone().transpose()));
+        const targetWorld = R.multiply(this.restWorldQ[side + 'Hand']);
+        this._shareTwist(side, handBone, targetWorld);
+        const parentWorldQ = new THREE.Quaternion();
+        handBone.parent.getWorldQuaternion(parentWorldQ);
+        const localQ = this._limitWrist(side,
+          parentWorldQ.invert().multiply(targetWorld));
+        const turn = 2 * Math.acos(Math.min(1, Math.abs(handBone.quaternion.dot(localQ))));
+        const maxTurn = HAND_MAX_TURN * Math.PI / 180;
+        handBone.quaternion.slerp(localQ, turn * 0.6 > maxTurn ? maxTurn / turn : 0.6);
+        // Where the wrist limit or smoothing left the palm short of the
+        // capture, carry the finger directions round with it, so the handshape
+        // stays right relative to the palm. Handshape is what tells signs apart.
+        const nowWorld = new THREE.Quaternion();
+        handBone.getWorldQuaternion(nowWorld);
+        corr = nowWorld.multiply(targetWorld.invert());
       }
     }
+
+    // 2. Fingers, base to tip, so each bone bends from its parent's new pose.
+    for (const f of FINGER_NAMES) {
+      const lms = MH[f.toUpperCase()];
+      const limits = FINGER_LIMITS[f === 'Thumb' ? 'thumb' : 'finger'];
+      let prevFlex = null;
+      for (let k = 0; k < 3; k++) {
+        const key = side + f + (k + 1);
+        const bone = this.bones[key], seg = rest.seg[key];
+        const a = C[lms[k]], b = C[lms[k + 1]];
+        if (!bone || !seg || !a || !b || !bone.parent) continue;
+        const d = b.clone().sub(a);
+        if (d.lengthSq() < 1e-12) continue;
+        d.normalize();
+        if (corr) d.applyQuaternion(corr);
+        const couple = (k === 2 && f !== 'Thumb') ? prevFlex : null;
+        prevFlex = this._driveFingerBone(key, bone, seg, d, limits[k], couple);
+      }
+    }
+  }
+
+  // Bend one finger bone toward a world direction, within its joint limits,
+  // as a pure swing from its rest pose in its parent's frame. A swing adds no
+  // roll about the finger's own axis, which is what keeps the mesh from
+  // twisting at the knuckles.
+  // couple: the middle joint's bend, for the end joint to follow, or null.
+  // Returns the bend applied, in radians.
+  _driveFingerBone(key, bone, seg, targetWorld, lim, couple) {
+    const parentWorldQ = new THREE.Quaternion();
+    bone.parent.getWorldQuaternion(parentWorldQ);
+    const t = targetWorld.clone().applyQuaternion(parentWorldQ.invert());
+    const D2R = Math.PI / 180;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    let flex = Math.atan2(t.dot(seg.pl), t.dot(seg.rl));
+    if (couple !== null) {
+      flex = DIP_MEASURED_WEIGHT * flex + (1 - DIP_MEASURED_WEIGHT) * DIP_COUPLING * couple;
+    }
+    flex = clamp(flex, lim.flex[0] * D2R, lim.flex[1] * D2R);
+    const abd = clamp(Math.asin(clamp(t.dot(seg.sl), -1, 1)), -lim.abd * D2R, lim.abd * D2R);
+    const dir = seg.rl.clone().multiplyScalar(Math.cos(flex))
+      .addScaledVector(seg.pl, Math.sin(flex))
+      .multiplyScalar(Math.cos(abd))
+      .addScaledVector(seg.sl, Math.sin(abd))
+      .normalize();
+    const localQ = new THREE.Quaternion().setFromUnitVectors(seg.rl, dir)
+      .multiply(this.restQ[key]);
+    bone.quaternion.slerp(localQ, 0.6);
+    return flex;
+  }
+
+  // How far the palm has to turn about the forearm, measured from the forearm
+  // pointing the same way with no roll of its own, is split: the forearm's
+  // share is stored for the arm solve, which runs first on the next frame, and
+  // the wrist takes what is left. The angle is unwrapped against the previous
+  // frame, so a turn passing 180 degrees does not snap the forearm the other
+  // way round.
+  _shareTwist(side, handBone, targetWorld) {
+    const fore = handBone.parent, key = side + 'ForeArm';
+    if (!this.restDir[key] || !this.restWorldQ[key]) return;
+    if (!this._forearmTwist) { this._forearmTwist = { l: 0, r: 0 }; this._handTwist = { l: 0, r: 0 }; }
+    const a = new THREE.Vector3(), h = new THREE.Vector3();
+    fore.getWorldPosition(a); handBone.getWorldPosition(h);
+    const axis = h.sub(a);
+    if (axis.lengthSq() < 1e-12) return;
+    axis.normalize();
+    const untwisted = new THREE.Quaternion().setFromUnitVectors(this.restDir[key], axis)
+      .multiply(this.restWorldQ[key])
+      .multiply(this.restQ[side + 'Hand']);
+    const d = targetWorld.clone().multiply(untwisted.invert());
+    let theta = 2 * Math.atan2(d.x * axis.x + d.y * axis.y + d.z * axis.z, d.w);
+    const prev = this._handTwist[side];
+    theta = prev + Math.atan2(Math.sin(theta - prev), Math.cos(theta - prev));
+    this._handTwist[side] = theta;
+    const max = FOREARM_MAX_TWIST * Math.PI / 180;
+    const target = Math.max(-max, Math.min(max, FOREARM_TWIST_SHARE * theta));
+    const step = FOREARM_TWIST_SHARE * HAND_MAX_TURN * Math.PI / 180;
+    const cur = this._forearmTwist[side];
+    this._forearmTwist[side] = cur + Math.max(-step, Math.min(step, target - cur));
+  }
+
+  // Limit how far the hand bends off the forearm, leaving its twist alone.
+  _limitWrist(side, localQ) {
+    const restQ = this.restQ[side + 'Hand'];
+    if (!restQ) return localQ;
+    // rel = swing * twist, in the hand's own rest frame, whose Y runs along it
+    const rel = restQ.clone().invert().multiply(localQ);
+    const twist = new THREE.Quaternion(0, rel.y, 0, rel.w);
+    if (twist.lengthSq() < 1e-12) return localQ;
+    twist.normalize();
+    const swing = rel.clone().multiply(twist.clone().invert());
+    const angle = 2 * Math.acos(Math.min(1, Math.abs(swing.w)));
+    const max = WRIST_MAX_SWING * Math.PI / 180;
+    if (angle <= max) return localQ;
+    const limited = new THREE.Quaternion().slerp(swing, max / angle);
+    return restQ.clone().multiply(limited.multiply(twist));
   }
 
   // ÔöÇÔöÇ Sign queue playback ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
@@ -889,6 +1105,8 @@ class ThreeAvatarRenderer {
     this.stopQueue();
     // Fresh sequence: do not carry smoothing state over from the last one
     if (this._normaliser) this._normaliser.reset();
+    this._forearmTwist = { l: 0, r: 0 };
+    this._handTwist = { l: 0, r: 0 };
     this._queue         = queue;
     this._signIdx       = 0;
     this._frameIdx      = 0;
