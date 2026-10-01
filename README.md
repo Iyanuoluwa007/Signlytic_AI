@@ -86,11 +86,11 @@ setup.
 A floating signing avatar that signs whatever your computer is saying, in any
 application, not only in a browser.
 
-**[Download for Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.8/Signlytic.AI.Setup.0.3.8.exe)**
+**[Download for Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI.Setup.0.3.9.exe)**
 &nbsp;|&nbsp;
 **[Download for Mac](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg)**
 &nbsp;|&nbsp;
-[release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.8)
+[release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.9)
 
 The two platforms reach the same place by different routes. On Windows the app
 reads the Live Captions window, so it needs Windows 11 22H2 or newer. On macOS
@@ -106,10 +106,10 @@ confirm. macOS also asks for microphone and speech recognition permission the
 first time captions start, and for screen recording if you pick system audio,
 which is how it gates capturing what other apps play.
 
-The two platforms are not on the same version. Windows is on 0.3.8, which fixed
-the 3D avatar's hand placement and the female avatar, which had never animated at
-all. The Mac download is still 0.3.7 and carries neither, because a Mac build has
-to be produced on a Mac. Until then the Mac app's 2D renderer is unaffected and
+The two platforms are not on the same version. Windows is on 0.3.9, which carries
+the 3D avatar fixes: where the hands are placed, the female avatar, which had never
+animated at all, and the hands and fingers themselves. The Mac download is still
+0.3.7 and carries none of them, because a Mac build has to be produced on a Mac. Until then the Mac app's 2D renderer is unaffected and
 is the accurate one to use there.
 
 See [signlytic-desktop/](signlytic-desktop/) for how the app is put together and
@@ -121,7 +121,7 @@ what the Mac rebuild involves.
 The same signing overlay, scoped to browser tabs, driven by captions on the page.
 See [signlytic-extension/](signlytic-extension/).
 
-**[Download](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.1/signlytic-extension.zip)**
+**[Download](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.2/signlytic-extension.zip)**
 
 Both apps are free, in beta, and released from the
 [overlay repository](https://github.com/Iyanuoluwa007/Signlytic-Overlay) so their
