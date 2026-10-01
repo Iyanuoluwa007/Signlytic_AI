@@ -83,9 +83,14 @@ requests explicitly.
 
 ### Opening an unsigned build
 
-**The dmg is not signed and not notarised.** There is no Apple Developer ID
-for this project, so `electron-builder` reports "skipped macOS application
-code signing" and Gatekeeper treats the result as untrusted.
+**The dmg is ad-hoc signed but not notarised.** `"identity": "-"` in the
+`mac` build config has electron-builder sign the app without a certificate.
+That gives it its own code identity, `ai.signlytic.desktop`, switches on the
+hardened runtime, and applies the entitlements in
+`packaging/entitlements.mac.plist`. Without that line electron-builder finds no
+Developer ID, skips signing altogether, and the app ships identifying as
+`Electron` with none of its entitlements applied. Gatekeeper does not trust an
+ad-hoc signature, though, so a downloaded copy is still rejected.
 
 Copied from a mounted dmg on the machine that built it, it opens normally.
 Downloaded from anywhere, macOS attaches a quarantine flag and refuses to open
@@ -99,7 +104,8 @@ it with a message about damaged or unverified software. To open it anyway:
       xattr -dr com.apple.quarantine "/Applications/Signlytic AI.app"
 
 Signing and notarising properly needs a paid Apple Developer account. With
-one, set `CSC_LINK` and `CSC_KEY_PASSWORD` and add a `notarize` block to the
+one, replace `"identity": "-"` with the certificate's name, or remove it and
+set `CSC_LINK` and `CSC_KEY_PASSWORD`, then add a `notarize` block to the
 `mac` section of `package.json`; nothing else about the build has to change.
 
 ### Building on macOS
@@ -112,7 +118,7 @@ Tools, which is a much smaller install than full Xcode:
     npm run build:mac-helper    # runs automatically as part of npm run dist
     npm run dist
 
-Two things that will waste time otherwise:
+Three things that will waste time otherwise:
 
 - **npm 11 does not run install scripts by default**, so `npm install` leaves
   `node_modules/electron` with no binary and `npm start` fails. Run
@@ -125,6 +131,14 @@ Two things that will waste time otherwise:
   from such a drive is fine; only the output has to go elsewhere:
 
       npx electron-builder --mac dmg --config.directories.output=~/build
+
+- **The plists must have LF line endings.** codesign rejects a CRLF
+  entitlements file with `AMFIUnserializeXML: syntax error near line 1`, even
+  though `plutil -lint` passes it. A Windows checkout writes CRLF, so on a drive
+  shared with Windows this breaks the first Mac build after it.
+  `signlytic-desktop/.gitattributes` pins `*.plist` to LF to stop that; if the
+  error appears anyway, check the line endings of
+  `packaging/entitlements.mac.plist` first.
 
 ## Packaging
 

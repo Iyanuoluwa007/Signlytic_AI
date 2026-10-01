@@ -130,7 +130,7 @@ smaller than full Xcode:
 binary, embeds an Info.plist into it and ad-hoc signs it. It is a no-op off
 macOS, so it cannot break a Windows build.
 
-## Four things that cost real time, so they do not cost it twice
+## Five things that cost real time, so they do not cost it twice
 
 1. **npm 11 does not run install scripts.** `npm install` leaves
    `node_modules/electron` with no binary and `npm start` fails with no useful
@@ -157,15 +157,28 @@ macOS, so it cannot break a Windows build.
    code. This produced one false pass during the session. Rebuild, and confirm
    with `asar extract` if in doubt.
 
+5. **The plists must have LF line endings.** codesign rejects a CRLF
+   entitlements file with `AMFIUnserializeXML: syntax error near line 1`,
+   while `plutil -lint` passes the same file. A Windows checkout writes CRLF
+   onto the shared drive, and this stayed hidden until 0.3.9 because signing
+   had always been skipped. `signlytic-desktop/.gitattributes` now pins
+   `*.plist` to LF.
+
 ## Distribution status
 
-`signlytic-desktop/dist/Signlytic AI-0.3.7-universal.dmg`, 217 MB, universal
-(x86_64 and arm64). Mounts, installs by drag, launches, and all three sources
-appear in the settings panel.
+`signlytic-desktop/dist/Signlytic AI-0.3.9-universal.dmg`, 217 MB, universal
+(x86_64 and arm64). Mounts, installs by drag, launches, and the microphone and
+system audio sources appear in the settings panel. Builds from `main` do not
+carry the unverified Live Captions source.
 
-**It is not signed and not notarised.** There is no Apple Developer ID for this
-project, so electron-builder reports "skipped macOS application code signing"
-and the entitlements in `packaging/entitlements.mac.plist` are never applied.
+**It is ad-hoc signed but not notarised.** Until 0.3.9 it was not signed at
+all: electron-builder found no Developer ID, skipped signing, and the app
+shipped identifying as `Electron` with none of the entitlements in
+`packaging/entitlements.mac.plist` applied. `"identity": "-"` in the `mac`
+build config now has it sign ad-hoc, which gives the app its own identity
+(`ai.signlytic.desktop`), turns the hardened runtime on, and applies the
+entitlements; `codesign --verify --deep --strict` passes. Gatekeeper does not
+trust an ad-hoc signature, so nothing changes for a tester downloading it.
 Consequences a tester will actually hit:
 
 - Downloaded from anywhere, macOS attaches a quarantine flag and refuses to
@@ -176,9 +189,10 @@ Consequences a tester will actually hit:
   and is not one.
 
 So it is fine for testers who are told the above, and not fine for general
-release. Fixing it needs a paid Apple Developer account, after which set
-`CSC_LINK` and `CSC_KEY_PASSWORD` and add a `notarize` block to the `mac`
-section of `package.json`. No other change is needed.
+release. Fixing it needs a paid Apple Developer account, after which replace
+`"identity": "-"` with the certificate's name, or remove it and set `CSC_LINK`
+and `CSC_KEY_PASSWORD`, and add a `notarize` block to the `mac` section of
+`package.json`. No other change is needed.
 
 ## Dev switches added
 

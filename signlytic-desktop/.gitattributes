@@ -1,0 +1,9 @@
+# Property lists always check out with LF, on every platform.
+#
+# codesign parses the entitlements plist with a stricter reader than plutil,
+# and rejects CRLF line endings with "AMFIUnserializeXML: syntax error near
+# line 1". A Windows checkout writes CRLF by default, and this repository lives
+# on a drive shared with the Mac, so without this rule every Mac build after a
+# Windows checkout fails at the signing step. plutil -lint passes the CRLF file,
+# which is what makes the failure confusing.
+*.plist text eol=lf
