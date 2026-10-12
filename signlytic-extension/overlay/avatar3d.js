@@ -262,19 +262,94 @@ const POSE_NORM = {
   TARGET_X:        0.5,
   TARGET_Y:        0.35,
   MAX_EXT_DIST:    0.35,  // max extremity distance from the shoulder midpoint
+
+  // The capture runs two trackers, one for the body and one for the hands,
+  // and they do not always agree. Across 1,301 signs the hand tracker's wrist
+  // was more than 0.3 shoulder-widths from the body's wrist in 13% of
+  // hand-frames. Two different faults hide in that, told apart by the elbows:
+  //
+  // The hand tracker labelled the hands the wrong way round. In 68% of those
+  // frames the hand sits one forearm's length from the OTHER elbow, and its
+  // fingers curl away from the palm under its label (30% curl toward it,
+  // against 94% where the trackers agree), which a mislabelled hand does.
+  // NO and YES are like that in every frame. Such a hand is re-labelled, so
+  // its fingers drive the right hand and its palm faces the right way.
+  //
+  // Or the body tracker lost the wrist, typically a hand low in the frame.
+  // Then the body's wrist is moved onto the hand tracker's, which is the
+  // dedicated model, easing there and back so nothing snaps when a hand
+  // appears or is lost. Without this the 3D arm followed the body's wrist
+  // while the 2D drew the hand somewhere else, detached from its own arm.
+  //
+  // Together: wrist and hand more than 0.3 apart in 14.6% of hand-frames
+  // before, 2.2% after; fingers curling toward the palm 87.4% before, 91.6%
+  // after, which is the independent check that the re-labelling is right.
+  FOREARM:         0.68,  // shoulder-widths, median where the trackers agree
+  HAND_DISPUTE:    0.3,   // hand wrist this far from the body wrist is disputed
+  SWAP_MARGIN:     0.1,   // the other elbow must fit better by this much
+  SWAP_CURL_VETO:  0.2,   // never re-label a hand that already curls toward its palm
+  WRIST_FOLLOW:    0.4,   // share of the way to the hand's wrist, per frame
+  // A one-frame verdict is noise: 62% of re-labelled stretches lasted a single
+  // frame, which would swap the hands back and forth. The labelling changes
+  // only after this many frames in a row agree.
+  SWAP_HOLD:       3,
 };
 
 class PoseNormaliser {
   constructor() {
-    this.prevBody = null;
-    this.prevLH   = null;
-    this.prevRH   = null;
+    this.reset();
   }
 
   reset() {
     this.prevBody = null;
     this.prevLH   = null;
     this.prevRH   = null;
+    this.wristShift = { l: [0, 0], r: [0, 0] };
+    this.swapped = false;
+    this.swapVotes = 0;
+  }
+
+  // Do the hand tracker's two hands belong the other way round? Decided on
+  // normalised landmarks, where a shoulder width is POSE_NORM.TARGET_W.
+  // lh belongs with body landmarks 13 (elbow) and 15 (wrist), rh with 14, 16.
+  _handsSwapped(body, lh, rh) {
+    const P = POSE_NORM;
+    if (!body || !body[11] || !body[12]) return false;
+    const sw = Math.hypot(body[11][0] - body[12][0], body[11][1] - body[12][1]);
+    if (!(sw > 1e-6)) return false;
+    const has = (h) => h && h.length >= 21 && h[0];
+    const dist = (a, b) => (a && b) ? Math.hypot(a[0] - b[0], a[1] - b[1]) / sw : Infinity;
+    // how badly a hand fits an arm: its wrist against one forearm from the elbow
+    const fit = (h, elbow) => body[elbow] ? Math.abs(dist(h[0], body[elbow]) - P.FOREARM) : Infinity;
+    // do the fingers curl toward the palm, for a hand of this label?
+    const curls = (h, isLeftLabel) => {
+      const ok = [0, 5, 9, 17, 6, 7, 8, 10, 11, 12, 14, 15, 16, 18, 19, 20, 13].every(i => h[i]);
+      if (!ok) return 0;
+      const v = (i) => [-h[i][0], -h[i][1] * HAND_Y_GAIN, -(h[i][2] || 0) * HAND_Z_GAIN];
+      const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+      const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+      const up = unit(sub(v(9), v(0))), across = unit(sub(v(5), v(17)));
+      let n = unit([across[1] * up[2] - across[2] * up[1], across[2] * up[0] - across[0] * up[2], across[0] * up[1] - across[1] * up[0]]);
+      if (!isLeftLabel) n = n.map(x => -x);   // rh drives the rig's left hand
+      let c = 0;
+      for (const [m, t] of [[5, 8], [9, 12], [13, 16], [17, 20]]) {
+        const d = unit(sub(v(t), v(m)));
+        c += (d[0] * n[0] + d[1] * n[1] + d[2] * n[2]) / 4;
+      }
+      return c;
+    };
+    if (has(lh) && has(rh)) {
+      const disputed = Math.max(dist(lh[0], body[15]), dist(rh[0], body[16])) > P.HAND_DISPUTE;
+      if (!disputed) return false;
+      const asLabelled = fit(lh, 13) + fit(rh, 14), swapped = fit(lh, 14) + fit(rh, 13);
+      return swapped < asLabelled - P.SWAP_MARGIN && curls(lh, true) + curls(rh, false) < 2 * P.SWAP_CURL_VETO;
+    }
+    for (const [h, own, ownElbow, otherElbow, isLeft] of [[lh, 15, 13, 14, true], [rh, 16, 14, 13, false]]) {
+      if (!has(h)) continue;
+      if (dist(h[0], body[own]) <= P.HAND_DISPUTE) return false;
+      return fit(h, otherElbow) < fit(h, ownElbow) - P.SWAP_MARGIN && curls(h, isLeft) < P.SWAP_CURL_VETO;
+    }
+    return false;
   }
 
   normalise(frame) {
@@ -334,8 +409,13 @@ class PoseNormaliser {
     };
 
     let normBody = normLms(frame.body);
-    let normLH   = smoothHand(clampHand(normLms(frame.lh)), this.prevLH);
-    let normRH   = smoothHand(clampHand(normLms(frame.rh)), this.prevRH);
+    let rawLH = normLms(frame.lh), rawRH = normLms(frame.rh);
+    const want = this._handsSwapped(normBody, rawLH, rawRH);
+    if (want === this.swapped) this.swapVotes = 0;
+    else if (++this.swapVotes >= POSE_NORM.SWAP_HOLD) { this.swapped = want; this.swapVotes = 0; }
+    if (this.swapped) [rawLH, rawRH] = [rawRH, rawLH];
+    let normLH   = smoothHand(clampHand(rawLH), this.prevLH);
+    let normRH   = smoothHand(clampHand(rawRH), this.prevRH);
     this.prevLH = normLH;
     this.prevRH = normRH;
 
@@ -388,7 +468,24 @@ class PoseNormaliser {
     }
     this.prevBody = normBody;
 
-    return { body: normBody, lh: normLH, rh: normRH };
+    // Move each body wrist, and the body tracker's own hand points with it,
+    // onto the hand tracker's wrist, easing toward it while the hand is seen
+    // and back once it is lost. Works on a copy, so the smoothing above keeps
+    // running on the body tracker's own readings.
+    let outBody = normBody;
+    if (normBody) {
+      outBody = normBody.map(p => p ? p.slice() : p);
+      const a = POSE_NORM.WRIST_FOLLOW;
+      for (const [key, hand, wrist, pts] of [['l', normLH, 15, [15, 17, 19, 21]], ['r', normRH, 16, [16, 18, 20, 22]]]) {
+        const d = this.wristShift[key];
+        const tx = (hand && hand[0] && outBody[wrist]) ? hand[0][0] - outBody[wrist][0] : 0;
+        const ty = (hand && hand[0] && outBody[wrist]) ? hand[0][1] - outBody[wrist][1] : 0;
+        d[0] += (tx - d[0]) * a; d[1] += (ty - d[1]) * a;
+        for (const i of pts) if (outBody[i]) outBody[i] = [outBody[i][0] + d[0], outBody[i][1] + d[1], outBody[i][2] || 0];
+      }
+    }
+
+    return { body: outBody, lh: normLH, rh: normRH };
   }
 }
 
