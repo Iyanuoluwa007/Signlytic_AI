@@ -69,10 +69,13 @@ const AVATAR_MODEL = process.env.NEXT_PUBLIC_AVATAR_MALE_URL || "/api/avatar/mal
 const GLOSS_CACHE_KEY = "signlytic-bsl-gloss-cache-v1";
 const MODE_KEY = "signlytic-bsl-mode";
 
-// 3D is not approved to be shown by default yet. While this is false, every
-// visitor starts on the 2D skeleton and has to switch to 3D themselves, each
-// session. Set it to true once the 3D signing has been reviewed and signed off.
-const THREE_D_APPROVED_AS_DEFAULT = false;
+// Whether a visitor starts on the 3D avatar. Approved on 12 October 2026, after
+// the hands, the finger motion and the hand tracker's mislabelled hands were
+// fixed and reviewed on video. While it was false, everyone started on the 2D
+// skeleton and a saved "3d" choice was not restored. Someone who has picked 2D
+// themselves still gets 2D. Setting it back to false is the whole rollback.
+const THREE_D_APPROVED_AS_DEFAULT = true;
+const DEFAULT_MODE: "2d" | "3d" = THREE_D_APPROVED_AS_DEFAULT ? "3d" : "2d";
 // Same-origin in production. Local dev has no Upstash/GitHub credentials, so
 // .env.local can point sign fetches at the deployed API, which sends CORS.
 const SIGNS_API_BASE = process.env.NEXT_PUBLIC_SIGNS_API_BASE || "";
@@ -113,7 +116,7 @@ function setCachedGlosses(text: string, glosses: string) {
 export default function BslSignPanel() {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [mode, setMode] = useState<"2d" | "3d">("2d");
+  const [mode, setMode] = useState<"2d" | "3d">(DEFAULT_MODE);
   const [status, setStatus] = useState("");
   const [sentence, setSentence] = useState("");
   const [glossList, setGlossList] = useState<string[]>([]);
@@ -129,7 +132,7 @@ export default function BslSignPanel() {
   const engine3dRef = useRef<AvatarEngine | null>(null);
   const queueRef = useRef<SignClip[]>([]);
   const busyRef = useRef(false);
-  const modeRef = useRef<"2d" | "3d">("2d");
+  const modeRef = useRef<"2d" | "3d">(DEFAULT_MODE);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const lastFocusRef = useRef<Element | null>(null);
 
@@ -138,13 +141,9 @@ export default function BslSignPanel() {
     []
   );
 
-  // Restore the visitor's last chosen mode, except that a saved "3d" is not
-  // restored while 3D is unapproved as a default. Someone who tried 3D once
-  // would otherwise keep landing on it without choosing it again, which is the
-  // same thing as 3D being the default for that visitor.
-  //
-  // The choice is still written to storage, so approving 3D restores everyone's
-  // own preference immediately. One flag, one line, no other change needed.
+  // Restore the visitor's last chosen mode. While 3D is not approved as the
+  // default, a saved "3d" is not restored either: someone who tried 3D once
+  // would otherwise keep landing on it, which is 3D being the default for them.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(MODE_KEY);
