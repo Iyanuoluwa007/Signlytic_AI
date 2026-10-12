@@ -87,12 +87,14 @@ const HAND_Z_GAIN = 2.2;
 // flex is toward the palm, negative is bending back; abd is sideways. Index 0
 // is the knuckle (or the thumb's base), 1 and 2 the joints beyond it. Without
 // these a finger could fold back through the hand or bend sideways at a joint
-// that only hinges, which is what made a hand look mangled.
+// that only hinges, which is what made a hand look mangled. soft, where
+// given, is a band in degrees above the lower limit over which the joint eases
+// in rather than stopping hard.
 const FINGER_LIMITS = {
   finger: [
-    { flex: [-30,  95], abd: 25 },
-    { flex: [-10, 115], abd:  8 },
-    { flex: [-10,  95], abd:  8 },
+    { flex: [-20,  95], abd: 25, spreadFalls: true },
+    { flex: [  0, 115], abd:  8, soft: 10 },
+    { flex: [ -5,  95], abd:  8, soft: 10 },
   ],
   thumb: [
     { flex: [-50,  70], abd: 60 },
@@ -104,9 +106,22 @@ const FINGER_LIMITS = {
 // The joint nearest the fingertip follows the middle joint at about two thirds
 // of its bend. Its own landmark direction is the noisiest on the hand, since
 // the last two landmarks of a finger are only a few pixels apart in the source
-// video, so it is blended half and half with that coupling.
+// video, so it mostly follows that coupling and takes only a share of its own
+// reading. Weighted toward the measurement, a noisy tip hooked on its own and
+// made a curled hand look like a claw.
 const DIP_COUPLING = 0.67;
-const DIP_MEASURED_WEIGHT = 0.5;
+const DIP_MEASURED_WEIGHT = 0.3;
+
+// Fingers draw together as they curl, as in a fist. The capture's sideways
+// angle at each knuckle is blended toward lining the finger up with the middle
+// finger, fully so once the knuckle bend plus the middle joint's bend reaches
+// this much. The whole finger's curl decides it, not the knuckle alone: a
+// finger curling toward the camera reads its sideways angle from depth, the
+// least reliable thing the capture measures. Left to the capture, the
+// fingers fanned wider the more they curled (a median 12 degrees between index
+// and little finger when open, 27 when closed), the opposite of a real hand,
+// and spread and curled together read as a claw.
+const SPREAD_CURL_FALLOFF = 70;
 
 // Turning the palm over happens along the forearm in a real arm, not at the
 // wrist, and this rig has no forearm twist bone, so left alone every degree of
@@ -124,11 +139,91 @@ const FOREARM_MAX_TWIST = 110;
 // reduces those to a twitch. The forearm's share is capped to match.
 const HAND_MAX_TURN = 40;
 
+// Finger joints are smoothed with a speed-adaptive filter (the "one euro"
+// filter): heavy smoothing while a finger is nearly still, which is where the
+// capture's tremor shows, and little while it moves fast, so deliberate
+// handshape changes are not dragged. Unfiltered, about a fifth of the
+// capture's finger joint movements reverse direction from one frame to the
+// next and the largest jump 66 degrees in 1/25 s, which no finger does.
+// Cutoff in Hz at rest, and how much it rises per degree per second of speed.
+const FINGER_MIN_CUTOFF = 1.6;
+const FINGER_BETA = 0.006;
+// No finger joint moves further than this in one frame, about 750 degrees a
+// second, which is quicker than fingerspelling needs and slower than a
+// tracking glitch.
+const FINGER_MAX_STEP = 30;
+
+// A hand the capture has lost holds its shape through a short dropout (half of
+// all gaps are one or two frames, mid-sign), then relaxes. About a third of
+// frames have no data for either hand, usually because it is resting below
+// the frame, and a hand frozen in its last handshape there, or held in the
+// rig's dead-straight T-pose fingers, looks like a mannequin's.
+const HAND_HOLD_FRAMES = 4;
+const HAND_RELAX_RATE = 0.15;      // share of the way to relaxed, per frame
+// A relaxed hand: wrist straight, fingers gently curled, a little more toward
+// the little finger. Degrees of bend at the knuckle, middle and end joints.
+const RELAXED_FLEX = {
+  Thumb:  [ 5, 10, 15],
+  Index:  [18, 28, 12],
+  Middle: [22, 32, 14],
+  Ring:   [26, 36, 16],
+  Pinky:  [30, 40, 18],
+};
+// The rig's T-pose holds the thumb splayed well away from the index; a
+// resting thumb lies close alongside it. Degrees drawn in at the thumb's base.
+const RELAXED_THUMB_IN = 30;
+
+// The capture's body is not the avatar's. A resting hand the capture puts at
+// the signer's hip can land inside the avatar's wider waist, leaving only the
+// fingertips poking through the shirt: the wrist or the fingertips were inside
+// the body in 12% of hand-frames on the male avatar and 5.8% on the female.
+// The torso's width and depth are measured from the mesh at load, slice by
+// slice from the shoulders to just below the hips, and a wrist target inside
+// that is pushed back out to clear
+// the surface by this much, in shoulder-widths, so a hand can rest on the
+// body, as many signs need, but not sink into it. Each slice is treated as a
+// rounded rectangle (|x/a|^4 + |z/b|^4 = 1), which a waist is much closer to
+// than an ellipse; an ellipse left the corners at the sides and back thin
+// enough for a hand to pass through. The middle of the hand is tested as well
+// as the wrist, since a wrist just clear of the body can still point the
+// fingers into it.
+const TORSO_STEPS = 12;     // slices per torso length
+const TORSO_SLICES = 14;    // how many, so the last sits 1.17 torso lengths down
+const TORSO_CLEARANCE = 0.06;
+
 // A wrist bends about 80 degrees each way at most. Twist is left free: it is
 // how the palm turns to face up or down, and palm orientation carries meaning.
 const WRIST_MAX_SWING = 80;
 
 const FINGER_NAMES = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+
+// Capture frames are played at this rate, before any speed setting.
+const PLAYBACK_FPS = 25;
+
+// One euro filter for one angle, sampled at the playback rate.
+class AngleFilter {
+  constructor(x) { this.x = x; this.dx = 0; }
+  static alpha(cutoff, rate) { return 1 / (1 + rate / (2 * Math.PI * cutoff)); }
+  step(x, rate) {
+    const dx = (x - this.x) * rate;
+    this.dx += AngleFilter.alpha(1.0, rate) * (dx - this.dx);
+    const cutoff = FINGER_MIN_CUTOFF + FINGER_BETA * Math.abs(this.dx) * 180 / Math.PI;
+    let y = this.x + AngleFilter.alpha(cutoff, rate) * (x - this.x);
+    const max = FINGER_MAX_STEP * Math.PI / 180;
+    y = this.x + Math.max(-max, Math.min(max, y - this.x));
+    this.x = y;
+    return y;
+  }
+  set(x) { this.x = x; this.dx = 0; }
+}
+
+// Sideways angle of a joint in the relaxed pose, in radians. Only the thumb's
+// base moves: toward the index is positive abduction on the left hand and
+// negative on the right, measured on both rigs.
+function relaxedAbd(side, f, k) {
+  if (f !== 'Thumb' || k !== 0) return 0;
+  return (side === 'l' ? 1 : -1) * RELAXED_THUMB_IN * Math.PI / 180;
+}
 
 // A palm as an orthonormal frame: across (pinky to index), up (wrist to middle
 // knuckle), and their normal. For a LEFT hand the normal points out of the
@@ -600,6 +695,7 @@ class ThreeAvatarRenderer {
       this.restWorldQ[key] = wq.clone();
     }
     this._captureHandRest();
+    this._initHandState();
 
     // Rig proportions, measured once from the T-pose. Segment lengths are fixed
     // by the bone hierarchy, and shoulder width and torso length are the
@@ -627,9 +723,14 @@ class ThreeAvatarRenderer {
           lFore:  wpos(B.lForeArm).distanceTo(wpos(B.lHand)),
           rUpper: rS.distanceTo(wpos(B.rForeArm)),
           rFore:  wpos(B.rForeArm).distanceTo(wpos(B.rHand)),
+          // wrist to the tip of the middle finger, for keeping hands out of the body
+          handLen: (B.lMiddle3 && B.lMiddle3.children[0])
+            ? wpos(B.lHand).distanceTo(wpos(B.lMiddle3.children[0])) : 0,
         };
       }
     }
+
+    this._measureTorso();
 
     const boneCount = Object.keys(this.bones).length;
     console.log(`[Signlytic 3D] Loaded ${this.gender} avatar. Bones mapped: ${boneCount}/${Object.keys(BONE_NAMES).length}`);
@@ -681,8 +782,11 @@ class ThreeAvatarRenderer {
     if (this._normaliser) frame = this._normaliser.normalise(frame);
     if (!frame) return;
     if (frame.body) this._drivePose(frame.body);
-    if (frame.lh)   this._driveHand(frame.lh,  'r');  // mirror: left data -> right bone
-    if (frame.rh)   this._driveHand(frame.rh,  'l');  // mirror: right data -> left bone
+    // mirror: left-hand data drives the rig's right hand, and the other way
+    for (const [side, hand] of [['r', frame.lh], ['l', frame.rh]]) {
+      if (hand && hand.length >= 21) { this._handMissing[side] = 0; this._driveHand(hand, side); }
+      else this._relaxHand(side, ++this._handMissing[side]);
+    }
   }
 
   // ÔöÇÔöÇ Reset to T-pose ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
@@ -718,6 +822,7 @@ class ThreeAvatarRenderer {
         bone.quaternion.copy(localQ);
       }
     }
+    this._initHandState();
   }
 
   // ÔöÇÔöÇ Upper body pose driving ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
@@ -819,8 +924,9 @@ class ThreeAvatarRenderer {
     lArm.getWorldPosition(lP); rArm.getWorldPosition(rP);
     const shoulderMid = lP.clone().add(rP).multiplyScalar(0.5);
 
-    const target = this._landmarkToRig(body, wrIdx, shoulderMid);
+    let target = this._landmarkToRig(body, wrIdx, shoulderMid);
     const elbowT = this._landmarkToRig(body, elIdx, shoulderMid);
+    if (target && elbowT) target = this._keepHandOutOfTorso(target, elbowT, shoulderMid);
     if (!target || !elbowT) return false;
 
     const S = (side === 'l' ? lP : rP);
@@ -953,6 +1059,12 @@ class ThreeAvatarRenderer {
           seg[key] = { rl, pl, sl: rl.clone().cross(pl).normalize() };
         }
       }
+      const mid = seg[side + 'Middle1'];
+      if (mid) for (const f of ['Index', 'Ring', 'Pinky']) {
+        const k1 = seg[side + f + '1'];
+        if (k1) k1.together = Math.asin(Math.max(-1, Math.min(1, mid.rl.dot(k1.sl))));
+      }
+      if (mid) mid.together = 0;
       this.handRest[side] = { palm: palm.m, seg };
     }
   }
@@ -1008,6 +1120,12 @@ class ThreeAvatarRenderer {
       const lms = MH[f.toUpperCase()];
       const limits = FINGER_LIMITS[f === 'Thumb' ? 'thumb' : 'finger'];
       let prevFlex = null;
+      // the capture's bend at the middle joint, used to pull curling fingers together
+      let midBend = 0;
+      if (C[lms[0]] && C[lms[1]] && C[lms[2]]) {
+        const u = C[lms[1]].clone().sub(C[lms[0]]), v = C[lms[2]].clone().sub(C[lms[1]]);
+        if (u.lengthSq() > 1e-12 && v.lengthSq() > 1e-12) midBend = u.angleTo(v);
+      }
       for (let k = 0; k < 3; k++) {
         const key = side + f + (k + 1);
         const bone = this.bones[key], seg = rest.seg[key];
@@ -1018,18 +1136,103 @@ class ThreeAvatarRenderer {
         d.normalize();
         if (corr) d.applyQuaternion(corr);
         const couple = (k === 2 && f !== 'Thumb') ? prevFlex : null;
-        prevFlex = this._driveFingerBone(key, bone, seg, d, limits[k], couple);
+        prevFlex = this._driveFingerBone(key, bone, seg, d, limits[k], couple, k === 0 ? midBend : 0);
       }
     }
+  }
+
+  // ── The torso as an obstacle ─────────────────────────────────────────────────
+  // For each slice, from the shoulder line (0) to a little below the hip joints
+  // (TORSO_SLICES / TORSO_STEPS of a torso length), the torso's half-width and its
+  // front and back, measured from the rest-pose mesh in shoulder-widths and
+  // relative to the shoulder joints. Arm vertices are excluded by keeping only
+  // those within 0.62 shoulder-widths of the centre line; in the T-pose the
+  // arms only cross that near the shoulders, so the slices above 0.25 of the
+  // torso, the armpits, take the value at 0.25.
+  _measureTorso() {
+    this._torso = null;
+    const B = this.bones;
+    if (!this.rig || !B.lArm || !B.rArm || !B.lUpLeg || !B.rUpLeg || !this.model) return;
+    const wpos = (b) => { const v = new THREE.Vector3(); b.getWorldPosition(v); return v; };
+    this.model.updateMatrixWorld(true);
+    const lS = wpos(B.lArm), rS = wpos(B.rArm);
+    const shW = this.rig.shW, torso = this.rig.torso;
+    const sy = (lS.y + rS.y) / 2, cx = (lS.x + rS.x) / 2, sz = (lS.z + rS.z) / 2;
+    const N = TORSO_STEPS;
+    const rows = Array.from({ length: TORSO_SLICES + 1 }, () => ({ hw: 0, front: -Infinity, back: Infinity, n: 0 }));
+    const v = new THREE.Vector3();
+    this.model.traverse((o) => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+      const pos = o.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+        const dx = Math.abs(v.x - cx) / shW;
+        if (dx > 0.62) continue;
+        const t = Math.round((sy - v.y) / torso * N);
+        if (t < 0 || t > TORSO_SLICES) continue;
+        const r = rows[t];
+        r.hw = Math.max(r.hw, dx);
+        r.front = Math.max(r.front, (v.z - sz) / shW);
+        r.back = Math.min(r.back, (v.z - sz) / shW);
+        r.n++;
+      }
+    });
+    const top = Math.round(0.25 * N);
+    if (rows.slice(top).some(r => r.n === 0)) return;   // not a body we can read
+    for (let t = 0; t < top; t++) rows[t] = rows[top];
+    this._setTorsoProfile(rows.map((r, t) => [t / N, r.hw, r.front, r.back]));
+  }
+
+  // The wrist, and a point halfway along the hand in the forearm's direction,
+  // are each kept out; whichever needs the larger push moves the wrist target.
+  _keepHandOutOfTorso(target, elbow, shoulderMid) {
+    const wristOut = this._keepOutOfTorso(target, shoulderMid);
+    let push = wristOut.clone().sub(target);
+    const along = target.clone().sub(elbow);
+    if (along.lengthSq() > 1e-12 && this.rig && this.rig.handLen) {
+      along.normalize().multiplyScalar(this.rig.handLen * 0.5);
+      const mid = target.clone().add(along);
+      const midPush = this._keepOutOfTorso(mid, shoulderMid).sub(mid);
+      if (midPush.lengthSq() > push.lengthSq()) push = midPush;
+    }
+    return target.clone().add(push);
+  }
+
+  // rows: [[t, halfWidth, front, back], ...] in torso lengths and shoulder-widths
+  _setTorsoProfile(rows) {
+    this._torso = rows ? rows.map(r => ({ t: r[0], hw: r[1], front: r[2], back: r[3] })) : null;
+  }
+
+  // A point inside the torso slice at its height is moved straight out from
+  // the slice's centre until it clears the surface.
+  _keepOutOfTorso(p, shoulderMid) {
+    const T = this._torso;
+    if (!T || !this.rig) return p;
+    const shW = this.rig.shW;
+    const t = (shoulderMid.y - p.y) / this.rig.torso;
+    if (t < 0 || t > T[T.length - 1].t) return p;
+    const f = t * TORSO_STEPS, i = Math.min(T.length - 2, Math.floor(f)), u = f - i;
+    const lerp = (k) => T[i][k] * (1 - u) + T[i + 1][k] * u;
+    const a = (lerp('hw') + TORSO_CLEARANCE) * shW;
+    const b = ((lerp('front') - lerp('back')) / 2 + TORSO_CLEARANCE) * shW;
+    const cz = shoulderMid.z + (lerp('front') + lerp('back')) / 2 * shW;
+    const dx = p.x - shoulderMid.x, dz = p.z - cz;
+    const r = Math.abs(dx / a) ** 4 + Math.abs(dz / b) ** 4;
+    if (r >= 1) return p;
+    if (r < 1e-9) return new THREE.Vector3(p.x, p.y, cz + b);   // dead centre: out the front
+    const k = Math.pow(r, -0.25);
+    return new THREE.Vector3(shoulderMid.x + dx * k, p.y, cz + dz * k);
   }
 
   // Bend one finger bone toward a world direction, within its joint limits,
   // as a pure swing from its rest pose in its parent's frame. A swing adds no
   // roll about the finger's own axis, which is what keeps the mesh from
-  // twisting at the knuckles.
+  // twisting at the knuckles. The bend is filtered in angle space, so every
+  // joint is smoothed the same way however the hand is turned.
   // couple: the middle joint's bend, for the end joint to follow, or null.
   // Returns the bend applied, in radians.
-  _driveFingerBone(key, bone, seg, targetWorld, lim, couple) {
+  // midBend: for a knuckle, how far the capture bends the next joint, radians.
+  _driveFingerBone(key, bone, seg, targetWorld, lim, couple, midBend) {
     const parentWorldQ = new THREE.Quaternion();
     bone.parent.getWorldQuaternion(parentWorldQ);
     const t = targetWorld.clone().applyQuaternion(parentWorldQ.invert());
@@ -1039,17 +1242,88 @@ class ThreeAvatarRenderer {
     if (couple !== null) {
       flex = DIP_MEASURED_WEIGHT * flex + (1 - DIP_MEASURED_WEIGHT) * DIP_COUPLING * couple;
     }
+    // A soft floor: near the back-bend limit the joint eases into a slight
+    // bend rather than locking dead straight, which is how a real finger
+    // reads when it is extended.
+    if (lim.soft) {
+      const lo = lim.flex[0] * D2R, w = lim.soft * D2R;
+      if (flex < lo + w) flex = lo + w * Math.exp((flex - lo - w) / w);
+    }
     flex = clamp(flex, lim.flex[0] * D2R, lim.flex[1] * D2R);
-    const abd = clamp(Math.asin(clamp(t.dot(seg.sl), -1, 1)), -lim.abd * D2R, lim.abd * D2R);
+    let abd = Math.asin(clamp(t.dot(seg.sl), -1, 1));
+    if (lim.spreadFalls && seg.together !== undefined) {
+      const c = clamp((flex + (midBend || 0)) / (SPREAD_CURL_FALLOFF * D2R), 0, 1);
+      abd = abd * (1 - c) + seg.together * c;
+    }
+    abd = clamp(abd, -lim.abd * D2R, lim.abd * D2R);
+    const st = this._fingerState[key];
+    if (st) { flex = st.flex.step(flex, PLAYBACK_FPS); abd = st.abd.step(abd, PLAYBACK_FPS); }
+    this._setFingerBone(key, bone, seg, flex, abd);
+    return flex;
+  }
+
+  _setFingerBone(key, bone, seg, flex, abd) {
     const dir = seg.rl.clone().multiplyScalar(Math.cos(flex))
       .addScaledVector(seg.pl, Math.sin(flex))
       .multiplyScalar(Math.cos(abd))
       .addScaledVector(seg.sl, Math.sin(abd))
       .normalize();
-    const localQ = new THREE.Quaternion().setFromUnitVectors(seg.rl, dir)
-      .multiply(this.restQ[key]);
-    bone.quaternion.slerp(localQ, 0.6);
-    return flex;
+    bone.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(seg.rl, dir)
+      .multiply(this.restQ[key]));
+  }
+
+  // Put both hands in the relaxed pose at once, and start the finger filters
+  // there. Called at load, in the idle pose, and at the start of playback.
+  _initHandState() {
+    this._fingerState = {};
+    this._handMissing = { l: HAND_HOLD_FRAMES + 1, r: HAND_HOLD_FRAMES + 1 };
+    if (!this.handRest) return;
+    const D2R = Math.PI / 180;
+    for (const side of ['l', 'r']) {
+      const rest = this.handRest[side];
+      if (!rest) continue;
+      if (this.bones[side + 'Hand'] && this.restQ[side + 'Hand']) {
+        this.bones[side + 'Hand'].quaternion.copy(this.restQ[side + 'Hand']);
+      }
+      for (const f of FINGER_NAMES) for (let k = 0; k < 3; k++) {
+        const key = side + f + (k + 1), bone = this.bones[key], seg = rest.seg[key];
+        if (!bone || !seg) continue;
+        const flex = RELAXED_FLEX[f][k] * D2R, abd = relaxedAbd(side, f, k);
+        this._fingerState[key] = { flex: new AngleFilter(flex), abd: new AngleFilter(abd) };
+        this._setFingerBone(key, bone, seg, flex, abd);
+      }
+    }
+  }
+
+  // A hand with no data this frame: hold through a short dropout, then ease
+  // the wrist straight, the fingers into the relaxed pose, and the palm's turn
+  // about the forearm back to none.
+  _relaxHand(side, missing) {
+    if (missing <= HAND_HOLD_FRAMES || !this.handRest || !this._fingerState) return;
+    const rest = this.handRest[side];
+    if (!rest) return;
+    const a = HAND_RELAX_RATE, D2R = Math.PI / 180;
+    const hand = this.bones[side + 'Hand'];
+    if (hand && this.restQ[side + 'Hand']) hand.quaternion.slerp(this.restQ[side + 'Hand'], a);
+    if (this._handTwist) {
+      this._handTwist[side] *= 1 - a;
+      this._forearmTwist[side] *= 1 - a;
+    }
+    for (const f of FINGER_NAMES) for (let k = 0; k < 3; k++) {
+      const key = side + f + (k + 1), bone = this.bones[key], seg = rest.seg[key], st = this._fingerState[key];
+      if (!bone || !seg || !st) continue;
+      st.flex.set(st.flex.x + (RELAXED_FLEX[f][k] * D2R - st.flex.x) * a);
+      st.abd.set(st.abd.x + (relaxedAbd(side, f, k) - st.abd.x) * a);
+      this._setFingerBone(key, bone, seg, st.flex.x, st.abd.x);
+    }
+  }
+
+  // Everything that carries over from frame to frame, back to its start.
+  _resetPlaybackState() {
+    if (this._normaliser) this._normaliser.reset();
+    this._forearmTwist = { l: 0, r: 0 };
+    this._handTwist = { l: 0, r: 0 };
+    this._initHandState();
   }
 
   // How far the palm has to turn about the forearm, measured from the forearm
@@ -1104,9 +1378,7 @@ class ThreeAvatarRenderer {
   playQueue(queue, onGlossChange, onDone) {
     this.stopQueue();
     // Fresh sequence: do not carry smoothing state over from the last one
-    if (this._normaliser) this._normaliser.reset();
-    this._forearmTwist = { l: 0, r: 0 };
-    this._handTwist = { l: 0, r: 0 };
+    this._resetPlaybackState();
     this._queue         = queue;
     this._signIdx       = 0;
     this._frameIdx      = 0;
@@ -1138,7 +1410,7 @@ class ThreeAvatarRenderer {
   }
 
   _scheduleNextFrame() {
-    const FPS = 25 * (this.speed || 1.0);
+    const FPS = PLAYBACK_FPS * (this.speed || 1.0);
     this._playTimer = setTimeout(() => this._tick(), 1000 / FPS);
   }
 
