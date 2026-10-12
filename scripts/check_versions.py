@@ -107,7 +107,7 @@ LOCAL_VERSION_RE = re.compile(r'LOCAL_VERSION\s*=\s*"v(' + SEMVER + r')"')
 PINNED = {
     ("desktop", "universal.dmg"): (
         "0.3.9",
-        "the macOS build needs a Mac; 0.3.10 is Windows-only until it is rebuilt "
+        "the macOS build needs a Mac; 0.3.11 is Windows-only until it is rebuilt "
         "there. See docs/MACOS_NEXT_SESSION.md, task 1.",
     ),
 }

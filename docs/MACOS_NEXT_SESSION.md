@@ -7,12 +7,12 @@ that is still outstanding, in the order it is worth doing.
 You are on a Mac. Everything here needs a Mac, which is why it is not done.
 
 **State as of 12 October 2026.** `main` is pushed, so `git pull` gets you
-everything. Windows is released at 0.3.10. The Mac is released at 0.3.9, built
+everything. Windows is released at 0.3.11. The Mac is released at 0.3.9, built
 on the Mac on 1 October, ad-hoc signed, and pinned there in
-`scripts/check_versions.py`, because 0.3.10's change is in the 3D renderer and
-the Mac build has to be redone to carry it. `python scripts/check_versions.py
---remote` exits 0 on what is pushed, so if it fails after your changes, it is
-your changes.
+`scripts/check_versions.py`, because the 0.3.10 and 0.3.11 changes are in the
+3D renderer and the Mac build has to be redone to carry them.
+`python scripts/check_versions.py --remote` exits 0 on what is pushed, so if it
+fails after your changes, it is your changes.
 
 The Mac has no GitHub access. The last round worked like this, and should again:
 the Mac builds, verifies and checks the dmg, leaves it in
@@ -33,16 +33,16 @@ shared between both platforms.
 
 ---
 
-## Task 1: rebuild and release the Mac app at 0.3.10
+## Task 1: rebuild and release the Mac app at 0.3.11
 
-**This is the priority.** The Windows build is already released at 0.3.10. The
-Mac download points at 0.3.9 and is pinned there. Build 0.3.10, which carries
-everything below.
+**This is the priority.** The Windows build is already released at 0.3.11. The
+Mac download points at 0.3.9 and is pinned there. Build 0.3.11, which carries
+everything below. There is no Mac 0.3.10 and there will not be one.
 
 ### What the Mac build carries
 
-Three rounds of 3D avatar fixes, all in the one file. The Mac already has the
-first two in 0.3.9; 0.3.10 adds the third.
+Four rounds of 3D avatar fixes, all in the one file. The Mac already has the
+first two in 0.3.9; 0.3.10 and 0.3.11 add the other two.
 
 **0.3.8 fixed where the hands go.** The avatar was placing them near the hips
 and barely moving them regardless of the sign. Three faults, all in the 3D
@@ -84,7 +84,15 @@ as they curl, and the torso's shape is measured from the mesh at load so hands
 are kept outside it. Shaking halved, backward bends went from 20% of joints to
 none, and hands inside the body from 12% of frames to about 1%.
 
-All three are in `signlytic-extension/overlay/avatar3d.js`, which is the source
+**0.3.11 put each hand on the right arm.** The capture runs a body tracker and
+a separate hand tracker, and the hand tracker often labels left and right the
+wrong way round (NO and YES in every frame), so a hand's fingers drove the other
+arm and the arms stayed where the body tracker put them. The shared pose
+clean-up now re-labels such hands, judged by which elbow they sit one forearm
+from, and moves each wrist onto the hand tracker's. Wrist and hand disagreeing
+went from 14.6% of hand-frames to 2.2%.
+
+All four are in `signlytic-extension/overlay/avatar3d.js`, which is the source
 of truth, and is copied into the desktop app by `sync-vendor` at build time.
 **You do not need to touch it. Just build.**
 
@@ -116,11 +124,11 @@ Confirm the built app actually contains the fix rather than assuming
 `sync-vendor` ran. From inside the app bundle:
 
     npx asar extract "Signlytic AI.app/Contents/Resources/app.asar" /tmp/asar-check
-    grep -o "detectBonePrefix\|_solveArm\|_captureHandRest\|_shareTwist\|_relaxHand\|_measureTorso" \
+    grep -o "detectBonePrefix\|_solveArm\|_captureHandRest\|_shareTwist\|_relaxHand\|_measureTorso\|_handsSwapped" \
       /tmp/asar-check/renderer/vendor/avatar3d.js | sort -u
 
-All six markers must be present: the first two are 0.3.8, the next two 0.3.9,
-the last two 0.3.10.
+All seven markers must be present: the first two are 0.3.8, the next two 0.3.9,
+the next two 0.3.10, and the last 0.3.11.
 Better still, `cmp` the extracted file against
 `signlytic-extension/overlay/avatar3d.js`; on Windows they were byte-identical. Gotcha 4 in the handover is exactly this trap: the
 renderer loads from inside `app.asar`, so copying files into
@@ -134,10 +142,9 @@ because they are what changed:
 
 1. Switch to the 3D avatar. The hands should move through the signing space in
    front of the chest, not hang near the hips. The desktop app still offers 3D
-   the way it always did. The website was separately put back on 2D by default
-   in `245c081` pending a visual sign-off, and that hold is **website only**,
-   a single flag in `signlytic-ai-website/components/BslSignPanel.tsx`. Do not
-   copy it into the desktop app or the extension.
+   the way it always did. The website opens on 3D by default too since 0.3.11
+   (`THREE_D_APPROVED_AS_DEFAULT` in
+   `signlytic-ai-website/components/BslSignPanel.tsx`).
 2. Look at the hands. Open hands should be flat with the fingers in order, not
    clawed or crossed; curved hands (BUS) should curve the way fingers bend. No
    finger should fold back through the hand and no wrist should twist like a
@@ -155,13 +162,13 @@ record its SHA256 and size. On Windows:
 
 1. Check the SHA256 with `Get-FileHash` before anything else; the file crossed
    the exFAT drive.
-2. Attach it to the existing `desktop-v0.3.10` release in the
+2. Attach it to the existing `desktop-v0.3.11` release in the
    **Signlytic-Overlay** repo, which already holds the Windows installer:
 
-       gh release upload desktop-v0.3.10 "signlytic-desktop/dist/Signlytic AI-0.3.10-universal.dmg" --repo Iyanuoluwa007/Signlytic-Overlay
+       gh release upload desktop-v0.3.11 "signlytic-desktop/dist/Signlytic AI-0.3.11-universal.dmg" --repo Iyanuoluwa007/Signlytic-Overlay
 
    GitHub turns the space into a dot, so it is served as
-   `Signlytic.AI-0.3.10-universal.dmg`, which is the name every link must use.
+   `Signlytic.AI-0.3.11-universal.dmg`, which is the name every link must use.
    Attaching an asset does not move the Latest badge; leave it alone. Edit the
    release's title and notes to cover both platforms, keeping the Attribution
    section exactly as it is.
@@ -170,14 +177,14 @@ record its SHA256 and size. On Windows:
    `("desktop", "universal.dmg")` from the two anchors that name it, so they end
    at their label. The checker fails with "anchor names pin ... which is no
    longer in PINNED" if you skip the second part.
-4. Update the Mac links to 0.3.10 in `signlytic-ai-website/app/page.tsx`,
+4. Update the Mac links to 0.3.11 in `signlytic-ai-website/app/page.tsx`,
    `signlytic-ai-website/app/extension/page.tsx`, `README.md`,
    `signlytic-desktop/README.md`, and in the Signlytic-Overlay repo `README.md`
    and `Software App/README.md`.
 5. Fix the prose the checker does not read, since both platforms will be on
-   0.3.10: the paragraph starting "The two platforms are not on the same
+   0.3.11: the paragraph starting "The two platforms are not on the same
    version" in `README.md` and in the Overlay `README.md`, the "Both free.
-   Windows is on 0.3.10" line in `signlytic-ai-website/app/extension/page.tsx`,
+   Windows is on 0.3.11" line in `signlytic-ai-website/app/extension/page.tsx`,
    and the **Status** line in Overlay `Software App/README.md`.
 6. Run `python scripts/check_versions.py --remote` until it exits 0, without
    loosening it. Push the Overlay repo first and `main` last, because pushing
@@ -294,7 +301,7 @@ These are not stylistic preferences, they are requirements:
       main/captions/mac/                the Swift helper and its probe tools
       renderer/vendor/                  generated by sync-vendor, do not edit
     signlytic-extension/overlay/        source of truth for both renderers
-      avatar3d.js                       3D avatar, the file 0.3.8 to 0.3.10 fix
+      avatar3d.js                       3D avatar, the file 0.3.8 to 0.3.11 fix
       skeleton2d.js                     2D skeleton
     scripts/check_versions.py           gates a release, run with --remote
     docs/MACOS_PORT_HANDOVER.md         how the port works, and its gotchas
