@@ -195,6 +195,8 @@ evaluation_results.json
 *.mov
 *.wav
 *.mp3
+# except the README's demo video
+!docs/media/*.mp4
 
 # Large archives
 *.zip

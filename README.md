@@ -10,6 +10,16 @@ Signlytic AI translates between British Sign Language (BSL) and English using de
 
 [![Sponsor](https://img.shields.io/github/sponsors/Iyanuoluwa007?label=Sponsor&logo=GitHub&color=ea4aaa)](https://github.com/sponsors/Iyanuoluwa007)
 
+## See it sign
+
+![The 3D avatar and the 2D skeleton signing "Do you take the bus to work?", then "No" and "Yes", with the English above and each BSL sign named below](docs/media/signlytic_2d_3d_demo.gif)
+
+The 3D avatar (left) and the 2D skeleton (right) signing "Do you take the bus to
+work?", then "No." and "Yes.". The English is shown above, and each BSL sign is
+named below as it is signed. [Watch the MP4](docs/media/signlytic_2d_3d_demo.mp4)
+for full quality, or try your own sentence in the
+[interactive demo](https://signlytic-ai-website.vercel.app/demo).
+
 ---
 
 ## System Overview
@@ -17,7 +27,7 @@ Signlytic AI translates between British Sign Language (BSL) and English using de
 | Direction | Input | Output |
 |-----------|-------|--------|
 | BSL to English | BSL video / BSL glosses | English text + speech (Coqui XTTS v2) |
-| English to BSL | English speech / text | BSL glosses + signing animation (2D Pose Animator) |
+| English to BSL | English speech / text | BSL glosses + signing animation (2D skeleton and 3D avatar) |
 
 ---
 
