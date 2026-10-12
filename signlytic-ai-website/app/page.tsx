@@ -10,10 +10,10 @@ import Signable from "@/components/Signable";
 // sponsor page, so switch it to whichever platform is live first.
 const SPONSOR_URL = "https://github.com/sponsors/Iyanuoluwa007";
 const DESKTOP_WINDOWS_URL =
-  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI.Setup.0.3.9.exe";
+  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.10/Signlytic.AI.Setup.0.3.10.exe";
 // Universal build, Apple silicon and Intel in one file.
 const DESKTOP_MAC_URL =
-  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg";
+  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI-0.3.9-universal.dmg";
 
 /* ═══════════════════════════════════════
    SCROLL ANIMATION SYSTEM

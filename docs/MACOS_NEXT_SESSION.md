@@ -6,15 +6,18 @@ that is still outstanding, in the order it is worth doing.
 
 You are on a Mac. Everything here needs a Mac, which is why it is not done.
 
-**State as of 1 October 2026.** `main` is pushed, so `git pull` gets you
-everything, including both 3D avatar fixes. Windows is released at 0.3.9; the
-Mac is still on 0.3.7 and pinned there. `python scripts/check_versions.py
+**State as of 12 October 2026.** `main` is pushed, so `git pull` gets you
+everything. Windows is released at 0.3.10. The Mac is released at 0.3.9, built
+on the Mac on 1 October, ad-hoc signed, and pinned there in
+`scripts/check_versions.py`, because 0.3.10's change is in the 3D renderer and
+the Mac build has to be redone to carry it. `python scripts/check_versions.py
 --remote` exits 0 on what is pushed, so if it fails after your changes, it is
 your changes.
 
-The Windows machine also has some uncommitted Mac un-pin edits that were written
-for 0.3.8. They were never pushed, so you will not see them, and they are out of
-date. Do the un-pinning fresh from the steps below.
+The Mac has no GitHub access. The last round worked like this, and should again:
+the Mac builds, verifies and checks the dmg, leaves it in
+`signlytic-desktop/dist/` on the shared drive with its SHA256, and the Windows
+machine uploads it and does the link and checker changes.
 
 ---
 
@@ -30,16 +33,16 @@ shared between both platforms.
 
 ---
 
-## Task 1: rebuild and release the Mac app at 0.3.9
+## Task 1: rebuild and release the Mac app at 0.3.10
 
-**This is the priority.** The Windows build is already released at 0.3.9. The
-Mac download on the website still points at 0.3.7 and is deliberately pinned
-there, because a Mac build cannot be produced off a Mac. There is no Mac 0.3.8
-and there will not be one: build 0.3.9, which carries both fixes below.
+**This is the priority.** The Windows build is already released at 0.3.10. The
+Mac download points at 0.3.9 and is pinned there. Build 0.3.10, which carries
+everything below.
 
-### Why the rebuild is needed
+### What the Mac build carries
 
-The Mac is two fixes behind, both in the 3D avatar and both in the one file.
+Three rounds of 3D avatar fixes, all in the one file. The Mac already has the
+first two in 0.3.9; 0.3.10 adds the third.
 
 **0.3.8 fixed where the hands go.** The avatar was placing them near the hips
 and barely moving them regardless of the sign. Three faults, all in the 3D
@@ -70,7 +73,18 @@ does not wring. Over 150 signs on both avatars, the palm facing the wrong way
 went from a median 89 degrees to 0, fingers folded past 150 degrees from 3.3% to
 none, and finger direction on screen against the 2D from 9 degrees to 3.
 
-Both fixes are in `signlytic-extension/overlay/avatar3d.js`, which is the source
+**0.3.10 made the fingers move like a person's.** The capture's finger tracking
+shakes: a fifth of its joint movements reverse direction from one frame to the
+next. A hand with no tracking data, which is half of all frames, froze in its
+last shape, often a claw. Middle and end finger joints bent backwards, curled
+fingers fanned apart, and resting hands sank into the avatar's waist. Each
+finger joint is now smoothed with a speed-adaptive filter, a lost hand eases
+into a relaxed pose with the thumb alongside the index, fingers draw together
+as they curl, and the torso's shape is measured from the mesh at load so hands
+are kept outside it. Shaking halved, backward bends went from 20% of joints to
+none, and hands inside the body from 12% of frames to about 1%.
+
+All three are in `signlytic-extension/overlay/avatar3d.js`, which is the source
 of truth, and is copied into the desktop app by `sync-vendor` at build time.
 **You do not need to touch it. Just build.**
 
@@ -102,10 +116,11 @@ Confirm the built app actually contains the fix rather than assuming
 `sync-vendor` ran. From inside the app bundle:
 
     npx asar extract "Signlytic AI.app/Contents/Resources/app.asar" /tmp/asar-check
-    grep -o "detectBonePrefix\|_solveArm\|_captureHandRest\|_shareTwist" \
+    grep -o "detectBonePrefix\|_solveArm\|_captureHandRest\|_shareTwist\|_relaxHand\|_measureTorso" \
       /tmp/asar-check/renderer/vendor/avatar3d.js | sort -u
 
-All four markers must be present: the first two are 0.3.8, the last two 0.3.9.
+All six markers must be present: the first two are 0.3.8, the next two 0.3.9,
+the last two 0.3.10.
 Better still, `cmp` the extracted file against
 `signlytic-extension/overlay/avatar3d.js`; on Windows they were byte-identical. Gotcha 4 in the handover is exactly this trap: the
 renderer loads from inside `app.asar`, so copying files into
@@ -129,45 +144,51 @@ because they are what changed:
    sweet wrapper.
 3. Switch the avatar to female. She should move at all. If she is still, the
    prefix detection has not reached this build.
+4. Watch the hands between signs and at rest: they should hang relaxed with the
+   fingers softly curled, not frozen in a claw, and a hand at the waist should
+   rest on the hip, not disappear into the body.
 
 ### Release
 
-Attach the dmg to the existing `desktop-v0.3.9` release in the
-**Signlytic-Overlay** repo, which already holds the Windows installer:
+On the Mac: leave the dmg in `signlytic-desktop/dist/` on the shared drive and
+record its SHA256 and size. On Windows:
 
-    gh release upload desktop-v0.3.9 "path/to/Signlytic AI-0.3.9-universal.dmg" \
-      --repo Iyanuoluwa007/Signlytic-Overlay
+1. Check the SHA256 with `Get-FileHash` before anything else; the file crossed
+   the exFAT drive.
+2. Attach it to the existing `desktop-v0.3.10` release in the
+   **Signlytic-Overlay** repo, which already holds the Windows installer:
 
-GitHub turns the space into a dot, so the asset is served as
-`Signlytic.AI-0.3.9-universal.dmg`, which is the name every link must use.
-Attaching an asset does not move the Latest badge, so leave that alone. The
-release is currently titled and described as Windows only: edit its title and
-notes to cover both platforms, and keep the attribution section.
+       gh release upload desktop-v0.3.10 "signlytic-desktop/dist/Signlytic AI-0.3.10-universal.dmg" --repo Iyanuoluwa007/Signlytic-Overlay
 
-Then un-pin the Mac download. In `scripts/check_versions.py` there is a `PINNED`
-entry holding the Mac URL at 0.3.7 with a reason. Remove it, update the Mac URLs
-to 0.3.9 in these files, and the checker will confirm you got them all:
+   GitHub turns the space into a dot, so it is served as
+   `Signlytic.AI-0.3.10-universal.dmg`, which is the name every link must use.
+   Attaching an asset does not move the Latest badge; leave it alone. Edit the
+   release's title and notes to cover both platforms, keeping the Attribution
+   section exactly as it is.
+3. Un-pin the Mac. In `scripts/check_versions.py`, replace the whole `PINNED`
+   entry with `PINNED = {}`, **and** delete the trailing
+   `("desktop", "universal.dmg")` from the two anchors that name it, so they end
+   at their label. The checker fails with "anchor names pin ... which is no
+   longer in PINNED" if you skip the second part.
+4. Update the Mac links to 0.3.10 in `signlytic-ai-website/app/page.tsx`,
+   `signlytic-ai-website/app/extension/page.tsx`, `README.md`,
+   `signlytic-desktop/README.md`, and in the Signlytic-Overlay repo `README.md`
+   and `Software App/README.md`.
+5. Fix the prose the checker does not read, since both platforms will be on
+   0.3.10: the paragraph starting "The two platforms are not on the same
+   version" in `README.md` and in the Overlay `README.md`, the "Both free.
+   Windows is on 0.3.10" line in `signlytic-ai-website/app/extension/page.tsx`,
+   and the **Status** line in Overlay `Software App/README.md`.
+6. Run `python scripts/check_versions.py --remote` until it exits 0, without
+   loosening it. Push the Overlay repo first and `main` last, because pushing
+   `main` deploys the website.
 
-- `signlytic-ai-website/app/page.tsx`
-- `signlytic-ai-website/app/extension/page.tsx`
-- `README.md`
-- `signlytic-desktop/README.md`
-- in the Signlytic-Overlay repo: `README.md` and `Software App/README.md`
-
-Then:
-
-    python scripts/check_versions.py --remote
-
-It must exit 0. It parses every release URL, checks asset filenames as well as
-tags, and confirms each asset actually resolves.
-
-The checker does not read prose that says the platforms differ, so fix those by
-hand once both are on 0.3.9: the paragraph starting "The two platforms are not
-on the same version" in `README.md`, the "Both free. Windows is on 0.3.9" line
-in `signlytic-ai-website/app/extension/page.tsx`, the same paragraph in the
-Overlay `README.md`, and the **Status** line in Overlay `Software App/README.md`.
-Pushing `main` deploys the website, so push only after the dmg is uploaded and
-the checker is green.
+**The Mac install instruction is Open Anyway, not right-click.** Confirmed on
+macOS 26 with a quarantined copy of the 0.3.9 dmg: right-click and Open no
+longer gets past Gatekeeper (Apple removed that bypass in macOS 15). What works
+is System Settings, Privacy and Security, Security, Open Anyway, then
+authenticate. Every user-facing instruction was reworded for 0.3.10; keep it
+that way.
 
 ---
 
@@ -273,7 +294,7 @@ These are not stylistic preferences, they are requirements:
       main/captions/mac/                the Swift helper and its probe tools
       renderer/vendor/                  generated by sync-vendor, do not edit
     signlytic-extension/overlay/        source of truth for both renderers
-      avatar3d.js                       3D avatar, the file 0.3.8 and 0.3.9 fix
+      avatar3d.js                       3D avatar, the file 0.3.8 to 0.3.10 fix
       skeleton2d.js                     2D skeleton
     scripts/check_versions.py           gates a release, run with --remote
     docs/MACOS_PORT_HANDOVER.md         how the port works, and its gotchas

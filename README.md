@@ -86,11 +86,11 @@ setup.
 A floating signing avatar that signs whatever your computer is saying, in any
 application, not only in a browser.
 
-**[Download for Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI.Setup.0.3.9.exe)**
+**[Download for Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.10/Signlytic.AI.Setup.0.3.10.exe)**
 &nbsp;|&nbsp;
-**[Download for Mac](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg)**
+**[Download for Mac](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI-0.3.9-universal.dmg)**
 &nbsp;|&nbsp;
-[release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.9)
+[release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.10)
 
 The two platforms reach the same place by different routes. On Windows the app
 reads the Live Captions window, so it needs Windows 11 22H2 or newer. On macOS
@@ -100,17 +100,21 @@ The Mac build needs macOS 13 or newer and is universal, so one file covers both
 Apple silicon and Intel.
 
 Neither build is code-signed, so both need talking past the operating system
-once. Windows: **More info**, then **Run anyway**. macOS is stricter, and
-opening it normally will fail: **right-click the app and choose Open**, then
-confirm. macOS also asks for microphone and speech recognition permission the
-first time captions start, and for screen recording if you pick system audio,
-which is how it gates capturing what other apps play.
+once. Windows: **More info**, then **Run anyway**. macOS is stricter: the first
+time, macOS will refuse to open it. Choose **Done**, then open **System
+Settings**, **Privacy and Security**, scroll down to **Security**, choose **Open
+Anyway** next to the message about Signlytic AI, and authenticate. On macOS 13
+or 14 you can instead right-click the app and choose Open; on macOS 15 and later
+that no longer works. macOS also asks for microphone and speech recognition
+permission the first time captions start, and for screen recording if you pick
+system audio, which is how it gates capturing what other apps play.
 
-The two platforms are not on the same version. Windows is on 0.3.9, which carries
-the 3D avatar fixes: where the hands are placed, the female avatar, which had never
-animated at all, and the hands and fingers themselves. The Mac download is still
-0.3.7 and carries none of them, because a Mac build has to be produced on a Mac. Until then the Mac app's 2D renderer is unaffected and
-is the accurate one to use there.
+The two platforms are not on the same version. Windows is on 0.3.10, which
+makes the 3D avatar's fingers move naturally: no tremor, no claws, relaxed hands
+at rest, and no hands sinking into the body. The Mac is on 0.3.9, which carries
+every earlier 3D avatar fix (where the hands are placed, the female avatar, and
+the hands and fingers themselves) but not that one, because a Mac build has to
+be produced on a Mac.
 
 See [signlytic-desktop/](signlytic-desktop/) for how the app is put together and
 how to build it, and [docs/MACOS_NEXT_SESSION.md](docs/MACOS_NEXT_SESSION.md) for
@@ -121,7 +125,7 @@ what the Mac rebuild involves.
 The same signing overlay, scoped to browser tabs, driven by captions on the page.
 See [signlytic-extension/](signlytic-extension/).
 
-**[Download](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.2/signlytic-extension.zip)**
+**[Download](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/v0.4.3/signlytic-extension.zip)**
 
 Both apps are free, in beta, and released from the
 [overlay repository](https://github.com/Iyanuoluwa007/Signlytic-Overlay) so their

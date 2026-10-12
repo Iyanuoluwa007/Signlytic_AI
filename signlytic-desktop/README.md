@@ -4,11 +4,11 @@ Turns speech into British Sign Language on the desktop: caption text in, a
 signing avatar out.
 
 Built releases, if you want to use it rather than work on it:
-**[Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI.Setup.0.3.9.exe)**
+**[Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.10/Signlytic.AI.Setup.0.3.10.exe)**
 &nbsp;|&nbsp;
-**[macOS](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.7/Signlytic.AI-0.3.7-universal.dmg)**
+**[macOS](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI-0.3.9-universal.dmg)**
 &nbsp;|&nbsp;
-[release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.9).
+[release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.10).
 Neither is code-signed, so both need talking past the OS once. See
 [Opening an unsigned build](#opening-an-unsigned-build) for the macOS side,
 which is stricter than the Windows one.
@@ -94,12 +94,16 @@ ad-hoc signature, though, so a downloaded copy is still rejected.
 
 Copied from a mounted dmg on the machine that built it, it opens normally.
 Downloaded from anywhere, macOS attaches a quarantine flag and refuses to open
-it with a message about damaged or unverified software. To open it anyway:
+it. To open it anyway:
 
-- Right-click the app in Finder, choose **Open**, then **Open** again in the
-  dialog. This is per-app and only needed once, or
+- The first time, macOS will refuse to open it. Choose **Done**, then open
+  **System Settings**, **Privacy and Security**, scroll down to **Security**,
+  choose **Open Anyway** next to the message about Signlytic AI, and
+  authenticate. After that it opens normally. On macOS 13 or 14 you can instead
+  right-click the app and choose Open; on macOS 15 and later that no longer
+  works. Tested on macOS 26 with a quarantined copy of the 0.3.9 dmg, or
 
-- clear the quarantine flag:
+- clear the quarantine flag, which works on every version:
 
       xattr -dr com.apple.quarantine "/Applications/Signlytic AI.app"
 
