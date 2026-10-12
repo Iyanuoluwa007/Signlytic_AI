@@ -88,7 +88,7 @@ application, not only in a browser.
 
 **[Download for Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.11/Signlytic.AI.Setup.0.3.11.exe)**
 &nbsp;|&nbsp;
-**[Download for Mac](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI-0.3.9-universal.dmg)**
+**[Download for Mac](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.11/Signlytic.AI-0.3.11-universal.dmg)**
 &nbsp;|&nbsp;
 [release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.11)
 
@@ -109,12 +109,11 @@ that no longer works. macOS also asks for microphone and speech recognition
 permission the first time captions start, and for screen recording if you pick
 system audio, which is how it gates capturing what other apps play.
 
-The two platforms are not on the same version. Windows is on 0.3.11, which
-makes the 3D avatar's fingers move naturally (0.3.10) and puts each hand on the
-right arm where the capture's hand tracker had swapped left and right (0.3.11).
-The Mac is on 0.3.9, which carries every earlier 3D avatar fix (where the hands
-are placed, the female avatar, and the hands and fingers themselves) but not
-those two, because a Mac build has to be produced on a Mac.
+Both platforms are on 0.3.11, which carries every 3D avatar fix so far: where
+the hands are placed, the female avatar, the hand and finger shapes, finger
+motion that looks natural (no tremor, no claws, relaxed hands at rest, no hands
+sinking into the body), and each hand on the right arm where the capture's hand
+tracker had swapped left and right.
 
 See [signlytic-desktop/](signlytic-desktop/) for how the app is put together and
 how to build it, and [docs/MACOS_NEXT_SESSION.md](docs/MACOS_NEXT_SESSION.md) for

@@ -6,7 +6,7 @@ signing avatar out.
 Built releases, if you want to use it rather than work on it:
 **[Windows](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.11/Signlytic.AI.Setup.0.3.11.exe)**
 &nbsp;|&nbsp;
-**[macOS](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI-0.3.9-universal.dmg)**
+**[macOS](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.11/Signlytic.AI-0.3.11-universal.dmg)**
 &nbsp;|&nbsp;
 [release notes](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.11).
 Neither is code-signed, so both need talking past the OS once. See

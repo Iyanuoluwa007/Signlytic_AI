@@ -6,13 +6,13 @@ that is still outstanding, in the order it is worth doing.
 
 You are on a Mac. Everything here needs a Mac, which is why it is not done.
 
-**State as of 12 October 2026.** `main` is pushed, so `git pull` gets you
-everything. Windows is released at 0.3.11. The Mac is released at 0.3.9, built
-on the Mac on 1 October, ad-hoc signed, and pinned there in
-`scripts/check_versions.py`, because the 0.3.10 and 0.3.11 changes are in the
-3D renderer and the Mac build has to be redone to carry them.
-`python scripts/check_versions.py --remote` exits 0 on what is pushed, so if it
-fails after your changes, it is your changes.
+**State as of 12 October 2026.** `main` is pushed. Both platforms are released
+at 0.3.11 from the same `desktop-v0.3.11` tag; the Mac build was made on the
+Mac on 12 October, ad-hoc signed, and is no longer pinned in
+`scripts/check_versions.py`. `python scripts/check_versions.py --remote` exits
+0 on what is pushed, so if it fails after your changes, it is your changes.
+Task 1 is done until the renderer changes again; Tasks 2 and 3 are still
+open.
 
 The Mac has no GitHub access. The last round worked like this, and should again:
 the Mac builds, verifies and checks the dmg, leaves it in
@@ -33,11 +33,12 @@ shared between both platforms.
 
 ---
 
-## Task 1: rebuild and release the Mac app at 0.3.11
+## Task 1: rebuild and release the Mac app at 0.3.11 (DONE)
 
-**This is the priority.** The Windows build is already released at 0.3.11. The
-Mac download points at 0.3.9 and is pinned there. Build 0.3.11, which carries
-everything below. There is no Mac 0.3.10 and there will not be one.
+**Done on 12 October 2026.** The Mac is released at 0.3.11 alongside Windows
+and un-pinned. There was no Mac 0.3.10. Keep this section as the recipe for the
+next time the Windows build moves ahead: re-pin the Mac in
+`scripts/check_versions.py` with the reason, then follow the steps below.
 
 ### What the Mac build carries
 
@@ -236,10 +237,12 @@ the correct state for a release.
 
 ## Task 3: signing and notarisation, if you want it
 
-Neither build is code-signed. On Windows that means a SmartScreen warning. On
-macOS it is worse: the app will refuse to open normally and users have to
-right-click and choose Open. This is the single biggest barrier to anyone
-actually trying the Mac app.
+Neither build is signed with a trusted certificate. On Windows that means a
+SmartScreen warning. On macOS it is worse: the Mac build is ad-hoc signed but
+not notarised, so macOS refuses to open it the first time and users have to
+find Open Anyway in System Settings, Privacy and Security (right-click and Open
+no longer works on macOS 15 and later). This is the single biggest barrier to
+anyone actually trying the Mac app.
 
 This needs a paid Apple Developer account, so it is a spending decision rather
 than a technical one. `packaging/entitlements.mac.plist` already exists and the

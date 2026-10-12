@@ -16,7 +16,7 @@ const DOWNLOAD_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/release
 const DESKTOP_WINDOWS_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.11/Signlytic.AI.Setup.0.3.11.exe";
 // Universal build, Apple silicon and Intel in one file, which is why it is
 // larger than the Windows installer.
-const DESKTOP_MAC_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI-0.3.9-universal.dmg";
+const DESKTOP_MAC_URL = "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.11/Signlytic.AI-0.3.11-universal.dmg";
 
 export default function ExtensionPage() {
   // Arriving from another page with a hash (the home page links here as
@@ -295,8 +295,7 @@ export default function ExtensionPage() {
             <br />
             macOS 13 or newer, Apple silicon and Intel &middot; not notarised, so the first time choose Open Anyway in System Settings, Privacy and Security
             <br />
-            Both free. Windows is on 0.3.11; the Mac build is on 0.3.9, which does not yet
-            have the 0.3.10 and 0.3.11 hand fixes, because it has to be rebuilt on a Mac.
+            Both free, and both on 0.3.11 with every 3D avatar fix so far.
           </p>
         </div>
       </section>

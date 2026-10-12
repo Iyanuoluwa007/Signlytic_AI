@@ -13,7 +13,7 @@ const DESKTOP_WINDOWS_URL =
   "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.11/Signlytic.AI.Setup.0.3.11.exe";
 // Universal build, Apple silicon and Intel in one file.
 const DESKTOP_MAC_URL =
-  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.9/Signlytic.AI-0.3.9-universal.dmg";
+  "https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/download/desktop-v0.3.11/Signlytic.AI-0.3.11-universal.dmg";
 
 /* ═══════════════════════════════════════
    SCROLL ANIMATION SYSTEM
