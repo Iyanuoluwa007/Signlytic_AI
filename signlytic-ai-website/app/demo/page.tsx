@@ -6,9 +6,9 @@ import Signable from "@/components/Signable";
 // The local system, released from the main repo on its own version stream. The
 // browser extension and the desktop app ship from the overlay repo and move
 // independently, so their versions are deliberately not tied to this one.
-const LOCAL_VERSION = "v1.2.0";
+const LOCAL_VERSION = "v1.3.0";
 const LOCAL_RELEASE_URL =
-  "https://github.com/Iyanuoluwa007/Signlytic_AI/releases/tag/v1.2.0";
+  "https://github.com/Iyanuoluwa007/Signlytic_AI/releases/tag/v1.3.0";
 
 /* =========================================
    LOCAL FALLBACK DICTIONARIES
