@@ -195,8 +195,9 @@ evaluation_results.json
 *.mov
 *.wav
 *.mp3
-# except the README's demo video
+# except the README's demo video, and the website's copy of it
 !docs/media/*.mp4
+!signlytic-ai-website/public/media/signlytic-demo.mp4
 
 # Large archives
 *.zip

@@ -2,6 +2,7 @@
 
 import { useState, useRef, type ChangeEvent } from "react";
 import Signable from "@/components/Signable";
+import ContributeSection from "@/components/ContributeSection";
 
 // The local system, released from the main repo on its own version stream. The
 // browser extension and the desktop app ship from the overlay repo and move
@@ -493,6 +494,10 @@ export default function DemoPage() {
             )}
           </div>
         </div>
+
+        <section aria-label="Contribute to Signlytic AI" className="mt-12 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 md:p-8">
+          <ContributeSection compact />
+        </section>
 
         <div className="text-center mt-8">
           <p className="text-white/15 text-[11px]">Signlytic AI &middot; Independent Robotics &amp; AI Systems Engineer &middot; v2.1 &middot; April 2026</p>

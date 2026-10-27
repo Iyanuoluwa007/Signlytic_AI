@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import Signable from "@/components/Signable";
+import ContributeSection from "@/components/ContributeSection";
 
 // Published on the public overlay repo: the main repo is private, so its
 // release assets are not publicly downloadable.
@@ -172,7 +173,7 @@ export default function Home() {
               </span>
             </a>
             <div className="hidden md:flex items-center gap-0.5">
-              {["About", "Demo", "Performance", "Architecture"].map((s) => (
+              {["About", "Demo", "Contribute", "Performance", "Architecture"].map((s) => (
                 <a
                   key={s}
                   href={`#${s.toLowerCase()}`}
@@ -481,6 +482,20 @@ export default function Home() {
                 Video recognition, camera input, speech output &amp; signing animation
               </p>
             </div>
+          </Reveal>
+        </div>
+        <div className={`absolute bottom-0 left-0 right-0 ${dividerCls}`} />
+      </section>
+
+      {/* ═════════ CONTRIBUTE ═════════ */}
+      <section id="contribute" className={sectionCls}>
+        <div className={containerCls}>
+          <Reveal>
+            <span className={labelCls}>Open source</span>
+            <h2 className={h2Cls}><Signable text="Contribute to Signlytic AI">Contribute to Signlytic AI</Signable></h2>
+          </Reveal>
+          <Reveal delay={60}>
+            <ContributeSection />
           </Reveal>
         </div>
         <div className={`absolute bottom-0 left-0 right-0 ${dividerCls}`} />
