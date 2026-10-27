@@ -20,6 +20,25 @@ named below as it is signed. [Watch the MP4](docs/media/signlytic_2d_3d_demo.mp4
 for full quality, or try your own sentence in the
 [interactive demo](https://signlytic-ai-website.vercel.app/demo).
 
+## Contributing
+
+Contributions are welcome, and you do not need an NVIDIA GPU or any paid API
+key: a mock inference mode runs the whole interface on any laptop.
+
+- **Start here:** [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, tests and how
+  pull requests are reviewed.
+- **Pick an issue:** [good first issues](https://github.com/Iyanuoluwa007/Signlytic_AI/issues?q=is%3Aopen+label%3A%22good+first+issue%22),
+  or see the [roadmap](ROADMAP.md).
+- **BSL users and accessibility specialists:** your feedback on the signing is
+  the most valuable contribution of all. Use the
+  [BSL signing feedback form](https://github.com/Iyanuoluwa007/Signlytic_AI/issues/new?template=bsl_signing_feedback.yml)
+  or the [Google Form](https://forms.gle/oTy7Bi414fuThFc1A).
+- **Questions and ideas:** [Discussions](https://github.com/Iyanuoluwa007/Signlytic_AI/discussions).
+
+All the source code is here. The desktop app and Chrome extension are released
+from [Signlytic-Overlay](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases).
+Everyone taking part agrees to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ---
 
 ## System Overview
@@ -150,6 +169,9 @@ version streams can move independently of the research code here.
 - NVIDIA GPU with CUDA support (RTX 4060 or equivalent)
 - Conda package manager
 
+No GPU? To work on the interface, the APIs or bugs, use mock inference mode
+instead: see [Set up a development copy](CONTRIBUTING.md#set-up-a-development-copy).
+
 ### Installation
 
 ```bash
@@ -255,6 +277,9 @@ bsl_translation_project/
 
 ## Accessibility
 
+What we aim for, the known gaps and how to report a problem are in
+[ACCESSIBILITY.md](ACCESSIBILITY.md). Today the interface has:
+
 - All outputs presented as visible text
 - Keyboard navigation with ARIA landmarks
 - High-contrast colours (navy #1E3A5F, teal #0E7C6B on white #F4F5F7)
@@ -285,6 +310,8 @@ bsl_translation_project/
 ---
 
 ## Planned Improvements
+
+The full picture, tied to the open issues, is in [ROADMAP.md](ROADMAP.md).
 
 Three earlier entries here have since shipped and have been removed rather than
 left standing: 3D character animation alongside the 2D skeleton, live camera

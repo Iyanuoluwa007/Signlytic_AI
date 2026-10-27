@@ -26,6 +26,91 @@ Issues labelled `needs BSL reviewer` change how signing looks. Those need
 feedback from a fluent BSL user, ideally Deaf, before they can be merged. If you
 are not a BSL user yourself, say so in the issue and ask for a reviewer.
 
+## Set up a development copy
+
+You do not need an NVIDIA GPU, model files or any paid API key to work on the
+interface, the APIs or most bugs. The full system needs a GPU only for video and
+webcam recognition, speech transcription and the spoken voice.
+
+```bash
+git clone https://github.com/Iyanuoluwa007/Signlytic_AI.git
+cd Signlytic_AI
+```
+
+### The Python server, in mock inference mode
+
+Needs Python 3.11 or newer.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+
+SIGNLYTIC_MOCK_INFERENCE=1 python app_server.py
+# Windows PowerShell: $env:SIGNLYTIC_MOCK_INFERENCE="1"; python app_server.py
+```
+
+Then open <http://localhost:8000>. A banner across the top of the dashboard
+says you are in mock mode.
+
+| Feature | In mock mode |
+|---------|--------------|
+| English text to BSL glosses | Real (rule-based converter) |
+| Signing animation (2D and 3D) | Real signs, fetched from the public website |
+| BSL glosses to English | Real (rule-based converter, no API key needed) |
+| BSL video and webcam recognition | **Made up**: fixed glosses, marked `"mock": true` |
+| Speech to BSL | **Made up**: a fixed sentence, then real glosses and signs |
+| Spoken English voice | **Made up**: a short tone |
+
+Mock results are for development only and are never translations. Do not
+report them as accuracy, and do not use them in screenshots presented as real
+output.
+
+### The website
+
+Needs Node.js 20 or newer.
+
+```bash
+cd signlytic-ai-website
+npm install
+```
+
+Create `signlytic-ai-website/.env.local` so the site uses the live sign and
+avatar data (both send CORS headers, so this works from localhost):
+
+```
+NEXT_PUBLIC_SIGNS_API_BASE=https://signlytic-ai-website.vercel.app
+NEXT_PUBLIC_AVATAR_MALE_URL=https://signlytic-ai-website.vercel.app/api/avatar/male
+```
+
+Then `npm run dev` and open <http://localhost:3000>. Without a `GROQ_API_KEY`,
+English is turned into glosses by the same rule-based converter the extension
+uses, so the signing panel works with no key. Its glosses are plainer than the
+hosted site's.
+
+### The desktop app and the extension
+
+- Desktop app: `cd signlytic-desktop`, `npm install`, `npm start`. See
+  [signlytic-desktop/README.md](signlytic-desktop/README.md).
+- Chrome extension: open `chrome://extensions`, turn on Developer Mode, choose
+  Load Unpacked and select the `signlytic-extension` folder.
+
+### Running the checks
+
+These are the same checks CI runs on every pull request:
+
+```bash
+pytest tests/ -q                       # server tests, in mock mode, offline
+python scripts/check_versions.py       # every version number agrees
+cd signlytic-ai-website && npx tsc --noEmit   # website type check
+```
+
+New tests go in `tests/` (Python, named `test_*.py`) or next to the code they
+test (JavaScript, named `*.test.js`, run with `node --test`). CI picks both up
+without any change to the workflow. Tests must not need a GPU, a network
+connection or an API key, and must use small fixtures you write yourself,
+never sign pose data.
+
 ## How a pull request gets merged
 
 Nothing merges into `main` without the maintainer's approval. Every pull request
@@ -39,7 +124,9 @@ goes through these steps, in order:
    it is complete and honest.
 2. **The maintainer approves the automated checks to run.** Checks on pull
    requests from outside contributors do not run until the maintainer has
-   looked at the change and allowed them.
+   looked at the change and allowed them. Then **CI** runs the tests, the
+   version check, the website type check and a check that generated copies are
+   up to date. Fix anything it reports.
 3. **The maintainer reviews and approves.** Every file is owned by the
    maintainer (see `.github/CODEOWNERS`), and an approving review from them is
    required. If you push new commits after approval, the approval is withdrawn
@@ -81,9 +168,22 @@ AI coding tools are allowed, on these conditions:
   messages; use commas, parentheses or separate sentences.
 - Commit messages explain why the change was made, in plain prose, and state
   what you measured or tested.
-- Edit the renderer only in `signlytic-extension/overlay/`. The copies under
-  `signlytic-ai-website/public/bsl/` and `signlytic-desktop/renderer/vendor/`
-  are generated (`npm run sync-bsl`, `npm run sync-vendor`).
+- Edit the renderer only in `signlytic-extension/overlay/`, and the English to
+  gloss converter only in `signlytic-extension/gloss/`. The copies under
+  `signlytic-ai-website/public/bsl/`, `signlytic-ai-website/gloss/` and
+  `signlytic-desktop/renderer/vendor/` are generated (`npm run sync-bsl`,
+  `npm run sync-vendor`).
+
+## Community
+
+- Be kind. Everyone taking part agrees to the
+  [Code of Conduct](CODE_OF_CONDUCT.md).
+- Questions, ideas and show-and-tell go in
+  [Discussions](https://github.com/Iyanuoluwa007/Signlytic_AI/discussions);
+  bugs and planned work go in issues.
+- See [ROADMAP.md](ROADMAP.md) for where the project is heading and
+  [ACCESSIBILITY.md](ACCESSIBILITY.md) for the accessibility commitments every
+  change has to keep.
 
 ## Licence
 
