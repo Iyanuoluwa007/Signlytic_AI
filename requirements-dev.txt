@@ -1,0 +1,15 @@
+# Enough to run the server in mock inference mode on any computer, with no
+# NVIDIA GPU, no torch and no API keys:
+#
+#   pip install -r requirements-dev.txt
+#   SIGNLYTIC_MOCK_INFERENCE=1 python app_server.py
+#
+# For the full system (real recognition, transcription and voice) install
+# requirements.txt instead, which needs a GPU.
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+numpy>=1.24
+requests>=2.31
+pytest>=8.0
+httpx>=0.27

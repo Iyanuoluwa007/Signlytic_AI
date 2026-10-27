@@ -1,0 +1,77 @@
+# Tests and checks that need nothing but a CPU: no GPU, no model files, no API
+# keys and no sign data. The Python tests run the server in mock inference mode
+# (see CONTRIBUTING.md), so they exercise every endpoint without loading a model.
+#
+# Read-only token, and pull_request rather than pull_request_target, so code
+# from a fork never runs with write access or secrets. Checks on pull requests
+# from outside contributors also wait for the maintainer to allow them to run.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"  # the hosted demo runs 3.12
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Versions agree across files
+        run: python scripts/check_versions.py
+      - name: Tests (mock inference mode)
+        # Sign lookups are pointed at a closed port inside the tests, so
+        # nothing is fetched from the network.
+        run: pytest tests/ -q
+
+  javascript:
+    name: Website and apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: signlytic-ai-website/package-lock.json
+      - name: Every JavaScript file parses
+        run: |
+          git ls-files 'signlytic-extension/*.js' 'signlytic-desktop/*.js' \
+            | xargs -n1 node --check
+      - name: Website copies match the extension
+        # public/bsl and gloss/ are generated from signlytic-extension. Edit
+        # the extension, then run npm run sync-bsl in signlytic-ai-website.
+        run: |
+          node signlytic-ai-website/scripts/sync-bsl-vendor.js
+          git diff --exit-code -- signlytic-ai-website/public/bsl signlytic-ai-website/gloss \
+            || { echo "::error::The website's copies of the extension files are out of date. Run npm run sync-bsl in signlytic-ai-website and commit the result."; exit 1; }
+      - name: Install website dependencies
+        working-directory: signlytic-ai-website
+        run: npm ci
+      - name: Website type check
+        working-directory: signlytic-ai-website
+        run: npx tsc --noEmit
+      - name: JavaScript unit tests
+        # Picks up any *.test.js file, so new test suites run without
+        # editing this workflow.
+        run: |
+          files=$(git ls-files '*.test.js' '*.test.mjs')
+          if [ -z "$files" ]; then echo "No JavaScript tests yet."; exit 0; fi
+          node --test $files

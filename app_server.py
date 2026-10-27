@@ -106,6 +106,18 @@ def rate_limit(request: Request) -> None:
 # for, stay fully live.
 DEMO_MODE = os.environ.get("SIGNLYTIC_DEMO_MODE") == "1"
 
+# Mock inference, for contributors without an NVIDIA GPU or paid API keys.
+# Everything that runs on a CPU stays real: English to gloss, the rule-based
+# gloss to English converter, and sign frames, fetched from the website unless
+# SIGNLYTIC_SIGNS_API or local data says otherwise. Only what needs a GPU is
+# faked (video and webcam recognition, speech transcription, voice), with
+# fixed, made-up results marked "mock": true, so the whole interface can be
+# used and tested on any laptop. It loads no models and never imports torch.
+# For development only: mock results are not translations.
+MOCK_INFERENCE = os.environ.get("SIGNLYTIC_MOCK_INFERENCE") == "1"
+MOCK_GLOSSES = ["HELLO", "MY", "NAME", "WHAT"]
+MOCK_TRANSCRIPT = "Hello, what is your name?"
+
 FULL_APP_URL = os.environ.get(
     "SIGNLYTIC_FULL_APP_URL",
     "https://github.com/Iyanuoluwa007/Signlytic_AI/releases/latest",
@@ -114,7 +126,7 @@ FULL_APP_URL = os.environ.get(
 
 def require_full_install() -> None:
     """Refuse GPU-bound features on a demo box, and say where to get them."""
-    if not DEMO_MODE:
+    if not DEMO_MODE or MOCK_INFERENCE:
         return
     raise HTTPException(
         status_code=503,
@@ -227,6 +239,41 @@ def get_avatar_3d():
     return _avatar_3d
 
 
+def gloss_to_text(mode: str):
+    """
+    A gloss to English converter.
+
+    Imported as a bare module, for the same reason as get_text_to_gloss: the
+    qualified src.inference.gloss_to_text runs the package __init__, which
+    imports torch, so on a machine without torch every conversion failed and
+    fell back to lowercased glosses. In mock mode the rule-based converter is
+    used, so no API key or network is needed.
+    """
+    from gloss_to_text import GlossToText
+    return GlossToText(mode="simple" if MOCK_INFERENCE else mode)
+
+
+_mock_wav_b64: Optional[str] = None
+
+
+def mock_audio_b64() -> str:
+    """Half a second of a quiet 440 Hz tone, as base64 WAV: a stand-in voice."""
+    global _mock_wav_b64
+    if _mock_wav_b64 is None:
+        import io as _io, math, struct, wave
+        rate, n = 16000, 8000
+        buf = _io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(rate)
+            w.writeframes(b"".join(
+                struct.pack("<h", int(3000 * math.sin(2 * math.pi * 440 * i / rate)))
+                for i in range(n)))
+        _mock_wav_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return _mock_wav_b64
+
+
 def to_wav_16k_mono(input_path: str) -> str:
     """Convert any audio/video to 16kHz mono WAV using ffmpeg."""
     out = tempfile.mktemp(suffix=".wav")
@@ -251,6 +298,9 @@ def to_wav_16k_mono(input_path: str) -> str:
 async def _warmup():
     """Pre-load the BSL recognizer on boot so /api/health reports recognizer_ready
     before the camera starts (the readiness gate would otherwise deadlock)."""
+    if MOCK_INFERENCE:
+        print("[Server] mock inference: no models are loaded, GPU features return mock results")
+        return
     if DEMO_MODE:
         # The endpoints that need it are turned off, so loading torch and the
         # model here would only cost a slow boot and a few hundred MB on a box
@@ -285,7 +335,15 @@ DASHBOARD_PATH = project_root / "dashboard.html"
 @app.get("/", response_class=HTMLResponse)
 async def root():
     if DASHBOARD_PATH.exists():
-        return HTMLResponse(DASHBOARD_PATH.read_text(encoding="utf-8"))
+        html = DASHBOARD_PATH.read_text(encoding="utf-8")
+        if MOCK_INFERENCE:
+            # Impossible to miss, so nobody mistakes a mock result for a translation.
+            banner = ('<div role="status" style="position:sticky;top:0;z-index:99999;'
+                      'background:#7a4b00;color:#fff;padding:8px 16px;font:600 14px sans-serif;'
+                      'text-align:center">Mock inference mode: video, webcam, speech and voice '
+                      'results are made up for development. They are not translations.</div>')
+            html = html.replace("<body>", "<body>" + banner, 1) if "<body>" in html else banner + html
+        return HTMLResponse(html)
     return HTMLResponse("<h1>dashboard.html not found</h1>")
 
 
@@ -411,10 +469,11 @@ async def health():
                 pass
     # Live readiness — recognizer and XTTS are lazy-loaded module-level singletons
     # in app_server.py (set on first /api/live/frame and first /api/live/assemble).
-    recognizer_ready = globals().get("_bsl_dict_recognizer") is not None
-    tts_ready = globals().get("_xtts_model") is not None
+    recognizer_ready = MOCK_INFERENCE or globals().get("_bsl_dict_recognizer") is not None
+    tts_ready = MOCK_INFERENCE or globals().get("_xtts_model") is not None
     return {
         "status": "ok",
+        "mock_inference": MOCK_INFERENCE,
         "gpu": (torch.cuda.get_device_name(0) if torch and torch.cuda.is_available()
                 else ("CPU only" if torch else "no torch installed (demo box)")),
         "vocab_size": vocab_size,
@@ -435,6 +494,12 @@ async def d1_video(
     mode: str = Form("groq"),
     api_key: str = Form(""),
 ):
+    if MOCK_INFERENCE:
+        await file.read()
+        results = [{"gloss": g, "score": round(0.9 - 0.1 * i, 2)} for i, g in enumerate(MOCK_GLOSSES)]
+        glosses = MOCK_GLOSSES[:3]
+        return {"glosses": glosses, "english": gloss_to_text(mode).convert(glosses),
+                "results": results, "audio_b64": mock_audio_b64(), "mock": True}
     tmp = tempfile.mktemp(suffix=Path(file.filename).suffix or ".mp4")
     try:
         with open(tmp, "wb") as f:
@@ -457,8 +522,7 @@ async def d1_video(
         english = " ".join(glosses)
         if glosses:
             try:
-                from src.inference.gloss_to_text import GlossToText
-                english = GlossToText(mode=mode).convert(glosses)
+                english = gloss_to_text(mode).convert(glosses)
             except Exception as e:
                 print(f"[Server] GlossToText error: {e}")
         # TTS — speak the English translation
@@ -483,9 +547,7 @@ async def d1_glosses(
     if not gloss_list:
         raise HTTPException(status_code=400, detail="No glosses provided")
     try:
-        from src.inference.gloss_to_text import GlossToText
-        converter = GlossToText(mode=mode)
-        english = converter.convert(gloss_list)
+        english = gloss_to_text(mode).convert(gloss_list)
     except Exception as e:
         print(f"[Server] GlossToText error: {e}")
         english = " ".join(g.lower() for g in gloss_list)
@@ -496,7 +558,9 @@ async def d1_glosses(
     # the CPU, which would make this endpoint the slowest thing on a demo
     # machine while the useful part, the sentence, is already done.
     audio_b64 = None
-    if not DEMO_MODE:
+    if MOCK_INFERENCE:
+        audio_b64 = mock_audio_b64()
+    elif not DEMO_MODE:
         try:
             audio_b64 = _synthesize_xtts(english, project_root)
         except Exception as _tts_err:
@@ -505,8 +569,9 @@ async def d1_glosses(
         "glosses": gloss_list,
         "english": english,
         "audio_b64": audio_b64,
-        "voice_available": not DEMO_MODE,
-        "download": None if not DEMO_MODE else FULL_APP_URL,
+        "voice_available": MOCK_INFERENCE or not DEMO_MODE,
+        "download": None if (MOCK_INFERENCE or not DEMO_MODE) else FULL_APP_URL,
+        "mock": MOCK_INFERENCE,
     }
 
 
@@ -519,6 +584,12 @@ async def d1_glosses(
 # website's sign endpoint instead, which already serves exactly this data and
 # already caches it, so the box carries no data at all.
 SIGNS_API = os.environ.get("SIGNLYTIC_SIGNS_API", "").strip().rstrip("/")
+# A fresh clone has no local pose data, so mock mode signs from the public
+# website unless told otherwise, exactly as the hosted demo does. It does so
+# even where data/poses exists, because the local renderer needs OpenCV and is
+# imported through a package that loads torch, and mock mode promises neither.
+if MOCK_INFERENCE and not SIGNS_API:
+    SIGNS_API = "https://signlytic-ai-website.vercel.app/api/signs"
 
 # Match PoseSignRenderer's defaults, so playback timing is identical whichever
 # source is in use.
@@ -646,6 +717,22 @@ async def d2_audio(
     speed: float = Form(1.0),
     avatar: str = Form("male"),
 ):
+    if MOCK_INFERENCE:
+        await file.read()
+        converter = get_text_to_gloss()
+        glosses = converter.convert(MOCK_TRANSCRIPT)
+        info = converter.convert_with_info(MOCK_TRANSCRIPT)
+        frames = _collect_pose_frames(glosses, speed)
+        return {
+            "text": MOCK_TRANSCRIPT,
+            "glosses": glosses,
+            "coverage": float(info.get("coverage", 0.0)) if info else 0.0,
+            "out_of_vocab": (info.get("out_of_vocab", []) if info else [])[:10],
+            "frames": frames,
+            "frame_count": len(frames),
+            "fps": REMOTE_OUTPUT_FPS if SIGNS_API else get_pose_renderer().output_fps,
+            "mock": True,
+        }
     tmp = tempfile.mktemp(suffix=Path(file.filename).suffix or ".wav")
     try:
         with open(tmp, "wb") as f:
@@ -676,8 +763,17 @@ async def d2_audio(
 
 
 # ── Live: single webcam frame → gloss ────────────────────────────────────────
+_mock_live_i = 0
 @app.post("/api/live/frame", dependencies=[Depends(rate_limit), Depends(require_full_install)])
 async def live_frame(file: UploadFile = File(...)):
+    if MOCK_INFERENCE:
+        # Cycle through the mock glosses, one per call, so sentence assembly
+        # in the interface has something to assemble.
+        await file.read()
+        global _mock_live_i
+        g = MOCK_GLOSSES[_mock_live_i % len(MOCK_GLOSSES)]
+        _mock_live_i += 1
+        return {"results": [{"gloss": g, "score": 0.9}], "audio_b64": None, "mock": True}
     recognizer = get_bsl_dict_recognizer()
     if recognizer is None:
         raise HTTPException(status_code=503, detail="Recognizer not available")
@@ -727,8 +823,7 @@ async def live_assemble(payload: dict = Body(...)):
 
     # Gloss -> English
     try:
-        from src.inference.gloss_to_text import GlossToText
-        english = GlossToText(mode="groq").convert(glosses)
+        english = gloss_to_text("groq").convert(glosses)
     except Exception as e:
         print(f"[Live] GlossToText error: {e}")
         english = " ".join(g.lower() for g in glosses).capitalize() + "."
@@ -740,7 +835,9 @@ async def live_assemble(payload: dict = Body(...)):
     # the useful part, is already done.
     audio_b64 = None
     err: Optional[str] = None
-    if not DEMO_MODE:
+    if MOCK_INFERENCE:
+        audio_b64 = mock_audio_b64()
+    elif not DEMO_MODE:
         try:
             audio_b64 = _synthesize_xtts(english, project_root)
         except Exception as e:
@@ -853,6 +950,8 @@ if __name__ == "__main__":
     print(f"  bind: {args.host}"
           f"{'  (network exposed)' if not loopback else '  (this machine only)'}")
     print(f"  admin token: {'set' if ADMIN_TOKEN else 'not set'}")
+    if MOCK_INFERENCE:
+        print("  MOCK INFERENCE: GPU features return made-up results")
     print(f"  rate limit: {RATE_LIMIT_REQUESTS}/min per client"
           f"{'  (disabled)' if RATE_LIMIT_REQUESTS <= 0 else ''}")
     print(f"{'='*55}\n")
