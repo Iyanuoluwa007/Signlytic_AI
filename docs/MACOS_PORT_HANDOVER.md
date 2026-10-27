@@ -166,10 +166,13 @@ macOS, so it cannot break a Windows build.
 
 ## Distribution status
 
-`signlytic-desktop/dist/Signlytic AI-0.3.9-universal.dmg`, 217 MB, universal
-(x86_64 and arm64). Mounts, installs by drag, launches, and the microphone and
-system audio sources appear in the settings panel. Builds from `main` do not
-carry the unverified Live Captions source.
+Released at 0.3.11 as `Signlytic.AI-0.3.11-universal.dmg` on the
+[desktop-v0.3.11](https://github.com/Iyanuoluwa007/Signlytic-Overlay/releases/tag/desktop-v0.3.11)
+release, alongside the Windows installer: 218 MB, universal (x86_64 and arm64).
+Built on the Mac on 12 October 2026. Mounts, installs by drag, launches, both
+avatars sign, and the microphone and system audio sources appear in the
+settings panel. Captions have not yet been tested end to end on this build.
+Builds from `main` do not carry the unverified Live Captions source.
 
 **It is ad-hoc signed but not notarised.** Until 0.3.9 it was not signed at
 all: electron-builder found no Developer ID, skipped signing, and the app
@@ -182,8 +185,12 @@ trust an ad-hoc signature, so nothing changes for a tester downloading it.
 Consequences a tester will actually hit:
 
 - Downloaded from anywhere, macOS attaches a quarantine flag and refuses to
-  open it, usually saying the app is damaged. Right-click, Open, then Open
-  again, or `xattr -dr com.apple.quarantine "/Applications/Signlytic AI.app"`.
+  open it the first time. Choose Done, then open System Settings, Privacy and
+  Security, scroll down to Security, and choose Open Anyway next to the message
+  about Signlytic AI. Right-click and Open only works on macOS 13 and 14;
+  Apple removed it in macOS 15 (confirmed on macOS 26). Clearing the flag with
+  `xattr -dr com.apple.quarantine "/Applications/Signlytic AI.app"` works on
+  every version.
 - Permissions granted to it may be dropped whenever the app is rebuilt, because
   ad-hoc signing gives it a new code identity each time. This looks like a bug
   and is not one.
