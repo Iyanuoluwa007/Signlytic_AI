@@ -452,7 +452,7 @@ export default function DemoPage() {
                 <p className="text-[13px] text-white/35 mb-6"><Signable text="Architecture, models, and performance.">Architecture, models, and performance.</Signable></p>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-                  {[{ val: "100%", label: "Top-1 Accuracy" }, { val: "5,203", label: "BSL Signs" }, { val: "11,573+", label: "Glosses" }, { val: "92%", label: "ROUGE-L" }].map(m => (
+                  {[{ val: "100%", label: "Top-1 (dictionary videos)" }, { val: "5,203", label: "BSL Signs" }, { val: "11,573+", label: "Glosses" }, { val: "92%", label: "ROUGE-L" }].map(m => (
                     <div key={m.label} className="bg-white/[0.02] border border-white/[0.06] border-t-2 border-t-[#0e7c6b] rounded-xl p-4 text-center">
                       <div className="text-[1.4rem] font-extrabold text-white/85 tracking-tight">{m.val}</div>
                       <div className="text-[10px] font-semibold text-white/25 uppercase tracking-wider mt-0.5">{m.label}</div>
@@ -489,6 +489,7 @@ export default function DemoPage() {
                       ))}
                     </tbody>
                   </table>
+                  <p className="px-4 py-3 text-[13px] text-white/30">BSL Dict Retrieval is measured on the dictionary videos themselves, so each query has an exact match. Expect lower accuracy on new recordings.</p>
                 </div>
               </div>
             )}

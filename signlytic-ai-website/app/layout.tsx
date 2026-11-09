@@ -6,7 +6,7 @@ import BslLayer from "@/components/BslLayer";
 export const metadata: Metadata = {
   title: "Signlytic AI - British Sign Language Translation",
   description:
-    "Bidirectional BSL translation system. Upload BSL videos for English, convert English to BSL signing. 5,203 signs, 100% dictionary accuracy. Powered by Video-SWIN-T, Groq LLM, Coqui TTS.",
+    "Bidirectional BSL translation system. Upload BSL videos for English, convert English to BSL signing. 5,203 signs, 100% Top-1 on dictionary videos. Powered by Video-SWIN-T, Groq LLM, Coqui TTS.",
   keywords: [
     "BSL",
     "British Sign Language",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Signlytic AI - BSL Translation",
     description:
-      "Bidirectional BSL translation. 5,203 signs, 100% dictionary accuracy.",
+      "Bidirectional BSL translation. 5,203 signs, 100% Top-1 on dictionary videos.",
     type: "website",
     locale: "en_GB",
     url: "https://signlytic-ai-website.vercel.app",

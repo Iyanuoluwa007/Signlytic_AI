@@ -271,7 +271,7 @@ export default function Home() {
             <div className="flex gap-16">
               {[
                 { n: "5,203", l: "BSL signs" },
-                { n: "100%", l: "accuracy" },
+                { n: "100%", l: "dictionary match" },
                 { n: "11,573+", l: "glosses" },
               ].map((s) => (
                 <div key={s.l}>
@@ -334,7 +334,7 @@ export default function Home() {
               },
               {
                 title: "5,203 BSL Signs",
-                desc: "Trained on BSLDict with retrieval-based recognition achieving perfect Top-1 accuracy on dictionary signs.",
+                desc: "Retrieval-based recognition on BSLDict. It scores 100% Top-1 when the query is one of the 5,203 dictionary videos. New recordings score lower.",
               },
               {
                 title: "Accessibility First",
@@ -587,6 +587,7 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
+              <p className="px-6 py-4 text-[13px] text-white/30">BSL Dict Retrieval is measured on the dictionary videos themselves, so each query has an exact match. Expect lower accuracy on new recordings.</p>
             </div>
           </Reveal>
         </div>
@@ -712,7 +713,7 @@ export default function Home() {
             {[
               {
                 title: "Retrieval over classification",
-                desc: "Cosine similarity on 768-dim SWIN features achieves perfect accuracy across 5,203 BSL dictionary signs with one sample per class.",
+                desc: "Cosine similarity on 768-dim SWIN features finds the exact match for each of the 5,203 dictionary videos (one sample per class). Accuracy on new, user-recorded videos is lower.",
               },
               {
                 title: "Fast feature extraction",
