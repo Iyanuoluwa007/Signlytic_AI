@@ -518,7 +518,7 @@ export default function Home() {
           {/* Metric strip */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/[0.04] rounded-2xl overflow-hidden border border-white/[0.04] mb-16">
             {[
-              { val: 100, suf: "%", label: "Top-1 Accuracy", sub: "BSL Dict Retrieval" },
+              { val: 100, suf: "%", label: "Top-1 Accuracy", sub: "On dictionary videos" },
               { val: 5203, suf: "", label: "BSL Signs", sub: "Dictionary coverage" },
               { val: 11573, suf: "+", label: "Glosses", sub: "Vocabulary size" },
               { val: 92, suf: "%", label: "ROUGE-L", sub: "Gloss-to-text" },
