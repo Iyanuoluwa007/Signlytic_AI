@@ -52,6 +52,18 @@ So `CaptionAssembler`:
 Verified against buffers actually recorded from Live Captions: no replay of
 pre-attach history, no duplicates, no half sentences.
 
+Each of those rules has a test in `signlytic-desktop/test/caption-assembler.test.js`.
+Run them with `npm test` in `signlytic-desktop`. They pass the time in by hand,
+so none of them waits or sleeps.
+
+Known limits, kept on purpose for now:
+
+- A new sentence that begins with one already released ("Thank you." and then,
+  later, "Thank you for coming today.") is treated as a rewrite and not signed.
+- A sentence repeated word for word is signed once, until 200 other sentences
+  have passed.
+- An abbreviation followed by a space ("Dr. Smith") still ends the sentence.
+
 ## Element identifiers
 
     LiveCaptionsDesktopWindow   window class
