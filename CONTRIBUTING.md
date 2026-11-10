@@ -100,14 +100,20 @@ hosted site's.
 These are the same checks CI runs on every pull request:
 
 ```bash
-pytest tests/ -q                       # server tests, in mock mode, offline
+pytest tests/ -q                       # Python tests: the server in mock mode, and gloss to English
 python scripts/check_versions.py       # every version number agrees
+npm test --prefix signlytic-desktop    # desktop tests: caption sentence assembly
 cd signlytic-ai-website && npx tsc --noEmit   # website type check
 ```
 
+`npm test` needs only Node.js 20 or newer; there is nothing to install first.
+
 New tests go in `tests/` (Python, named `test_*.py`) or next to the code they
-test (JavaScript, named `*.test.js`, run with `node --test`). CI picks both up
-without any change to the workflow. Tests must not need a GPU, a network
+test (JavaScript, named `*.test.js`, run with `node --test`). The desktop app's
+tests live in `signlytic-desktop/test/`, so they are not packaged into the
+app. CI picks all of them up without any change to the workflow.
+
+Tests must not need a GPU, a network
 connection or an API key, and must use small fixtures you write yourself,
 never sign pose data.
 

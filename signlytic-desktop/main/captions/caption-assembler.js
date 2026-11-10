@@ -15,7 +15,10 @@
 //
 // Kept free of Electron and Node APIs so it can be tested directly.
 
-const SENTENCE_END = /[.!?]+["')\]]*\s*/;
+// A sentence ends at . ! or ? only when a space or the end of the buffer
+// follows. Without that, the full stop inside "3.50" or "example.com" split one
+// sentence into two halves, and each half was signed as its own sentence.
+const SENTENCE_END = /[.!?]+["')\]]*(?:\s+|$)/;
 
 // Compare on words only: Live Captions revises punctuation and casing after
 // the fact, and those revisions must not read as a new sentence.

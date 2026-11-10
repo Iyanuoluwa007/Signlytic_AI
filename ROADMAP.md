@@ -33,7 +33,6 @@ making that checkable by anyone.
 - Improve keyboard and screen-reader accessibility (#8)
 - Review the extension's permissions and document its privacy behaviour
   (Overlay #3)
-- Publish checksums and reproducible build steps for releases (Overlay #5)
 
 ## Next: make it better to watch and easier to use
 
@@ -46,10 +45,13 @@ making that checkable by anyone.
 
 ## Contributor experience
 
-- Automated tests for gloss to English conversion (#5) and caption sentence
-  assembly (Overlay #2). CI already runs on every pull request and picks up new
-  test files automatically.
-- Fix and validate the quick-start installation instructions (#4)
+Done: gloss to English conversion and caption sentence assembly have automated
+tests that run on every pull request, the quick-start instructions have been
+checked on a clean machine, and releases carry checksums with documented build
+steps ([docs/RELEASING.md](docs/RELEASING.md)).
+
+- More tests are welcome anywhere. CI picks up new test files automatically;
+  see [CONTRIBUTING.md](CONTRIBUTING.md#running-the-checks).
 
 ## Phase 2: mobile apps
 
@@ -64,7 +66,7 @@ These are bigger than one issue and are not started:
 - Recognising continuous signing, not just isolated signs
 - Facial expressions and other non-manual features, which carry grammar in BSL
 - Code-signing and notarising the desktop builds, so neither operating system
-  warns on install
+  warns on install, and making those builds repeatable byte for byte
 - A Chrome Web Store listing for the extension
 
 ## What will not change

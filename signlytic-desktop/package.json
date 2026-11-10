@@ -10,7 +10,8 @@
     "sync-vendor": "node scripts/sync-vendor.js",
     "start": "npm run sync-vendor && electron .",
     "dist": "npm run sync-vendor && node scripts/build-mac-helper.js && electron-builder",
-    "build:mac-helper": "node scripts/build-mac-helper.js"
+    "build:mac-helper": "node scripts/build-mac-helper.js",
+    "test": "node --test"
   },
   "build": {
     "appId": "ai.signlytic.desktop",

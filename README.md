@@ -163,28 +163,81 @@ version streams can move independently of the research code here.
 
 ## Getting Started
 
-### Requirements
+There are two ways to run Signlytic AI from source. Start with the first: it
+works on any computer and takes a few minutes.
 
-- Python 3.11
-- NVIDIA GPU with CUDA support (RTX 4060 or equivalent)
-- Conda package manager
+### Quick start on any computer
 
-No GPU? To work on the interface, the APIs or bugs, use mock inference mode
-instead: see [Set up a development copy](CONTRIBUTING.md#set-up-a-development-copy).
-
-### Installation
+Needs git and Python 3.11 or newer. No NVIDIA GPU, no model files and no API
+key.
 
 ```bash
 git clone https://github.com/Iyanuoluwa007/Signlytic_AI.git
-cd Signlytic_AI/code/bsl_translation_project
+cd Signlytic_AI
 
-conda create -n BSL python=3.11
-conda activate BSL
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
 
-pip install -r requirements.txt
+SIGNLYTIC_MOCK_INFERENCE=1 python app_server.py
+# Windows PowerShell: $env:SIGNLYTIC_MOCK_INFERENCE="1"; python app_server.py
 ```
 
-### Environment Variables
+Then open <http://localhost:8000>. A banner across the top says you are in mock
+inference mode. English to BSL signing and typed glosses to English are real.
+Everything that needs a GPU answers with a fixed, made-up result that is marked
+as mock. The full list is in
+[Set up a development copy](CONTRIBUTING.md#set-up-a-development-copy).
+
+If Windows PowerShell refuses to run the activate script, use Command Prompt
+and `.venv\Scripts\activate.bat` instead.
+
+### Full system
+
+Needs Python 3.12 (the version this is tested with; 3.11 should also work),
+about 2 GB of disk for the packages, or about 6 GB with the CUDA build, and
+[FFmpeg](https://ffmpeg.org/download.html) on your PATH for video and audio.
+
+Start from the same clone and a new virtual environment. **On Windows with an
+NVIDIA GPU, install the CUDA build of PyTorch first.** Plain `pip` gives
+Windows a CPU-only PyTorch, and everything then runs on the CPU without saying
+so. Pick the command for your system at
+[pytorch.org](https://pytorch.org/get-started/locally/), for example:
+
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+```
+
+Then, with or without a GPU:
+
+```bash
+pip install -r requirements.txt
+python app_server.py
+```
+
+Open <http://localhost:8000>. `python app_server.py` is the main application:
+a dashboard in the browser, and the same server the hosted demo runs.
+`python app.py` starts the older Gradio interface on <http://127.0.0.1:7860>
+instead.
+
+What works depends on what the machine has:
+
+| Feature | Needs |
+|---------|-------|
+| English text to BSL glosses and signing | Nothing more. Signs not held locally are fetched from the website. |
+| BSL glosses to fluent English | `CEREBRAS_API_KEY` or `GROQ_API_KEY` (below). Without either, the glosses are joined as they are. |
+| BSL video and webcam recognition | An NVIDIA GPU, and the sign dictionary features (see below) |
+| Speech to BSL (Whisper) | An NVIDIA GPU is recommended |
+| Spoken English voice (Coqui XTTS) | An NVIDIA GPU is recommended, and a reference voice recording at `data/processed/voice_training.wav` |
+
+**The sign dictionary data and trained models are not in this repository.**
+They are derived from datasets licensed for research only (see
+[Datasets](#datasets)), so a fresh clone cannot recognise BSL from video. The
+server still starts without them and reports what is missing at
+<http://localhost:8000/api/health>. The files it looks for are listed under
+[Data and Models](#data-and-models).
+
+### Environment variables
 
 ```
 CEREBRAS_API_KEY=<your-cerebras-api-key>
@@ -192,19 +245,24 @@ GROQ_API_KEY=<your-groq-api-key>
 ```
 
 Cerebras is the primary gloss-to-English provider and Groq is the fallback,
-used when Cerebras errors or times out. Either key on its own is enough to
-start: with only `GROQ_API_KEY` set, Groq serves every request; with only
+used when Cerebras errors or times out. Either key on its own is enough: with
+only `GROQ_API_KEY` set, Groq serves every request; with only
 `CEREBRAS_API_KEY` set, a Cerebras failure falls through to the rule-based
-converter, whose output is noticeably plainer. With neither set, the converter
-refuses to start in `groq` mode rather than degrading silently.
+converter, whose output is noticeably plainer. With neither set, the server
+still runs and returns the glosses joined as plain words.
 
-### Run the Application
+### Run the tests
+
+The tests need no GPU, no network and no API keys.
 
 ```bash
-conda activate BSL
-python app.py
-# Open http://127.0.0.1:7860
+pip install -r requirements-dev.txt
+pytest tests/ -q                    # the server in mock mode, and gloss to English
+npm test --prefix signlytic-desktop # caption sentence assembly (Node.js 20 or newer)
 ```
+
+The same checks run on every pull request. More in
+[CONTRIBUTING.md](CONTRIBUTING.md#running-the-checks).
 
 ---
 
