@@ -1,7 +1,18 @@
 # Core ML
+# On Windows with an NVIDIA GPU, install the CUDA build of torch, torchvision
+# and torchaudio first (see "Full system" in the README). Plain pip gives
+# Windows a CPU-only torch, and everything then runs on the CPU.
 torch>=2.0.0
 torchvision>=0.15.0
+# Coqui TTS refuses to import without torchaudio. It was missing from this
+# file, so a clean install had no voice.
+torchaudio>=2.0.0
 numpy>=1.24.0
+
+# Video frames in and signing frames out (bsl_dict_recognizer.py,
+# pose_sign_renderer.py). It was missing from this file, so on a clean install
+# English to BSL failed with "No module named 'cv2'".
+opencv-python>=4.8.0
 
 # Transformers & NLP
 transformers>=4.30.0
@@ -20,7 +31,9 @@ pyyaml>=6.0
 # failed outright on anything newer with "No matching distribution found". The
 # fork is maintained, supports current Python, and keeps the same import path,
 # so `from TTS.api import TTS` is unchanged in app_server.py and the scripts.
-coqui-tts>=0.27.5
+# The codec extra adds torchcodec, which PyTorch 2.9 and newer need for audio
+# files. Without it `from TTS.api import TTS` raises ImportError.
+coqui-tts[codec]>=0.27.5
 openai-whisper>=20230314
 
 # Evaluation
