@@ -318,7 +318,7 @@ export default function Home() {
             {[
               {
                 title: "BSL Video to English",
-                desc: "Upload signing video. Video-SWIN-T recognises signs across 5,203 classes and translates to natural English.",
+                desc: "Upload signing video. Video-SWIN-T matches each sign against 5,203 dictionary videos, and the result is translated to natural English.",
               },
               {
                 title: "English to BSL Signing",
