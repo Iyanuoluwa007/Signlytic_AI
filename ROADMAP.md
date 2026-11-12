@@ -29,10 +29,15 @@ making that checkable by anyone.
 - Build an English to gloss evaluation set with BSL reviewers (#12)
 - Build a held-out signer evaluation for sign recognition (#7)
 - Fingerspell unknown words with the BSL two-handed manual alphabet (#2)
-- Report which everyday words have no sign (#10)
 - Improve keyboard and screen-reader accessibility (#8)
 - Review the extension's permissions and document its privacy behaviour
   (Overlay #3)
+
+Done: a report of which everyday words have no sign. Of the 500 most frequent
+English words, 440 convert to a sign gloss, and 364 of those have every sign
+(82.7%). The words still missing are listed in
+[scripts/sign_coverage_report.md](scripts/sign_coverage_report.md); until they
+have signs they are fingerspelled, which is what #2 improves.
 
 ## Next: make it better to watch and easier to use
 
