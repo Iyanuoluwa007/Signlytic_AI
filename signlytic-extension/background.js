@@ -60,14 +60,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       chrome.storage.sync.get('settings', ({ settings }) => {
         const updated = { ...settings, enabled: msg.enabled };
         chrome.storage.sync.set({ settings: updated }, () => {
-          // Tell the active tab's content script
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0]?.id) {
-              chrome.tabs.sendMessage(tabs[0].id, {
-                type: msg.enabled ? 'INJECT_OVERLAY' : 'REMOVE_OVERLAY',
-              }).catch(() => {});
-            }
-          });
+          if (msg.enabled) {
+            // Switched on: bring the panel back on the tab being looked at.
+            // Other tabs get it the next time they load.
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+              if (tabs[0]?.id) {
+                chrome.tabs.sendMessage(tabs[0].id, { type: 'INJECT_OVERLAY' }).catch(() => {});
+              }
+            });
+          } else {
+            // Switched off: remove the panel everywhere, not only on the
+            // active tab, so nothing keeps reading captions or listening in a
+            // tab the user is not looking at.
+            chrome.tabs.query({}, (tabs) => {
+              tabs.forEach((tab) => {
+                if (tab.id) chrome.tabs.sendMessage(tab.id, { type: 'REMOVE_OVERLAY' }).catch(() => {});
+              });
+            });
+          }
         });
       });
       sendResponse({ ok: true });

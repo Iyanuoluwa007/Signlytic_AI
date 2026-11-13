@@ -1,7 +1,7 @@
 // popup.js: Signlytic AI Extension Popup
 
 const SOURCE_HINTS = {
-  auto:     'Detects page captions, falls back to mic',
+  auto:     'Detects page captions, falls back to mic on video sites',
   captions: 'Only reads page captions (YouTube CC, BBC, Netflix…)',
   mic:      'Uses your microphone only',
   manual:   'Type text directly in the overlay panel',

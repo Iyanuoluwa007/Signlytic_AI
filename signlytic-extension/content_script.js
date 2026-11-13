@@ -37,6 +37,11 @@ try {
   chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res) => {
     if (chrome.runtime.lastError) return;
     settings = res?.settings || {};
+    // Switched off in the popup: add nothing to the page, read nothing, and
+    // never touch the microphone. This check was missing, so "off" only
+    // removed the panel from the current page and every page opened
+    // afterwards got it back. Only an explicit false counts as off.
+    if (settings.enabled === false) return;
     // Check exclusion list before injecting
     chrome.storage.sync.get({ excludedSites: [] }, ({ excludedSites }) => {
       if ((excludedSites || []).includes(window.location.hostname)) return;
@@ -47,7 +52,12 @@ try {
 chrome.runtime.onMessage.addListener((msg) => {
   switch (msg.type) {
     case 'INJECT_OVERLAY':
-      chrome.storage.sync.get({ excludedSites: [] }, ({ excludedSites }) => {
+      // Re-read the saved settings rather than trusting the copy taken when
+      // the page loaded: this message is how the panel comes back after being
+      // switched on again, and it must not appear while switched off.
+      chrome.storage.sync.get({ settings: null, excludedSites: [] }, ({ settings: saved, excludedSites }) => {
+        if (saved) settings = saved;
+        if (settings.enabled === false) return;
         if (!(excludedSites || []).includes(window.location.hostname)) injectOverlay();
       });
       break;
@@ -173,7 +183,10 @@ function postToOverlay(data) {
   overlayFrame.contentWindow.postMessage(data, chrome.runtime.getURL('/'));
 }
 // - Caption detection (MutationObserver) -
-// Sites where mic fallback makes sense
+// Sites where falling back to the microphone makes sense: video sites, where
+// the sound of the programme is what needs signing. Auto mode uses the
+// microphone only here. On any other site the microphone is used only if the
+// user has chosen Microphone mode themselves.
 const MIC_FRIENDLY_HOSTS = [
   'youtube.com', 'bbc.co.uk', 'netflix.com', 'amazon.',
   'channel4.com', 'disneyplus.', 'tv.apple.com', 'vimeo.com',
@@ -240,7 +253,10 @@ function waitForCaptions() {
       postToOverlay({ type: 'STATUS', status: 'listening', message: 'captions detected - listening' });
       return;
     }
-    if (source === 'auto') {
+    // This list existed but was never consulted, so Auto mode asked for the
+    // microphone on every kind of website after 5 seconds without captions.
+    const micFallback = source === 'auto' && isMicFriendlySite();
+    if (micFallback) {
       const remaining = COUNTDOWN_START - elapsed;
       if (remaining > 0) {
         postToOverlay({ type: 'COUNTDOWN', seconds: remaining, message: 'No captions. Audio in ' + remaining + '...' });
@@ -255,7 +271,7 @@ function waitForCaptions() {
         return;
       }
     }
-    if (source === 'captions' && elapsed > 300) {
+    if (!micFallback && elapsed > 300) {
       clearInterval(captionPollInterval);
       captionPollInterval = null;
       postToOverlay({ type: 'STATUS', status: 'idle', message: 'no captions found - enable CC' });

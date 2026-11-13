@@ -103,6 +103,7 @@ These are the same checks CI runs on every pull request:
 pytest tests/ -q                       # Python tests: the server in mock mode, and gloss to English
 python scripts/check_versions.py       # every version number agrees
 npm test --prefix signlytic-desktop    # desktop tests: caption sentence assembly
+node --test tests/extension/extension-privacy.test.js   # extension: on/off switch, microphone, permissions
 cd signlytic-ai-website && npx tsc --noEmit   # website type check
 ```
 
@@ -110,8 +111,9 @@ cd signlytic-ai-website && npx tsc --noEmit   # website type check
 
 New tests go in `tests/` (Python, named `test_*.py`) or next to the code they
 test (JavaScript, named `*.test.js`, run with `node --test`). The desktop app's
-tests live in `signlytic-desktop/test/`, so they are not packaged into the
-app. CI picks all of them up without any change to the workflow.
+tests live in `signlytic-desktop/test/` and the extension's in
+`tests/extension/`, so neither is packaged into what users download. CI picks
+all of them up without any change to the workflow.
 
 Tests must not need a GPU, a network
 connection or an API key, and must use small fixtures you write yourself,
